@@ -429,7 +429,7 @@ button.normal{
     justify-content: space-between;
     flex-wrap: wrap;
     align-items: center;
-    background-color: #f32424;
+    background-color: #DAA060;
 }
 
 #newsletter h4{
@@ -455,7 +455,7 @@ button.normal{
     width: 40%;
 }
 #newsletter p span{
-    color: #ff69b4;
+    color: #000;
 }
 
 #newsletter input{
@@ -1032,4 +1032,71 @@ button.normal{
     border: 1px solid #e2e9e1;
     padding: 10px;
     font-size: 13px;
+
+}
+
+
+body {
+  background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
+  background-size: cover;
+}
+
+#signin .auth-container {
+  background: #fff;
+  width: 350px;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  text-align: center;
+  margin: 2rem auto;
+}
+
+#signin .auth-container h2 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+#signin .auth-container form {
+  display: none;
+  flex-direction: column;
+  gap: 15px;
+}
+
+#signin .auth-container form.active {
+  display: flex;
+}
+
+#signin .auth-container input {
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+}
+
+#signin .auth-container button {
+  padding: 12px;
+  background: #ff69b4;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+#signin .auth-container button:hover {
+  background: #ff69b4;
+}
+
+#signin .auth-container .toggle-text {
+  margin-top: 15px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+#signin .auth-container .toggle-text span {
+  color: #ff69b4;
+  cursor: pointer;
+  font-weight: bold;
 }
