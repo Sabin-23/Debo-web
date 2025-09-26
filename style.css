@@ -110,6 +110,15 @@ body {
     left: 20px;
 }
 
+#mobile{
+  display: none;
+  align-items: center;
+}
+
+#close{
+  display: none;
+}
+
 /*Home Page*/
 #hero{
     background-image: url("img/land.png");
@@ -430,6 +439,7 @@ button.normal{
     flex-wrap: wrap;
     align-items: center;
     background-color: #DAA060;
+   
 }
 
 #newsletter h4{
@@ -789,7 +799,7 @@ button.normal{
 
 
 /* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 799px) {
   #navbar {
     display: flex;
     flex-direction: column;
@@ -857,28 +867,7 @@ button.normal{
   }
   #feature .fe-box {
     margin: 12px 15px;
-  }
-  .about-container {
-    grid-template-columns: 1fr;
-  }
-
-  .about-media img {
-    height: 260px;
-  }
-
-  .about-values {
-    grid-template-columns: repeat(1, 1fr);
-  }
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .about-media img {
-    transition: transform 0.35s ease, box-shadow 0.35s ease;
-  }
-  .about-media img:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 28px rgba(17,17,17,0.12);
-  }
 }
 
 
@@ -1100,8 +1089,11 @@ button.normal{
     border: 1px solid #e2e9e1;
     padding: 10px;
     font-size: 13px;
-
 }
+
+
+
+/* Signin Page*/
 
 
 body {
@@ -1168,4 +1160,3 @@ body {
   cursor: pointer;
   font-weight: bold;
 }
-
