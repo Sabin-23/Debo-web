@@ -1012,6 +1012,18 @@ button.normal{
   #newsletter .form {
     width: 100%;
   }
+  #prodetails {
+    display: flex;
+    flex-direction: column;
+  }
+  #prodetails .single-pro-image{
+    width: 100%;
+    margin-right: 0px;
+  }
+  #prodetails .single-pro-details{
+    width: 100%;
+
+  }
   
 }
 
@@ -1245,6 +1257,7 @@ body {
   background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
   background-size: cover;
 }
+
 
 
 
