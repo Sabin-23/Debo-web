@@ -957,7 +957,7 @@ button.normal{
 
   #hero h1,
   #hero h2{
-    text-align: right;
+    margin-left: auto;
   }
   #hero h4,
   #hero button{
@@ -1245,6 +1245,7 @@ body {
   background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
   background-size: cover;
 }
+
 
 
 
