@@ -8,9 +8,6 @@
     <title> God's only Store</title>
      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <!-- Add this once on every page (head or before script.js) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
-
 </head>
 
 <body>
@@ -22,16 +19,42 @@
             <ul id="navbar">
                 <li><a href="index.html">Home</a></li>
                 <li><a class="active" href="shop.html">Shop</a></li>
-                <li><a href="about.html">About</a></li>
+                <li><a href="About.html">About</a></li>
                 <li><a href="contact.html">Contact</a></li>
-                <li><a href="cart.html"><i class="fa-solid fa-bag-shopping"></i></a></li>
-                <li><a href="signin.html">Sign-in/Register</a></li>
+                <li id="lg-bag"><a href="cart.html"><i class="fa-solid fa-bag-shopping"></i></a></li>
+                <button id="openModal">Sign-in/Register</button>
+                <div class="modal" id="modal">
+                    <div class="auth-container">
+                        <h2 id="form-title">Sign In</h2>
+
+                        <!-- Sign In Form -->
+                        <form id="signin-form" class="active">
+                            <input type="email" placeholder="Email" required />
+                            <input type="password" placeholder="Password" required />
+                            <button type="submit">Sign In</button>
+                        </form>
+
+                        <!-- Register Form -->
+                        <form id="register-form">
+                            <input type="text" placeholder="Full Name" required />
+                            <input type="email" placeholder="Email" required />
+                            <input type="password" placeholder="Password" required />
+                            <input type="password" placeholder="Confirm Password" required />
+                            <button type="submit">Register</button>
+                        </form>
+
+                        <p class="toggle-text">
+                            Don’t have an account? <span id="toggle">Register</span>
+                        </p>
+                        <button id="closeModal">Close</button>
+                    </div>
+                </div>
                 <a href="#" id="close"><i class="far fa-times-circle"></i></a>
             </ul>
-        </div>
-        <div id="mobile">
-            <a href="cart.html"><i class="fa-solid fa-bag-shopping"></i></a>
-            <i id="bar" class="fas fa-outdent"></i>
+            <div id="mobile">
+                <a href="cart.html"><i class="fa-solid fa-bag-shopping"></i></a>
+                <i id="bar" class="fas fa-outdent"></i>
+            </div>
         </div>
     </section>
 
@@ -230,7 +253,4 @@
   <script src="script.js"></script>
 </body>
 
-
 </html>
-
-
