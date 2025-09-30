@@ -1024,7 +1024,16 @@ button.normal{
     width: 100%;
 
   }
-  
+  #cart-add{
+    flex-direction: column;
+  }
+  #coupon{
+    width: 100%;
+  }
+  #subtotal{
+    width: 100%;
+    padding: 20px;
+  }
 }
 
 
@@ -1257,6 +1266,7 @@ body {
   background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
   background-size: cover;
 }
+
 
 
 
