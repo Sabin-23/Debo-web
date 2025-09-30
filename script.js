@@ -51,6 +51,38 @@ closeBtn.addEventListener("click", () => {
   modal.classList.remove("open");
 });
 
+// trial-success shop page
+// Same KEY as in admin
+const KEY = "local_products_v1";
+
+function loadAll() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+  catch { return []; }
+}
+
+// Render shop products
+function renderShopProducts() {
+  const products = loadAll();
+  const container = document.querySelector(".pro-container");
+  container.innerHTML = "";
+
+  products.forEach(p => {
+    container.innerHTML += `
+      <div class="pro">
+        <img src="${p.image_data_url}" alt="${p.name}">
+        <div class="des">
+          <span>Custom</span>
+          <h5>${p.name}</h5>
+          <h4>$${(p.price_cents/100).toFixed(2)}</h4>
+        </div>
+        <a href="#"><i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i></a>
+      </div>
+    `;
+  });
+}
+
+renderShopProducts();
+
 
 /* script.js -- single file for product rendering, cart state, auth, and cart page
    Replace SUPABASE_URL and SUPABASE_ANON_KEY below with your Supabase project credentials.
@@ -592,6 +624,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
 });
+
 
 
 
