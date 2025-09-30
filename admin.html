@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mini Clothes Shop (Local Only)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./stylesad.css" />
+</head>
+<body>
+  <header>
+    <h1>Clothes Admin (Local Test)</h1>
+    <div class="muted">No database — uses your browser storage</div>
+  </header>
+
+  <main>
+    <section class="card">
+      <form id="form">
+        <div class="full">
+          <label>Image</label>
+          <div class="preview-wrap">
+            <img id="preview" class="preview" alt="preview" />
+            <input id="file" type="file" accept="image/*" />
+          </div>
+          <div class="hint">Stored locally as a data URL (base64). Keep images small (&lt;1–2MB) for testing.</div>
+        </div>
+
+        <div>
+          <label>Clothing Name</label>
+          <input id="name" type="text" placeholder="e.g., Black Hoodie" required />
+        </div>
+        <div>
+          <label>Price (CAD)</label>
+          <input id="price" type="number" step="0.01" min="0" placeholder="e.g., 49.99" required />
+        </div>
+
+        <div class="full row">
+          <button type="submit">Add Item</button>
+          <button type="button" id="refresh" class="secondary">Refresh</button>
+        </div>
+      </form>
+
+      <div class="bar">
+        <div class="status" id="status">Ready</div>
+        <div class="actions-inline">
+          <button type="button" id="export" class="secondary">Export JSON</button>
+          <button type="button" id="import" class="secondary">Import JSON</button>
+          <button type="button" id="clear" class="danger">Clear All</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <div class="list-head">
+        <strong>Items</strong>
+        <span class="muted" id="count"></span>
+      </div>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" style="display:none;">No items yet—add your first one!</div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
