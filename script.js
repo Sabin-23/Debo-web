@@ -14,19 +14,6 @@ if (close){
     })
 }
 
-const openBtn = document.getElementById("openModal");
-const closeBtn = document.getElementById("closeModal");
-const modal = document.getElementById("modal");
-
-openBtn.addEventListener("click", () => {
-  modal.classList.add("open");
-});
-
-closeBtn.addEventListener("click", () => {
-  modal.classList.remove("open");
-});
-
-
 /*Signin Form*/
 
 const signinForm = document.getElementById("signin-form");
@@ -51,6 +38,18 @@ function switchForms() {
 }
 
 document.getElementById("toggle").addEventListener("click", switchForms);
+
+const openBtn = document.getElementById("openModal");
+const closeBtn = document.getElementById("closeModal");
+const modal = document.getElementById("modal");
+
+openBtn.addEventListener("click", () => {
+  modal.classList.add("open");
+});
+
+closeBtn.addEventListener("click", () => {
+  modal.classList.remove("open");
+});
 
 
 /* script.js -- single file for product rendering, cart state, auth, and cart page
@@ -593,6 +592,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
 });
+
 
 
 
