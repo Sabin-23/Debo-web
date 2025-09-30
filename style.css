@@ -1146,7 +1146,9 @@ button.normal{
 
 
 /* Cart */
-
+#cart {
+  overflow-x: auto;
+}
 #cart table {
     width: 100%;
     border-collapse: collapse;
@@ -1266,6 +1268,7 @@ body {
   background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
   background-size: cover;
 }
+
 
 
 
