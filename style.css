@@ -1034,6 +1034,52 @@ button.normal{
     width: 100%;
     padding: 20px;
   }
+  .about-container {
+    display: flex;
+    flex-direction: column; /* stack items vertically */
+    align-items: center;
+    text-align: center;
+  }
+
+  .about-media {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .about-media img {
+    width: 100%;
+    height: auto;    /* keep proportions */
+    border-radius: 6px;
+  }
+
+  .about-content {
+    width: 100%;
+    text-align: center;
+  }
+
+  .about-content h2 {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+
+  .about-content p {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .about-values {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .about-cta {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .about-cta .btn {
+    width: 100%;
+  }
 }
 
 
@@ -1268,6 +1314,7 @@ body {
   background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
   background-size: cover;
 }
+
 
 
 
