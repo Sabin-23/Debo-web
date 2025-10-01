@@ -1,11 +1,11 @@
 // ==========================================
 // SUPABASE AUTHENTICATION WITH USER PROFILE
-// Updated: REMOVED verification/OTP, avatars now pink, phone saved to user_metadata
-// Dropdown UI improved to match site pink theme and spacing
+// Updated: REMOVED verification/OTP, avatars pink, phone saved to user_metadata
+// Delete-account flow: uses Supabase Edge Function (invoke) with fetch fallback
 // Copy-paste this whole file to replace your old script
 // ==========================================
 
-// Supabase Configuration (kept your keys)
+// Supabase Configuration (replace if needed)
 const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
@@ -406,8 +406,9 @@ function createProfileModal() {
 
           <div style="padding:12px; background:#fff5f5; border-radius:8px; border:1px solid #fee;">
             <h3 style="margin:0 0 6px 0; color:${UI.danger}; font-size:15px;">Danger Zone</h3>
-            <p style="margin:0 0 10px 0; color:#666; font-size:13px;">Account deletion requires server-side admin privileges. See console for instructions.</p>
+            <p style="margin:0 0 10px 0; color:#666; font-size:13px;">Deleting your account is permanent. This will remove your auth account. Confirm below to proceed.</p>
             <button id="deleteAccountBtn" style="padding:10px; background:${UI.danger}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Delete My Account</button>
+            <p id="deleteAccountMessage" style="margin:8px 0 0 0; font-size:13px;"></p>
           </div>
         </div>
       </div>
@@ -455,6 +456,7 @@ function closeProfileModal() {
   const phoneInput = document.getElementById('phoneInput'); if (phoneInput) phoneInput.value = '';
   const pm = document.getElementById('phoneMessage'); if (pm) pm.textContent = '';
   const pwd = document.getElementById('passwordMessage'); if (pwd) pwd.textContent = '';
+  const dam = document.getElementById('deleteAccountMessage'); if (dam) dam.textContent = '';
 }
 
 async function loadUserProfile() {
@@ -572,9 +574,6 @@ async function handleUpdatePhone() {
     message.style.color = '#2e7d32';
     message.textContent = 'Phone saved to profile.';
 
-    // NOTE: If you want to also set top-level phone (Auth table phone), Supabase typically requires verification.
-    // We intentionally do NOT call verifyOtp or top-level phone update to avoid SMS flow.
-
   } catch (err) {
     console.error('Unexpected error saving phone:', err);
     message.style.color = UI.danger;
@@ -624,24 +623,95 @@ async function handleChangePassword() {
   }
 }
 
-// Delete account (client cannot delete user; guidance)
+// === DELETE ACCOUNT (NEW: invoke with fetch fallback) ===
 async function handleDeleteAccount() {
-  const confirmed = confirm('Are you absolutely sure you want to delete your account? This action cannot be undone!');
+  const confirmed = confirm('This will permanently delete your account and cannot be undone. Are you sure?');
   if (!confirmed) return;
-  const doubleConfirm = confirm('This is your last chance. Delete account permanently?');
-  if (!doubleConfirm) return;
 
-  alert(
-    'Deleting user accounts requires server-side admin privileges. You must implement a secure server/edge function that calls the Supabase admin API using your service_role key. For now we will sign you out locally.'
-  );
+  // optional: second-level confirm typing
+  const typed = prompt('Type DELETE to confirm permanent account deletion:');
+  if (!typed || typed.toUpperCase() !== 'DELETE') {
+    alert('Deletion cancelled — you did not type DELETE.');
+    return;
+  }
 
+  const messageEl = document.getElementById('deleteAccountMessage');
+  if (messageEl) { messageEl.style.color = '#b23b5a'; messageEl.textContent = 'Deleting account...'; }
+
+  // ensure session exists
+  const ok = await _ensureSessionOrShowError(messageEl);
+  if (!ok) return;
+
+  // 1) Preferred: use supabase.functions.invoke (auto attaches token)
   try {
-    await supabase.auth.signOut();
-    closeProfileModal();
-    window.location.reload();
+    if (supabase && typeof supabase.functions !== 'undefined' && typeof supabase.functions.invoke === 'function') {
+      const invokeResult = await supabase.functions.invoke('delete-user', { method: 'POST' });
+
+      // check for SDK-level error
+      if (invokeResult.error) {
+        console.warn('functions.invoke returned error:', invokeResult.error);
+        // fallthrough to fallback below
+      } else {
+        const data = invokeResult.data;
+        if (data && data.success) {
+          if (messageEl) { messageEl.style.color = '#2e7d32'; messageEl.textContent = 'Account deleted. Signing out...'; }
+          await supabase.auth.signOut();
+          setTimeout(() => window.location.reload(), 900);
+          return;
+        } else {
+          console.warn('functions.invoke unexpected response:', data);
+          // fallthrough to fallback below
+        }
+      }
+    }
   } catch (err) {
-    console.error('Sign out on delete flow error:', err);
-    alert('Error signing out: ' + (err.message || err));
+    console.warn('functions.invoke threw:', err);
+    // we'll try fallback fetch method
+  }
+
+  // 2) Fallback: call Functions endpoint directly using fetch, adding Authorization header
+  try {
+    // get access token
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token || sessionData?.session?.accessToken || null;
+
+    if (!accessToken) {
+      if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = 'No access token found; please log in again.'; }
+      return;
+    }
+
+    const res = await fetch('/functions/v1/delete-user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken
+      },
+      body: JSON.stringify({}) // body not required by function — it reads token
+    });
+
+    const json = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      console.error('Function returned non-OK:', res.status, json);
+      if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = json?.error || 'Failed to delete account'; }
+      return;
+    }
+
+    if (json && json.success) {
+      if (messageEl) { messageEl.style.color = '#2e7d32'; messageEl.textContent = 'Account deleted. Signing out...'; }
+      await supabase.auth.signOut();
+      setTimeout(() => window.location.reload(), 900);
+      return;
+    } else {
+      console.error('Unexpected function response:', json);
+      if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = json?.error || 'Account deletion failed'; }
+      return;
+    }
+
+  } catch (err) {
+    console.error('Delete fallback fetch failed:', err);
+    if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = err.message || 'Unexpected error deleting account'; }
+    return;
   }
 }
 
@@ -938,6 +1008,7 @@ function renderShopProducts() {
 }
 
 renderShopProducts();
+
 
 
 
