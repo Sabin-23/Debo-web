@@ -170,7 +170,7 @@ function createProfileModal() {
             </div>
           </div>
 
-          <div style="margin-bottom:16px; padding:14px; background:${UI.pinkSoft}; border-radius:8px;">
+          <div style="margin-bottom:16px; padding:14px; background:${UI.pinkSoft}; border-radius:50%;">
             <h3 style="margin:0 0 10px 0; color:#222; font-size:15px;">Phone Number</h3>
             <div style="display:flex; gap:10px; align-items:center;">
               <select id="countryCodeSelect" style="padding:10px; border-radius:8px; border:1px solid #f4d7df; background:#fff; min-width:140px; font-size:13px;">
@@ -352,7 +352,7 @@ async function handleUpdatePhone() {
     if (data && data.user) currentUser = data.user;
 
     message.style.color = '#2e7d32';
-    message.textContent = 'Phone saved to profile (no SMS verification).';
+    message.textContent = 'Phone saved to profile.';
 
     // NOTE: If you want to also set top-level phone (Auth table phone), Supabase typically requires verification.
     // We intentionally do NOT call verifyOtp or top-level phone update to avoid SMS flow.
@@ -663,6 +663,7 @@ function renderShopProducts() {
 }
 
 renderShopProducts();
+
 
 
 
