@@ -1,5 +1,5 @@
 // ==========================================
-// SUPABASE AUTHENTICATION
+// SUPABASE AUTHENTICATION - COMPLETE WORKING VERSION
 // ==========================================
 
 // Supabase Configuration
@@ -8,24 +8,25 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 let supabase = null;
 
-// Initialize Supabase and Auth on page load
-function initSupabaseAuth() {
-    try {
-        // Check if Supabase library is loaded
-        if (typeof window.supabase !== 'undefined') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('Supabase initialized successfully');
-            initializeAuth();
-        } else {
-            console.warn('Supabase library not loaded. Make sure to include it in your HTML.');
-        }
-    } catch (error) {
-        console.error('Supabase initialization error:', error);
+// Wait for page to fully load
+window.addEventListener('load', function() {
+    console.log('Page loaded, initializing auth...');
+    initializeSupabaseAuth();
+});
+
+function initializeSupabaseAuth() {
+    // Initialize Supabase
+    if (typeof window.supabase !== 'undefined') {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('✓ Supabase initialized successfully');
+        setupAuthUI();
+    } else {
+        console.error('✗ Supabase library not loaded! Add <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> to your HTML');
     }
 }
 
-function initializeAuth() {
-    // Get all required elements
+function setupAuthUI() {
+    // Get all modal elements
     const modal = document.getElementById('modal');
     const openModalBtn = document.getElementById('openModal');
     const closeModalBtn = document.getElementById('closeModal');
@@ -35,108 +36,116 @@ function initializeAuth() {
     const formTitle = document.getElementById('form-title');
     const toggleText = document.querySelector('.toggle-text');
 
-    // Only proceed if auth elements exist on this page
+    console.log('Modal elements found:', {
+        modal: !!modal,
+        openModalBtn: !!openModalBtn,
+        signinForm: !!signinForm,
+        registerForm: !!registerForm
+    });
+
+    // Check if modal exists on this page
     if (!modal || !openModalBtn) {
-        console.log('Auth modal not found on this page');
+        console.log('Auth modal not found on this page - skipping auth setup');
         return;
     }
 
-    // Check if user is logged in and update UI
+    // Check user auth status
     checkAuthStatus();
 
-    // Modal controls
+    // === MODAL CONTROLS ===
     openModalBtn.addEventListener('click', function(e) {
         e.preventDefault();
+        console.log('Opening modal...');
         modal.style.display = 'flex';
         // Reset to sign-in form
-        if (signinForm && registerForm) {
+        if (signinForm && registerForm && formTitle) {
             signinForm.classList.add('active');
             registerForm.classList.remove('active');
-            if (formTitle) formTitle.textContent = 'Sign In';
+            formTitle.textContent = 'Sign In';
         }
     });
 
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            console.log('Closing modal...');
             modal.style.display = 'none';
-            clearMessages();
+            clearModalMessage();
         });
     }
 
-    // Close modal when clicking outside
+    // Close on outside click
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
+            console.log('Closing modal (outside click)...');
             modal.style.display = 'none';
-            clearMessages();
+            clearModalMessage();
         }
     });
 
-    // Form toggle functionality
+    // === TOGGLE BETWEEN SIGNIN AND REGISTER ===
     function handleToggle() {
+        console.log('Toggling forms...');
         if (!signinForm || !registerForm || !formTitle || !toggleText) return;
 
         if (signinForm.classList.contains('active')) {
-            // Switch to register
             signinForm.classList.remove('active');
             registerForm.classList.add('active');
             formTitle.textContent = 'Register';
             toggleText.innerHTML = 'Already have an account? <span id="toggle">Sign In</span>';
         } else {
-            // Switch to sign in
             registerForm.classList.remove('active');
             signinForm.classList.add('active');
             formTitle.textContent = 'Sign In';
             toggleText.innerHTML = 'Don\'t have an account? <span id="toggle">Register</span>';
         }
         
-        // Re-attach event listener
         const newToggle = document.getElementById('toggle');
         if (newToggle) {
             newToggle.addEventListener('click', handleToggle);
         }
-        clearMessages();
+        clearModalMessage();
     }
 
     if (toggle) {
         toggle.addEventListener('click', handleToggle);
     }
 
-    // Sign In Form Handler
+    // === SIGN IN FORM ===
     if (signinForm) {
         signinForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            console.log('Sign in form submitted');
             
-            const emailInput = signinForm.querySelector('input[type="email"]');
-            const passwordInput = signinForm.querySelector('input[type="password"]');
-            
-            if (!emailInput || !passwordInput) return;
+            const inputs = signinForm.querySelectorAll('input');
+            const email = inputs[0].value.trim();
+            const password = inputs[1].value;
 
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-
+            console.log('Attempting sign in with email:', email);
             await handleSignIn(email, password);
         });
+        console.log('✓ Sign in form listener attached');
     }
 
-    // Register Form Handler
+    // === REGISTER FORM ===
     if (registerForm) {
         registerForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            console.log('Register form submitted');
             
             const inputs = registerForm.querySelectorAll('input');
-            if (inputs.length < 4) return;
-
             const name = inputs[0].value.trim();
             const email = inputs[1].value.trim();
             const password = inputs[2].value;
             const confirmPassword = inputs[3].value;
 
+            console.log('Attempting registration with:', { name, email });
             await handleRegister(name, email, password, confirmPassword);
         });
+        console.log('✓ Register form listener attached');
     }
 
-    // Listen for auth state changes
+    // Listen for auth changes
     if (supabase) {
         supabase.auth.onAuthStateChange((event, session) => {
             console.log('Auth state changed:', event);
@@ -149,79 +158,17 @@ function initializeAuth() {
     }
 }
 
-// Check current authentication status
-async function checkAuthStatus() {
-    if (!supabase) return;
+// === AUTH FUNCTIONS ===
 
-    try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session && session.user) {
-            updateUIForLoggedInUser(session.user);
-        } else {
-            updateUIForLoggedOutUser();
-        }
-    } catch (error) {
-        console.error('Session check error:', error);
-    }
-}
-
-// Update UI for logged-in user
-function updateUIForLoggedInUser(user) {
-    const openModalBtn = document.getElementById('openModal');
-    
-    if (openModalBtn) {
-        // Get user's name or email
-        const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
-        
-        // Replace button with user info and logout
-        openModalBtn.outerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="color: #088178; font-weight: 600;">Hi, ${displayName}</span>
-                <button id="logoutBtn" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Logout</button>
-            </div>
-        `;
-        
-        // Add logout functionality
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', handleLogout);
-        }
-    }
-}
-
-// Update UI for logged-out user
-function updateUIForLoggedOutUser() {
-    const logoutBtn = document.getElementById('logoutBtn');
-    
-    if (logoutBtn && logoutBtn.parentElement) {
-        // Restore original sign-in button
-        logoutBtn.parentElement.outerHTML = '<button id="openModal">Sign-in/Register</button>';
-        
-        // Re-initialize modal functionality
-        const newOpenModalBtn = document.getElementById('openModal');
-        const modal = document.getElementById('modal');
-        
-        if (newOpenModalBtn && modal) {
-            newOpenModalBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                modal.style.display = 'flex';
-            });
-        }
-    }
-}
-
-// Handle Sign In
 async function handleSignIn(email, password) {
     if (!supabase) {
-        showModalMessage('Authentication service not available', 'error');
+        showModalMessage('Authentication not available', 'error');
         return;
     }
 
     showModalMessage('Signing in...', 'info');
 
     try {
-        // Validation
         if (!email || !password) {
             throw new Error('Please fill in all fields');
         }
@@ -230,39 +177,41 @@ async function handleSignIn(email, password) {
             throw new Error('Please enter a valid email address');
         }
 
+        console.log('Calling Supabase signInWithPassword...');
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
         });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase sign in error:', error);
+            throw error;
+        }
 
-        showModalMessage('Sign in successful!', 'success');
+        console.log('Sign in successful!', data);
+        showModalMessage('Sign in successful! Welcome back!', 'success');
         
-        // Close modal after short delay
         setTimeout(() => {
             const modal = document.getElementById('modal');
             if (modal) modal.style.display = 'none';
-            clearMessages();
+            clearModalMessage();
         }, 1500);
 
     } catch (error) {
         console.error('Sign in error:', error);
-        showModalMessage(error.message || 'Sign in failed. Please try again.', 'error');
+        showModalMessage(error.message || 'Sign in failed', 'error');
     }
 }
 
-// Handle Register
 async function handleRegister(name, email, password, confirmPassword) {
     if (!supabase) {
-        showModalMessage('Authentication service not available', 'error');
+        showModalMessage('Authentication not available', 'error');
         return;
     }
 
-    showModalMessage('Registering...', 'info');
+    showModalMessage('Creating account...', 'info');
 
     try {
-        // Validation
         if (!name || !email || !password || !confirmPassword) {
             throw new Error('Please fill in all fields');
         }
@@ -272,13 +221,14 @@ async function handleRegister(name, email, password, confirmPassword) {
         }
 
         if (password.length < 6) {
-            throw new Error('Password must be at least 6 characters long');
+            throw new Error('Password must be at least 6 characters');
         }
 
         if (password !== confirmPassword) {
             throw new Error('Passwords do not match');
         }
 
+        console.log('Calling Supabase signUp...');
         const { data, error } = await supabase.auth.signUp({
             email: email,
             password: password,
@@ -289,50 +239,116 @@ async function handleRegister(name, email, password, confirmPassword) {
             }
         });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase sign up error:', error);
+            throw error;
+        }
+
+        console.log('Registration successful!', data);
 
         if (data.user && !data.session) {
-            showModalMessage('Please check your email to confirm your account.', 'success');
+            showModalMessage('Success! Please check your email to confirm your account.', 'success');
         } else {
-            showModalMessage('Registration successful!', 'success');
-            
-            // Close modal after short delay
+            showModalMessage('Registration successful! Welcome!', 'success');
             setTimeout(() => {
                 const modal = document.getElementById('modal');
                 if (modal) modal.style.display = 'none';
-                clearMessages();
+                clearModalMessage();
             }, 1500);
         }
 
     } catch (error) {
         console.error('Registration error:', error);
-        showModalMessage(error.message || 'Registration failed. Please try again.', 'error');
+        showModalMessage(error.message || 'Registration failed', 'error');
     }
 }
 
-// Handle Logout
 async function handleLogout(e) {
     if (e) e.preventDefault();
     
     if (!supabase) return;
 
     try {
+        console.log('Logging out...');
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
 
         console.log('Logged out successfully');
-        
-        // Page will refresh to show logged-out state
         window.location.reload();
 
     } catch (error) {
         console.error('Logout error:', error);
-        alert('Error logging out. Please try again.');
+        alert('Error logging out');
     }
 }
 
-// Show message in modal
+// === UI UPDATE FUNCTIONS ===
+
+async function checkAuthStatus() {
+    if (!supabase) return;
+
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session && session.user) {
+            console.log('User is logged in:', session.user.email);
+            updateUIForLoggedInUser(session.user);
+        } else {
+            console.log('No user logged in');
+            updateUIForLoggedOutUser();
+        }
+    } catch (error) {
+        console.error('Session check error:', error);
+    }
+}
+
+function updateUIForLoggedInUser(user) {
+    const openModalBtn = document.getElementById('openModal');
+    
+    if (openModalBtn) {
+        const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
+        
+        openModalBtn.outerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: #088178; font-weight: 600;">Hi, ${displayName}</span>
+                <button id="logoutBtn" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">Logout</button>
+            </div>
+        `;
+        
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', handleLogout);
+        }
+        
+        console.log('UI updated for logged in user:', displayName);
+    }
+}
+
+function updateUIForLoggedOutUser() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    if (logoutBtn && logoutBtn.parentElement) {
+        logoutBtn.parentElement.outerHTML = '<button id="openModal">Sign-in/Register</button>';
+        
+        const newOpenModalBtn = document.getElementById('openModal');
+        const modal = document.getElementById('modal');
+        
+        if (newOpenModalBtn && modal) {
+            newOpenModalBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                modal.style.display = 'flex';
+            });
+        }
+        
+        console.log('UI updated for logged out user');
+    }
+}
+
+// === MESSAGE FUNCTIONS ===
+
 function showModalMessage(text, type = 'info') {
+    console.log(`[${type.toUpperCase()}] ${text}`);
+    
     const modal = document.getElementById('modal');
     if (!modal) return;
 
@@ -341,26 +357,31 @@ function showModalMessage(text, type = 'info') {
     if (!messageDiv) {
         messageDiv = document.createElement('div');
         messageDiv.className = 'auth-message';
-        messageDiv.style.cssText = 'padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center;';
+        messageDiv.style.cssText = 'padding: 12px; margin: 10px 0; border-radius: 6px; text-align: center; font-weight: 500;';
         
         const authContainer = modal.querySelector('.auth-container');
-        if (authContainer) {
-            authContainer.insertBefore(messageDiv, authContainer.firstChild);
+        const formTitle = modal.querySelector('#form-title');
+        if (authContainer && formTitle) {
+            formTitle.insertAdjacentElement('afterend', messageDiv);
         }
     }
 
     messageDiv.textContent = text;
     messageDiv.style.display = 'block';
-    messageDiv.style.backgroundColor = type === 'error' ? '#ffebee' : 
-                                      type === 'success' ? '#e8f5e8' : '#e3f2fd';
-    messageDiv.style.color = type === 'error' ? '#c62828' : 
-                            type === 'success' ? '#2e7d32' : '#1565c0';
-    messageDiv.style.border = `1px solid ${type === 'error' ? '#c62828' : 
-                                            type === 'success' ? '#2e7d32' : '#1565c0'}`;
+    
+    const colors = {
+        error: { bg: '#ffebee', text: '#c62828', border: '#ef5350' },
+        success: { bg: '#e8f5e9', text: '#2e7d32', border: '#66bb6a' },
+        info: { bg: '#e3f2fd', text: '#1565c0', border: '#42a5f5' }
+    };
+    
+    const color = colors[type] || colors.info;
+    messageDiv.style.backgroundColor = color.bg;
+    messageDiv.style.color = color.text;
+    messageDiv.style.border = `2px solid ${color.border}`;
 }
 
-// Clear messages
-function clearMessages() {
+function clearModalMessage() {
     const modal = document.getElementById('modal');
     if (!modal) return;
 
@@ -370,38 +391,16 @@ function clearMessages() {
     }
 }
 
-// Validate email
+// === VALIDATION ===
+
 function isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 }
 
-// Initialize auth when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSupabaseAuth);
-} else {
-    initSupabaseAuth();
-}
-
 // ==========================================
-// YOUR EXISTING SCRIPT.JS CODE BELOW
+// YOUR EXISTING SCRIPT.JS CODE BELOW THIS LINE
 // ==========================================
-
-const bar = document.getElementById('bar');
-const close = document.getElementById('close');
-const nav = document.getElementById('navbar');
-
-if (bar){
-    bar.addEventListener('click', ()=>{
-        nav.classList.add('active');
-    })
-}
-
-if (close){
-    close.addEventListener('click', ()=>{
-        nav.classList.remove('active');
-    })
-}
 
 /*Signin Form*/
 
@@ -471,5 +470,6 @@ function renderShopProducts() {
 }
 
 renderShopProducts();
+
 
 
