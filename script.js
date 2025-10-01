@@ -1,28 +1,28 @@
 // ==========================================
 // SUPABASE AUTHENTICATION WITH USER PROFILE
-// Updated: REMOVED verification/OTP, avatars pink, phone saved to user_metadata
-// Delete-account flow: uses Supabase Edge Function (invoke) with fetch fallback
+// Updated: REMOVED delete-account functionality, no OTP, avatars pink,
+// phone saved to user_metadata, improved dropdown UI and profile modal.
 // Copy-paste this whole file to replace your old script
 // ==========================================
 
-// Supabase Configuration (replace if needed)
+// Supabase Configuration (keep your keys)
 const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
 let supabase = null;
 let currentUser = null;
 
-// UI colors — avatar is now pink to match your site
+// UI colors — avatar is pink to match your site
 const UI = {
-  primaryPink: '#ff9db1',     // primary pink accents (buttons)
-  pinkSoft: '#fff0f3',       // soft pink backgrounds
-  avatarPink: '#ff7da7',     // avatar background (pink)
+  primaryPink: '#ff9db1',
+  pinkSoft: '#fff0f3',
+  avatarPink: '#ff7da7',
   dropdownBg: '#ffffff',
   subtleGray: '#f6f3f4',
   danger: '#c62828'
 };
 
-// Full country list, Rwanda first
+// Full country list with Rwanda first
 const COUNTRY_LIST = [
   { iso: 'RW', code: '+250', label: 'Rwanda' },
   { iso: 'AF', code: '+93', label: 'Afghanistan' },
@@ -243,8 +243,7 @@ const COUNTRY_LIST = [
   { iso: 'ZW', code: '+263', label: 'Zimbabwe' }
 ];
 
-// If you prefer a shorter list for performance, remove items you don't need.
-
+// Initialize on load
 window.addEventListener('load', function() {
   console.log('Page loaded: initializing Supabase auth...');
   initializeSupabaseAuth();
@@ -303,7 +302,7 @@ function setupAuthUI() {
     }
   });
 
-  // Toggle
+  // Toggle between Sign In and Register
   function handleToggle() {
     if (!signinForm || !registerForm || !formTitle || !toggleText) return;
     if (signinForm.classList.contains('active')) {
@@ -323,6 +322,7 @@ function setupAuthUI() {
   }
   if (toggle) toggle.addEventListener('click', handleToggle);
 
+  // Sign in form
   if (signinForm) {
     signinForm.addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -332,6 +332,8 @@ function setupAuthUI() {
       await handleSignIn(email, password);
     });
   }
+
+  // Register form
   if (registerForm) {
     registerForm.addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -344,6 +346,7 @@ function setupAuthUI() {
     });
   }
 
+  // Listen to auth state changes
   if (supabase) {
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
@@ -357,11 +360,10 @@ function setupAuthUI() {
   }
 }
 
-// === PROFILE MODAL (NO OTP AREA) ===
+// === PROFILE MODAL (No delete-account) ===
 function createProfileModal() {
   if (document.getElementById('userProfileModal')) return;
 
-  // Build country select options (small sample here; expand as needed)
   const countryOptions = COUNTRY_LIST.map(c => `<option value="${c.code}" data-iso="${c.iso}">${c.iso} ${c.label} ${c.code}</option>`).join('\n');
 
   const modalHTML = `
@@ -403,20 +405,13 @@ function createProfileModal() {
             <button id="changePasswordBtn" style="width:100%; padding:10px; background:${UI.primaryPink}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Change Password</button>
             <p id="passwordMessage" style="margin:10px 0 0 0; font-size:13px;"></p>
           </div>
-
-          <div style="padding:12px; background:#fff5f5; border-radius:8px; border:1px solid #fee;">
-            <h3 style="margin:0 0 6px 0; color:${UI.danger}; font-size:15px;">Danger Zone</h3>
-            <p style="margin:0 0 10px 0; color:#666; font-size:13px;">Deleting your account is permanent. This will remove your auth account. Confirm below to proceed.</p>
-            <button id="deleteAccountBtn" style="padding:10px; background:${UI.danger}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Delete My Account</button>
-            <p id="deleteAccountMessage" style="margin:8px 0 0 0; font-size:13px;"></p>
-          </div>
         </div>
       </div>
     </div>
   `;
   document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-  // Attach event handlers (safe guard with exists)
+  // Attach event handlers
   const closeBtn = document.getElementById('closeProfileModal');
   if (closeBtn) closeBtn.addEventListener('click', closeProfileModal);
   const modalRoot = document.getElementById('userProfileModal');
@@ -428,10 +423,8 @@ function createProfileModal() {
   if (updateBtn) updateBtn.addEventListener('click', handleUpdatePhone);
   const changePwdBtn = document.getElementById('changePasswordBtn');
   if (changePwdBtn) changePwdBtn.addEventListener('click', handleChangePassword);
-  const deleteBtn = document.getElementById('deleteAccountBtn');
-  if (deleteBtn) deleteBtn.addEventListener('click', handleDeleteAccount);
 
-  // Default RW if present
+  // default to Rwanda
   const countrySelect = document.getElementById('countryCodeSelect');
   if (countrySelect) countrySelect.value = '+250';
 }
@@ -452,30 +445,26 @@ function closeProfileModal() {
   const modal = document.getElementById('userProfileModal');
   if (!modal) return;
   modal.style.display = 'none';
-  // clear inputs
+  // clear messages and inputs
   const phoneInput = document.getElementById('phoneInput'); if (phoneInput) phoneInput.value = '';
   const pm = document.getElementById('phoneMessage'); if (pm) pm.textContent = '';
   const pwd = document.getElementById('passwordMessage'); if (pwd) pwd.textContent = '';
-  const dam = document.getElementById('deleteAccountMessage'); if (dam) dam.textContent = '';
 }
 
 async function loadUserProfile() {
-  if (!currentUser) {
-    console.warn('No current user in loadUserProfile');
-    return;
-  }
+  if (!currentUser) return;
+
   const nameSource = currentUser.user_metadata?.full_name || currentUser.email || 'User';
   const initial = nameSource.charAt(0).toUpperCase();
   const avatar = document.getElementById('userAvatar'); if (avatar) avatar.textContent = initial;
   const nameEl = document.getElementById('userName'); if (nameEl) nameEl.textContent = currentUser.user_metadata?.full_name || (currentUser.email ? currentUser.email.split('@')[0] : 'User');
   const emailEl = document.getElementById('userEmail'); if (emailEl) emailEl.textContent = currentUser.email || '';
 
-  // Show phone from metadata (no verification)
+  // phone from metadata
   const phoneField = currentUser.user_metadata?.phone || currentUser.phone || '';
   const phoneInput = document.getElementById('phoneInput');
   const countrySelect = document.getElementById('countryCodeSelect');
   if (phoneField && phoneInput) {
-    // try split +country + rest
     const m = phoneField.match(/^\+(\d{1,3})(.*)$/);
     if (m && countrySelect) {
       const code = '+' + m[1];
@@ -492,7 +481,7 @@ async function loadUserProfile() {
   }
 }
 
-// Simple session check helper
+// session helper
 async function _ensureSessionOrShowError(targetMessageEl) {
   if (!supabase) {
     if (targetMessageEl) { targetMessageEl.style.color = UI.danger; targetMessageEl.textContent = 'Auth unavailable.'; }
@@ -518,7 +507,7 @@ async function _ensureSessionOrShowError(targetMessageEl) {
   }
 }
 
-// ====== MAIN CHANGE: handleUpdatePhone (NO verification) ======
+// ====== handleUpdatePhone (save to user_metadata, no verification) ======
 async function handleUpdatePhone() {
   const countrySelect = document.getElementById('countryCodeSelect');
   const phoneRaw = document.getElementById('phoneInput').value.trim();
@@ -530,17 +519,15 @@ async function handleUpdatePhone() {
     return;
   }
 
-  // ensure session present before update
   const ok = await _ensureSessionOrShowError(message);
   if (!ok) return;
 
-  // normalize
   let normalized = phoneRaw.replace(/\s|-/g, '');
   if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
   const country = countrySelect ? countrySelect.value : '+250';
   if (!/^\+/.test(normalized)) normalized = country + normalized;
 
-  // Basic check for Rwanda
+  // Rwanda check
   if (country === '+250') {
     if (!/^\+2507\d{8}$/.test(normalized)) {
       message.style.color = UI.danger;
@@ -556,7 +543,6 @@ async function handleUpdatePhone() {
   }
 
   try {
-    // Save phone into user_metadata (no SMS verification)
     const { data, error } = await supabase.auth.updateUser({
       data: { phone: normalized }
     });
@@ -568,12 +554,9 @@ async function handleUpdatePhone() {
       return;
     }
 
-    // Update local user object
     if (data && data.user) currentUser = data.user;
-
     message.style.color = '#2e7d32';
     message.textContent = 'Phone saved to profile.';
-
   } catch (err) {
     console.error('Unexpected error saving phone:', err);
     message.style.color = UI.danger;
@@ -623,99 +606,7 @@ async function handleChangePassword() {
   }
 }
 
-// === DELETE ACCOUNT (NEW: invoke with fetch fallback) ===
-async function handleDeleteAccount() {
-  const confirmed = confirm('This will permanently delete your account and cannot be undone. Are you sure?');
-  if (!confirmed) return;
-
-  // optional: second-level confirm typing
-  const typed = prompt('Type DELETE to confirm permanent account deletion:');
-  if (!typed || typed.toUpperCase() !== 'DELETE') {
-    alert('Deletion cancelled — you did not type DELETE.');
-    return;
-  }
-
-  const messageEl = document.getElementById('deleteAccountMessage');
-  if (messageEl) { messageEl.style.color = '#b23b5a'; messageEl.textContent = 'Deleting account...'; }
-
-  // ensure session exists
-  const ok = await _ensureSessionOrShowError(messageEl);
-  if (!ok) return;
-
-  // 1) Preferred: use supabase.functions.invoke (auto attaches token)
-  try {
-    if (supabase && typeof supabase.functions !== 'undefined' && typeof supabase.functions.invoke === 'function') {
-      const invokeResult = await supabase.functions.invoke('delete-user', { method: 'POST' });
-
-      // check for SDK-level error
-      if (invokeResult.error) {
-        console.warn('functions.invoke returned error:', invokeResult.error);
-        // fallthrough to fallback below
-      } else {
-        const data = invokeResult.data;
-        if (data && data.success) {
-          if (messageEl) { messageEl.style.color = '#2e7d32'; messageEl.textContent = 'Account deleted. Signing out...'; }
-          await supabase.auth.signOut();
-          setTimeout(() => window.location.reload(), 900);
-          return;
-        } else {
-          console.warn('functions.invoke unexpected response:', data);
-          // fallthrough to fallback below
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('functions.invoke threw:', err);
-    // we'll try fallback fetch method
-  }
-
-  // 2) Fallback: call Functions endpoint directly using fetch, adding Authorization header
-  try {
-    // get access token
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData?.session?.access_token || sessionData?.session?.accessToken || null;
-
-    if (!accessToken) {
-      if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = 'No access token found; please log in again.'; }
-      return;
-    }
-
-    const res = await fetch('/functions/v1/delete-user', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + accessToken
-      },
-      body: JSON.stringify({}) // body not required by function — it reads token
-    });
-
-    const json = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      console.error('Function returned non-OK:', res.status, json);
-      if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = json?.error || 'Failed to delete account'; }
-      return;
-    }
-
-    if (json && json.success) {
-      if (messageEl) { messageEl.style.color = '#2e7d32'; messageEl.textContent = 'Account deleted. Signing out...'; }
-      await supabase.auth.signOut();
-      setTimeout(() => window.location.reload(), 900);
-      return;
-    } else {
-      console.error('Unexpected function response:', json);
-      if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = json?.error || 'Account deletion failed'; }
-      return;
-    }
-
-  } catch (err) {
-    console.error('Delete fallback fetch failed:', err);
-    if (messageEl) { messageEl.style.color = UI.danger; messageEl.textContent = err.message || 'Unexpected error deleting account'; }
-    return;
-  }
-}
-
-// === AUTH HANDLERS ===
+// === AUTH HANDLERS (sign in / register / logout) ===
 async function handleSignIn(email, password) {
   if (!supabase) { showModalMessage('Authentication not available', 'error'); return; }
   showModalMessage('Signing in...', 'info');
@@ -798,7 +689,7 @@ function updateUIForLoggedInUser(user) {
   const displayName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
 
-  // Construct a nicer dropdown matching the pink theme and spacing
+  // Replace sign-in button with avatar + dropdown (styled to match pink theme)
   openModalBtn.outerHTML = `
     <div id="userMenuContainer" style="position:relative; display:flex; align-items:center; gap:12px;">
       <button id="userAvatarBtn" aria-label="Open user menu" 
@@ -827,7 +718,7 @@ function updateUIForLoggedInUser(user) {
     </div>
   `;
 
-  // Attach handlers after replacing button
+  // Attach handlers after replacing DOM
   const avatarBtn = document.getElementById('userAvatarBtn');
   const dropdown = document.getElementById('userDropdown');
   const viewProfileBtn = document.getElementById('viewProfileBtn');
@@ -836,7 +727,6 @@ function updateUIForLoggedInUser(user) {
   if (avatarBtn && dropdown) {
     avatarBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      // Toggle with fade-like effect (inline)
       if (dropdown.style.display === 'none' || dropdown.style.display === '') {
         dropdown.style.display = 'block';
         dropdown.style.opacity = '0';
@@ -857,9 +747,7 @@ function updateUIForLoggedInUser(user) {
 
   if (viewProfileBtn) {
     viewProfileBtn.addEventListener('click', function() {
-      if (dropdown) {
-        dropdown.style.display = 'none';
-      }
+      if (dropdown) dropdown.style.display = 'none';
       openProfileModal();
     });
   }
@@ -873,9 +761,7 @@ function updateUIForLoggedInUser(user) {
     const dd = document.getElementById('userDropdown');
     const av = document.getElementById('userAvatarBtn');
     if (!dd) return;
-    // if click target is outside the dropdown and avatar
     if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av.contains(event.target)) {
-      // hide with transition
       if (dd.style.display === 'block') {
         dd.style.transition = 'opacity 120ms ease, transform 120ms ease';
         dd.style.opacity = '0';
@@ -936,7 +822,7 @@ function isValidEmail(email) {
 }
 
 // ==========================================
-// YOUR EXISTING SCRIPT.JS CODE BELOW
+// End of script
 // ==========================================
 
 
@@ -1008,6 +894,7 @@ function renderShopProducts() {
 }
 
 renderShopProducts();
+
 
 
 
