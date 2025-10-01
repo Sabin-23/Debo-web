@@ -1,5 +1,6 @@
 // ==========================================
 // SUPABASE AUTHENTICATION WITH USER PROFILE
+// Fixed phone saving (uses top-level phone field) + OTP verify + improved UI
 // ==========================================
 
 // Supabase Configuration
@@ -111,6 +112,7 @@ function setupAuthUI() {
         registerForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const inputs = registerForm.querySelectorAll('input');
+            // assumes order: name, email, password, confirmPassword
             const name = inputs[0].value.trim();
             const email = inputs[1].value.trim();
             const password = inputs[2].value;
@@ -138,50 +140,66 @@ function createProfileModal() {
     if (document.getElementById('userProfileModal')) return;
 
     const modalHTML = `
-        <div id="userProfileModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-            <div style="background: white; border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-                <div style="padding: 30px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <h2 style="margin: 0; color: #333; font-size: 24px;">Account Settings</h2>
-                        <button id="closeProfileModal" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #666;">&times;</button>
+        <div id="userProfileModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); z-index: 10000; justify-content: center; align-items: center;">
+            <div style="background: #fff; border-radius: 12px; width: 92%; max-width: 760px; max-height: 90vh; overflow-y: auto; box-shadow: 0 6px 30px rgba(0,0,0,0.25);">
+                <div style="padding: 22px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                        <h2 style="margin: 0; color: #333; font-size: 22px;">Account Settings</h2>
+                        <button id="closeProfileModal" style="background: none; border: none; font-size: 26px; cursor: pointer; color: #666;">&times;</button>
                     </div>
 
                     <!-- User Info Section -->
-                    <div style="margin-bottom: 30px;">
-                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
-                            <div id="userAvatar" style="width: 80px; height: 80px; border-radius: 50%; background: #088178; display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; font-weight: bold;"></div>
+                    <div style="margin-bottom: 18px;">
+                        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 6px;">
+                            <div id="userAvatar" style="width: 64px; height: 64px; border-radius: 50%; background: #0b8f75; display: flex; align-items: center; justify-content: center; color: white; font-size: 26px; font-weight: 700; box-shadow: 0 4px 12px rgba(11,143,117,0.12);"></div>
                             <div>
-                                <h3 id="userName" style="margin: 0 0 5px 0; color: #333;">Loading...</h3>
-                                <p id="userEmail" style="margin: 0; color: #666;">Loading...</p>
+                                <h3 id="userName" style="margin: 0 0 4px 0; color: #222; font-size: 16px; font-weight: 700;">Loading...</h3>
+                                <p id="userEmail" style="margin: 0; color: #666; font-size: 13px;">Loading...</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Phone Number Section -->
-                    <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">Phone Number</h3>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="tel" id="phoneInput" placeholder="+1234567890" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
-                            <button id="updatePhoneBtn" style="padding: 12px 24px; background: #088178; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Update</button>
+                    <div style="margin-bottom: 18px; padding: 14px; background: #fff4f8; border-radius: 8px;">
+                        <h3 style="margin: 0 0 8px 0; color: #333; font-size: 15px;">Phone Number</h3>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <select id="countryCodeSelect" style="padding:10px; border-radius:6px; border:1px solid #e6d7e0; background:#fff; min-width:110px; font-size:14px;">
+                                <option value="+250" data-code="RW">🇷🇼 RW +250</option>
+                                <option value="+1" data-code="US">🇺🇸 US +1</option>
+                                <option value="+44" data-code="GB">🇬🇧 UK +44</option>
+                                <option value="+254" data-code="KE">🇰🇪 KE +254</option>
+                                <!-- add more as required -->
+                            </select>
+                            <input type="tel" id="phoneInput" placeholder="7XXXXXXXX" style="flex:1; padding:10px; border:1px solid #e9dbe4; border-radius:6px; font-size:14px;">
+                            <button id="updatePhoneBtn" style="padding:10px 14px; background:#0b8f75; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Update</button>
                         </div>
-                        <p id="phoneMessage" style="margin: 10px 0 0 0; font-size: 13px;"></p>
+                        <p id="phoneMessage" style="margin:8px 0 0 0; font-size:13px;"></p>
+
+                        <!-- OTP area (hidden until SMS sent) -->
+                        <div id="phoneOtpArea" style="display:none; margin-top:12px;">
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="text" id="phoneOtpInput" placeholder="Enter 6-digit code" style="flex:1; padding:10px; border:1px solid #e9dbe4; border-radius:6px; font-size:14px;">
+                                <button id="verifyPhoneOtpBtn" style="padding:10px 14px; background:#ff5a7a; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Verify</button>
+                            </div>
+                            <p id="phoneOtpMessage" style="margin:8px 0 0 0; font-size:13px;"></p>
+                        </div>
                     </div>
 
                     <!-- Change Password Section -->
-                    <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">Change Password</h3>
-                        <input type="password" id="currentPassword" placeholder="Current Password" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;">
-                        <input type="password" id="newPassword" placeholder="New Password (min 6 characters)" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;">
-                        <input type="password" id="confirmNewPassword" placeholder="Confirm New Password" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px; font-size: 14px; box-sizing: border-box;">
-                        <button id="changePasswordBtn" style="padding: 12px 24px; background: #088178; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%;">Change Password</button>
-                        <p id="passwordMessage" style="margin: 10px 0 0 0; font-size: 13px;"></p>
+                    <div style="margin-bottom: 18px; padding: 14px; background: #f8f9fa; border-radius: 8px;">
+                        <h3 style="margin: 0 0 10px 0; color: #333; font-size: 15px;">Change Password</h3>
+                        <input type="password" id="currentPassword" placeholder="Current Password" style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; font-size: 14px; box-sizing: border-box;">
+                        <input type="password" id="newPassword" placeholder="New Password (min 6 characters)" style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; font-size: 14px; box-sizing: border-box;">
+                        <input type="password" id="confirmNewPassword" placeholder="Confirm New Password" style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;">
+                        <button id="changePasswordBtn" style="padding: 10px 14px; background: #0b8f75; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; width:100%;">Change Password</button>
+                        <p id="passwordMessage" style="margin: 8px 0 0 0; font-size: 13px;"></p>
                     </div>
 
                     <!-- Delete Account Section -->
-                    <div style="padding: 20px; background: #fff5f5; border: 1px solid #fee; border-radius: 8px;">
-                        <h3 style="margin: 0 0 10px 0; color: #c62828; font-size: 18px;">Danger Zone</h3>
-                        <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">Once you delete your account, there is no going back. Please be certain.</p>
-                        <button id="deleteAccountBtn" style="padding: 12px 24px; background: #c62828; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Delete My Account</button>
+                    <div style="padding: 12px; background: #fff5f5; border: 1px solid #fee; border-radius: 8px;">
+                        <h3 style="margin: 0 0 6px 0; color: #c62828; font-size: 15px;">Danger Zone</h3>
+                        <p style="margin: 0 0 10px 0; color: #666; font-size: 13px;">Once you delete your account, there is no going back. Please be certain.</p>
+                        <button id="deleteAccountBtn" style="padding: 10px 14px; background: #c62828; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700;">Delete My Account</button>
                     </div>
                 </div>
             </div>
@@ -196,6 +214,7 @@ function createProfileModal() {
         if (e.target.id === 'userProfileModal') closeProfileModal();
     });
     document.getElementById('updatePhoneBtn').addEventListener('click', handleUpdatePhone);
+    document.getElementById('verifyPhoneOtpBtn').addEventListener('click', handleVerifyPhoneOtp);
     document.getElementById('changePasswordBtn').addEventListener('click', handleChangePassword);
     document.getElementById('deleteAccountBtn').addEventListener('click', handleDeleteAccount);
 }
@@ -215,55 +234,181 @@ function closeProfileModal() {
     if (modal) {
         modal.style.display = 'none';
         // Clear form fields
-        document.getElementById('phoneInput').value = '';
+        const phoneInput = document.getElementById('phoneInput');
+        if (phoneInput) phoneInput.value = '';
+        const otpInput = document.getElementById('phoneOtpInput');
+        if (otpInput) otpInput.value = '';
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
         document.getElementById('confirmNewPassword').value = '';
-        document.getElementById('phoneMessage').textContent = '';
-        document.getElementById('passwordMessage').textContent = '';
+        const pm = document.getElementById('phoneMessage'); if (pm) pm.textContent = '';
+        const pom = document.getElementById('phoneOtpMessage'); if (pom) pom.textContent = '';
+        const pwdm = document.getElementById('passwordMessage'); if (pwdm) pwdm.textContent = '';
+        const otpArea = document.getElementById('phoneOtpArea'); if (otpArea) otpArea.style.display = 'none';
     }
 }
 
 async function loadUserProfile() {
     if (!currentUser) return;
 
-    // Set avatar
-    const initial = (currentUser.user_metadata?.full_name || currentUser.email).charAt(0).toUpperCase();
-    document.getElementById('userAvatar').textContent = initial;
+    // Set avatar initial from metadata or email
+    const nameSource = currentUser.user_metadata?.full_name || currentUser.email || 'User';
+    const initial = nameSource.charAt(0).toUpperCase();
+    const avatar = document.getElementById('userAvatar');
+    if (avatar) avatar.textContent = initial;
 
     // Set name and email
-    document.getElementById('userName').textContent = currentUser.user_metadata?.full_name || 'User';
-    document.getElementById('userEmail').textContent = currentUser.email;
+    const nameEl = document.getElementById('userName');
+    const emailEl = document.getElementById('userEmail');
+    if (nameEl) nameEl.textContent = currentUser.user_metadata?.full_name || (currentUser.email ? currentUser.email.split('@')[0] : 'User');
+    if (emailEl) emailEl.textContent = currentUser.email || '';
 
-    // Load phone number
-    const phone = currentUser.user_metadata?.phone || currentUser.phone || '';
-    document.getElementById('phoneInput').value = phone;
+    // Load phone number (top-level phone preferred)
+    const phoneField = currentUser.phone || currentUser.user_metadata?.phone || '';
+    const phoneInput = document.getElementById('phoneInput');
+    const countrySelect = document.getElementById('countryCodeSelect');
+
+    if (phoneField && phoneInput) {
+        // if phone looks like +2507..., try to extract code and local part
+        const m = phoneField.match(/^\+(\d{1,3})(.*)$/);
+        if (m && countrySelect) {
+            const code = '+' + m[1];
+            // set the country select if known
+            const opt = Array.from(countrySelect.options).find(o => o.value === code);
+            if (opt) countrySelect.value = code;
+            // local part
+            phoneInput.value = m[2].replace(/^0+/, ''); // strip any leading zeros if present
+        } else {
+            if (countrySelect) countrySelect.value = '+250';
+            phoneInput.value = phoneField;
+        }
+    } else {
+        if (countrySelect) countrySelect.value = '+250';
+        if (phoneInput) phoneInput.value = '';
+    }
 }
 
 async function handleUpdatePhone() {
-    const phone = document.getElementById('phoneInput').value.trim();
+    const countrySelect = document.getElementById('countryCodeSelect');
+    const phoneRaw = document.getElementById('phoneInput').value.trim();
     const message = document.getElementById('phoneMessage');
+    const otpArea = document.getElementById('phoneOtpArea');
+    const phoneOtpMessage = document.getElementById('phoneOtpMessage');
 
-    if (!phone) {
+    if (!phoneRaw) {
         message.style.color = '#c62828';
-        message.textContent = 'Please enter a phone number';
+        message.textContent = 'Please enter a phone number.';
         return;
     }
 
+    // Build E.164. If user typed local like 7XXXXXXXX we combine with country code
+    const country = countrySelect ? countrySelect.value : '+250';
+    let normalized = phoneRaw.replace(/\s|-/g, '');
+    // If user included leading zero like 078..., drop the leading zero for E.164
+    if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
+    // If user already included +, use as-is:
+    if (!/^\+/.test(normalized)) {
+        normalized = country + normalized;
+    }
+
+    // Basic E.164 check for Rwanda if country is +250; adjust or relax as needed
+    if (country === '+250') {
+        const rwRegex = /^\+2507\d{8}$/;
+        if (!rwRegex.test(normalized)) {
+            message.style.color = '#c62828';
+            message.textContent = 'Enter a valid Rwandan mobile number (e.g. +2507xxxxxxxx).';
+            return;
+        }
+    } else {
+        // Generic minimal check: +countrycode + 4-15 digits
+        if (!/^\+\d{5,15}$/.test(normalized)) {
+            message.style.color = '#c62828';
+            message.textContent = 'Enter a valid phone number in international format.';
+            return;
+        }
+    }
+
     try {
-        const { data, error } = await supabase.auth.updateUser({
-            data: { phone: phone }
+        message.style.color = '#1565c0';
+        message.textContent = 'Updating phone... you will receive an SMS to confirm the change.';
+
+        // IMPORTANT: Use top-level phone field (not user_metadata) so Auth table "Phone" is used.
+        const { data, error } = await supabase.auth.updateUser({ phone: normalized });
+
+        if (error) throw error;
+
+        // When updating phone, Supabase sends an SMS and requires verification.
+        // Show OTP area so user can enter code and verify the phone change (type: 'phone_change').
+        if (otpArea) otpArea.style.display = 'block';
+        if (phoneOtpMessage) { phoneOtpMessage.style.color = '#1565c0'; phoneOtpMessage.textContent = 'SMS sent — enter the 6-digit code you received.'; }
+
+        // Keep currentUser up-to-date locally if returned
+        if (data && data.user) currentUser = data.user;
+
+    } catch (error) {
+        message.style.color = '#c62828';
+        // show human-friendly message if possible
+        message.textContent = (error && error.message) ? error.message : 'Failed to update phone.';
+        console.error('Phone update error:', error);
+    }
+}
+
+async function handleVerifyPhoneOtp() {
+    const countrySelect = document.getElementById('countryCodeSelect');
+    const phoneRaw = document.getElementById('phoneInput').value.trim();
+    const otp = document.getElementById('phoneOtpInput').value.trim();
+    const phoneOtpMessage = document.getElementById('phoneOtpMessage');
+    const phoneMessage = document.getElementById('phoneMessage');
+
+    if (!otp) {
+        phoneOtpMessage.style.color = '#c62828';
+        phoneOtpMessage.textContent = 'Please enter the 6-digit code.';
+        return;
+    }
+
+    // Reconstruct E.164 as above
+    let normalized = phoneRaw.replace(/\s|-/g, '');
+    if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
+    if (!/^\+/.test(normalized)) normalized = (countrySelect ? countrySelect.value : '+250') + normalized;
+
+    try {
+        phoneOtpMessage.style.color = '#1565c0';
+        phoneOtpMessage.textContent = 'Verifying...';
+
+        // Call verifyOtp with type 'phone_change'
+        const { data, error } = await supabase.auth.verifyOtp({
+            phone: normalized,
+            token: otp,
+            type: 'phone_change'
         });
 
         if (error) throw error;
 
-        message.style.color = '#2e7d32';
-        message.textContent = 'Phone number updated successfully!';
-        currentUser = data.user;
+        phoneOtpMessage.style.color = '#2e7d32';
+        phoneOtpMessage.textContent = 'Phone verified and updated successfully!';
+        if (phoneMessage) { phoneMessage.style.color = '#2e7d32'; phoneMessage.textContent = 'Phone updated in your account.'; }
+
+        // update currentUser from returned data if present
+        if (data && data.session && data.session.user) {
+            currentUser = data.session.user;
+            updateUIForLoggedInUser(currentUser);
+        } else {
+            // refresh session to get latest user object
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData && sessionData.session && sessionData.session.user) {
+                currentUser = sessionData.session.user;
+                updateUIForLoggedInUser(currentUser);
+            }
+        }
+
+        // hide OTP area after success
+        const otpArea = document.getElementById('phoneOtpArea');
+        if (otpArea) otpArea.style.display = 'none';
 
     } catch (error) {
-        message.style.color = '#c62828';
-        message.textContent = error.message;
+        phoneOtpMessage.style.color = '#c62828';
+        phoneOtpMessage.textContent = (error && error.message) ? error.message : 'Verification failed.';
+        console.error('OTP verify error:', error);
     }
 }
 
@@ -301,9 +446,7 @@ async function handleChangePassword() {
         if (signInError) throw new Error('Current password is incorrect');
 
         // Update password
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword
-        });
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
 
         if (error) throw error;
 
@@ -317,7 +460,7 @@ async function handleChangePassword() {
 
     } catch (error) {
         message.style.color = '#c62828';
-        message.textContent = error.message;
+        message.textContent = (error && error.message) ? error.message : 'Password change failed';
     }
 }
 
@@ -331,18 +474,14 @@ async function handleDeleteAccount() {
     if (!doubleConfirm) return;
 
     try {
-        // Note: Supabase doesn't have a direct deleteUser method in client SDK
-        // You need to set up a server-side function or use Supabase admin API
-        // For now, we'll sign out and show a message
+        alert('Account deletion requires server-side setup. Please contact support to delete your account or set up an Edge Function to handle deletion.');
         
-        alert('Account deletion requires server-side setup. Please contact support to delete your account, or we can set up a Supabase Edge Function for this.');
-        
-        // Sign out
+        // Sign out locally
         await supabase.auth.signOut();
         closeProfileModal();
 
     } catch (error) {
-        alert('Error: ' + error.message);
+        alert('Error: ' + (error && error.message ? error.message : 'Unknown error'));
     }
 }
 
@@ -373,7 +512,7 @@ async function handleSignIn(email, password) {
             const modal = document.getElementById('modal');
             if (modal) modal.style.display = 'none';
             clearModalMessage();
-        }, 1500);
+        }, 1200);
 
     } catch (error) {
         showModalMessage(error.message || 'Sign in failed', 'error');
@@ -416,7 +555,7 @@ async function handleRegister(name, email, password, confirmPassword) {
                 const modal = document.getElementById('modal');
                 if (modal) modal.style.display = 'none';
                 clearModalMessage();
-            }, 1500);
+            }, 1200);
         }
 
     } catch (error) {
@@ -460,23 +599,20 @@ function updateUIForLoggedInUser(user) {
     const openModalBtn = document.getElementById('openModal');
     
     if (openModalBtn) {
-        const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
+        const displayName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'User');
         const initial = displayName.charAt(0).toUpperCase();
         
+        // create compact avatar+dropdown matching your site's colors (teal avatar, compact menu)
         openModalBtn.outerHTML = `
-            <div id="userMenuContainer" style="position: relative; display: flex; align-items: center; gap: 15px;">
-                <button id="userAvatarBtn" style="width: 40px; height: 40px; border-radius: 50%; background: #088178; color: white; border: none; cursor: pointer; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center;">${initial}</button>
-                <div id="userDropdown" style="display: none; position: absolute; top: 50px; right: 0; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 200px; z-index: 1000;">
-                    <div style="padding: 15px; border-bottom: 1px solid #eee;">
-                        <p style="margin: 0; font-weight: 600; color: #333;">${displayName}</p>
-                        <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">${user.email}</p>
+            <div id="userMenuContainer" style="position: relative; display: flex; align-items: center; gap: 10px;">
+                <button id="userAvatarBtn" aria-label="Open user menu" style="width:42px; height:42px; border-radius:50%; background:#0b8f75; color:#fff; border:none; cursor:pointer; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 12px rgba(11,143,117,0.18);">${initial}</button>
+                <div id="userDropdown" style="display:none; position:absolute; top:52px; right:0; background:#fff; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.12); min-width:200px; z-index:1000; overflow:hidden;">
+                    <div style="padding:10px 12px; border-bottom:1px solid #f2f2f2;">
+                        <p style="margin:0; font-weight:700; color:#222; font-size:14px;">${displayName}</p>
+                        <p style="margin:6px 0 0 0; font-size:12px; color:#666;">${user.email || ''}</p>
                     </div>
-                    <button id="viewProfileBtn" style="width: 100%; padding: 12px 15px; background: none; border: none; text-align: left; cursor: pointer; font-size: 14px; color: #333; display: flex; align-items: center; gap: 10px;">
-                        <span>👤</span> View Profile
-                    </button>
-                    <button id="logoutBtn" style="width: 100%; padding: 12px 15px; background: none; border: none; text-align: left; cursor: pointer; font-size: 14px; color: #c62828; border-top: 1px solid #eee; display: flex; align-items: center; gap: 10px;">
-                        <span>🚪</span> Logout
-                    </button>
+                    <button id="viewProfileBtn" style="width:100%; padding:10px 12px; background:none; border:none; text-align:left; cursor:pointer; font-size:13px; color:#333;">👤 Profile</button>
+                    <button id="logoutBtn" style="width:100%; padding:10px 12px; background:none; border:none; text-align:left; cursor:pointer; font-size:13px; color:#c62828; border-top:1px solid #f7f7f7;">🚪 Logout</button>
                 </div>
             </div>
         `;
@@ -487,21 +623,24 @@ function updateUIForLoggedInUser(user) {
         const viewProfileBtn = document.getElementById('viewProfileBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         
-        avatarBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-        });
+        if (avatarBtn && dropdown) {
+            avatarBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            });
+        }
         
-        viewProfileBtn.addEventListener('click', function() {
-            dropdown.style.display = 'none';
+        if (viewProfileBtn) viewProfileBtn.addEventListener('click', function() {
+            if (dropdown) dropdown.style.display = 'none';
             openProfileModal();
         });
         
-        logoutBtn.addEventListener('click', handleLogout);
+        if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
         
         // Close dropdown when clicking outside
         document.addEventListener('click', function() {
-            dropdown.style.display = 'none';
+            const dd = document.getElementById('userDropdown');
+            if (dd) dd.style.display = 'none';
         });
     }
 }
@@ -510,7 +649,7 @@ function updateUIForLoggedOutUser() {
     const userMenu = document.getElementById('userMenuContainer');
     
     if (userMenu) {
-        userMenu.outerHTML = '<button id="openModal">Sign-in/Register</button>';
+        userMenu.outerHTML = '<button id="openModal" style="padding:8px 12px; border-radius:6px; background:transparent; border:1px solid #ddd; cursor:pointer;">Sign in</button>';
         
         const newOpenModalBtn = document.getElementById('openModal');
         const modal = document.getElementById('modal');
@@ -535,12 +674,14 @@ function showModalMessage(text, type = 'info') {
     if (!messageDiv) {
         messageDiv = document.createElement('div');
         messageDiv.className = 'auth-message';
-        messageDiv.style.cssText = 'padding: 12px; margin: 10px 0; border-radius: 6px; text-align: center; font-weight: 500;';
+        messageDiv.style.cssText = 'padding: 10px; margin: 8px 0; border-radius: 6px; text-align: center; font-weight: 600;';
         
         const authContainer = modal.querySelector('.auth-container');
         const formTitle = modal.querySelector('#form-title');
         if (authContainer && formTitle) {
             formTitle.insertAdjacentElement('afterend', messageDiv);
+        } else {
+            modal.insertAdjacentElement('afterbegin', messageDiv);
         }
     }
 
@@ -550,13 +691,13 @@ function showModalMessage(text, type = 'info') {
     const colors = {
         error: { bg: '#ffebee', text: '#c62828', border: '#ef5350' },
         success: { bg: '#e8f5e9', text: '#2e7d32', border: '#66bb6a' },
-        info: { bg: '#e3f2fd', text: '#1565c0', border: '#42a5f5' }
+        info: { bg: '#fff7ed', text: '#b26b00', border: '#ffd54f' }
     };
     
     const color = colors[type] || colors.info;
     messageDiv.style.backgroundColor = color.bg;
     messageDiv.style.color = color.text;
-    messageDiv.style.border = `2px solid ${color.border}`;
+    messageDiv.style.border = `1px solid ${color.border}`;
 }
 
 function clearModalMessage() {
@@ -574,9 +715,6 @@ function isValidEmail(email) {
     return emailRegex.test(email);
 }
 
-// ==========================================
-// YOUR EXISTING SCRIPT.JS CODE BELOW
-// ==========================================
 
 
 /*Signin Form*/
@@ -647,6 +785,7 @@ function renderShopProducts() {
 }
 
 renderShopProducts();
+
 
 
 
