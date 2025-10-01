@@ -1,6 +1,6 @@
 // ==========================================
 // SUPABASE AUTHENTICATION WITH USER PROFILE
-// Updated: Added profile creation on registration
+// Updated: Added admin redirect functionality
 // ==========================================
 
 // Supabase Configuration (keep your keys)
@@ -9,6 +9,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 let supabase = null;
 let currentUser = null;
+let currentUserProfile = null; // NEW: Store user profile data
 
 // UI colors — avatar is pink to match your site
 const UI = {
@@ -24,7 +25,220 @@ const UI = {
 const COUNTRY_LIST = [
   { iso: 'RW', code: '+250', label: 'Rwanda' },
   { iso: 'AF', code: '+93', label: 'Afghanistan' },
-  // ... (keep all your existing country codes)
+  { iso: 'AL', code: '+355', label: 'Albania' },
+  { iso: 'DZ', code: '+213', label: 'Algeria' },
+  { iso: 'AS', code: '+1-684', label: 'American Samoa' },
+  { iso: 'AD', code: '+376', label: 'Andorra' },
+  { iso: 'AO', code: '+244', label: 'Angola' },
+  { iso: 'AI', code: '+1-264', label: 'Anguilla' },
+  { iso: 'AQ', code: '+672', label: 'Antarctica' },
+  { iso: 'AG', code: '+1-268', label: 'Antigua & Barbuda' },
+  { iso: 'AR', code: '+54', label: 'Argentina' },
+  { iso: 'AM', code: '+374', label: 'Armenia' },
+  { iso: 'AW', code: '+297', label: 'Aruba' },
+  { iso: 'AU', code: '+61', label: 'Australia' },
+  { iso: 'AT', code: '+43', label: 'Austria' },
+  { iso: 'AZ', code: '+994', label: 'Azerbaijan' },
+  { iso: 'BS', code: '+1-242', label: 'Bahamas' },
+  { iso: 'BH', code: '+973', label: 'Bahrain' },
+  { iso: 'BD', code: '+880', label: 'Bangladesh' },
+  { iso: 'BB', code: '+1-246', label: 'Barbados' },
+  { iso: 'BY', code: '+375', label: 'Belarus' },
+  { iso: 'BE', code: '+32', label: 'Belgium' },
+  { iso: 'BZ', code: '+501', label: 'Belize' },
+  { iso: 'BJ', code: '+229', label: 'Benin' },
+  { iso: 'BM', code: '+1-441', label: 'Bermuda' },
+  { iso: 'BT', code: '+975', label: 'Bhutan' },
+  { iso: 'BO', code: '+591', label: 'Bolivia' },
+  { iso: 'BA', code: '+387', label: 'Bosnia & Herzegovina' },
+  { iso: 'BW', code: '+267', label: 'Botswana' },
+  { iso: 'BR', code: '+55', label: 'Brazil' },
+  { iso: 'IO', code: '+246', label: 'British Indian Ocean' },
+  { iso: 'VG', code: '+1-284', label: 'British Virgin Islands' },
+  { iso: 'BN', code: '+673', label: 'Brunei' },
+  { iso: 'BG', code: '+359', label: 'Bulgaria' },
+  { iso: 'BF', code: '+226', label: 'Burkina Faso' },
+  { iso: 'BI', code: '+257', label: 'Burundi' },
+  { iso: 'KH', code: '+855', label: 'Cambodia' },
+  { iso: 'CM', code: '+237', label: 'Cameroon' },
+  { iso: 'CA', code: '+1', label: 'Canada' },
+  { iso: 'CV', code: '+238', label: 'Cape Verde' },
+  { iso: 'KY', code: '+1-345', label: 'Cayman Islands' },
+  { iso: 'CF', code: '+236', label: 'Central African Republic' },
+  { iso: 'TD', code: '+235', label: 'Chad' },
+  { iso: 'CL', code: '+56', label: 'Chile' },
+  { iso: 'CN', code: '+86', label: 'China' },
+  { iso: 'CX', code: '+61', label: 'Christmas Island' },
+  { iso: 'CO', code: '+57', label: 'Colombia' },
+  { iso: 'KM', code: '+269', label: 'Comoros' },
+  { iso: 'CD', code: '+243', label: 'Congo (DRC)' },
+  { iso: 'CG', code: '+242', label: 'Congo (Rep)' },
+  { iso: 'CK', code: '+682', label: 'Cook Islands' },
+  { iso: 'CR', code: '+506', label: 'Costa Rica' },
+  { iso: 'CI', code: '+225', label: 'Côte d’Ivoire' },
+  { iso: 'HR', code: '+385', label: 'Croatia' },
+  { iso: 'CU', code: '+53', label: 'Cuba' },
+  { iso: 'CW', code: '+599', label: 'Curaçao' },
+  { iso: 'CY', code: '+357', label: 'Cyprus' },
+  { iso: 'CZ', code: '+420', label: 'Czechia' },
+  { iso: 'DK', code: '+45', label: 'Denmark' },
+  { iso: 'DJ', code: '+253', label: 'Djibouti' },
+  { iso: 'DM', code: '+1-767', label: 'Dominica' },
+  { iso: 'DO', code: '+1-809', label: 'Dominican Republic' },
+  { iso: 'EC', code: '+593', label: 'Ecuador' },
+  { iso: 'EG', code: '+20', label: 'Egypt' },
+  { iso: 'SV', code: '+503', label: 'El Salvador' },
+  { iso: 'GQ', code: '+240', label: 'Equatorial Guinea' },
+  { iso: 'ER', code: '+291', label: 'Eritrea' },
+  { iso: 'EE', code: '+372', label: 'Estonia' },
+  { iso: 'ET', code: '+251', label: 'Ethiopia' },
+  { iso: 'FK', code: '+500', label: 'Falkland Islands' },
+  { iso: 'FO', code: '+298', label: 'Faroe Islands' },
+  { iso: 'FJ', code: '+679', label: 'Fiji' },
+  { iso: 'FI', code: '+358', label: 'Finland' },
+  { iso: 'FR', code: '+33', label: 'France' },
+  { iso: 'PF', code: '+689', label: 'French Polynesia' },
+  { iso: 'GA', code: '+241', label: 'Gabon' },
+  { iso: 'GM', code: '+220', label: 'Gambia' },
+  { iso: 'GE', code: '+995', label: 'Georgia' },
+  { iso: 'DE', code: '+49', label: 'Germany' },
+  { iso: 'GH', code: '+233', label: 'Ghana' },
+  { iso: 'GI', code: '+350', label: 'Gibraltar' },
+  { iso: 'GR', code: '+30', label: 'Greece' },
+  { iso: 'GL', code: '+299', label: 'Greenland' },
+  { iso: 'GD', code: '+1-473', label: 'Grenada' },
+  { iso: 'GU', code: '+1-671', label: 'Guam' },
+  { iso: 'GT', code: '+502', label: 'Guatemala' },
+  { iso: 'GN', code: '+224', label: 'Guinea' },
+  { iso: 'GW', code: '+245', label: 'Guinea-Bissau' },
+  { iso: 'GY', code: '+592', label: 'Guyana' },
+  { iso: 'HT', code: '+509', label: 'Haiti' },
+  { iso: 'HN', code: '+504', label: 'Honduras' },
+  { iso: 'HK', code: '+852', label: 'Hong Kong' },
+  { iso: 'HU', code: '+36', label: 'Hungary' },
+  { iso: 'IS', code: '+354', label: 'Iceland' },
+  { iso: 'IN', code: '+91', label: 'India' },
+  { iso: 'ID', code: '+62', label: 'Indonesia' },
+  { iso: 'IR', code: '+98', label: 'Iran' },
+  { iso: 'IQ', code: '+964', label: 'Iraq' },
+  { iso: 'IE', code: '+353', label: 'Ireland' },
+  { iso: 'IL', code: '+972', label: 'Israel' },
+  { iso: 'IT', code: '+39', label: 'Italy' },
+  { iso: 'JM', code: '+1-876', label: 'Jamaica' },
+  { iso: 'JP', code: '+81', label: 'Japan' },
+  { iso: 'JO', code: '+962', label: 'Jordan' },
+  { iso: 'KZ', code: '+7', label: 'Kazakhstan' },
+  { iso: 'KE', code: '+254', label: 'Kenya' },
+  { iso: 'KI', code: '+686', label: 'Kiribati' },
+  { iso: 'KP', code: '+850', label: 'North Korea' },
+  { iso: 'KR', code: '+82', label: 'South Korea' },
+  { iso: 'KW', code: '+965', label: 'Kuwait' },
+  { iso: 'KG', code: '+996', label: 'Kyrgyzstan' },
+  { iso: 'LA', code: '+856', label: 'Laos' },
+  { iso: 'LV', code: '+371', label: 'Latvia' },
+  { iso: 'LB', code: '+961', label: 'Lebanon' },
+  { iso: 'LS', code: '+266', label: 'Lesotho' },
+  { iso: 'LR', code: '+231', label: 'Liberia' },
+  { iso: 'LY', code: '+218', label: 'Libya' },
+  { iso: 'LI', code: '+423', label: 'Liechtenstein' },
+  { iso: 'LT', code: '+370', label: 'Lithuania' },
+  { iso: 'LU', code: '+352', label: 'Luxembourg' },
+  { iso: 'MO', code: '+853', label: 'Macao' },
+  { iso: 'MK', code: '+389', label: 'North Macedonia' },
+  { iso: 'MG', code: '+261', label: 'Madagascar' },
+  { iso: 'MW', code: '+265', label: 'Malawi' },
+  { iso: 'MY', code: '+60', label: 'Malaysia' },
+  { iso: 'MV', code: '+960', label: 'Maldives' },
+  { iso: 'ML', code: '+223', label: 'Mali' },
+  { iso: 'MT', code: '+356', label: 'Malta' },
+  { iso: 'MH', code: '+692', label: 'Marshall Islands' },
+  { iso: 'MR', code: '+222', label: 'Mauritania' },
+  { iso: 'MU', code: '+230', label: 'Mauritius' },
+  { iso: 'MX', code: '+52', label: 'Mexico' },
+  { iso: 'FM', code: '+691', label: 'Micronesia' },
+  { iso: 'MD', code: '+373', label: 'Moldova' },
+  { iso: 'MC', code: '+377', label: 'Monaco' },
+  { iso: 'MN', code: '+976', label: 'Mongolia' },
+  { iso: 'ME', code: '+382', label: 'Montenegro' },
+  { iso: 'MA', code: '+212', label: 'Morocco' },
+  { iso: 'MZ', code: '+258', label: 'Mozambique' },
+  { iso: 'MM', code: '+95', label: 'Myanmar' },
+  { iso: 'NA', code: '+264', label: 'Namibia' },
+  { iso: 'NR', code: '+674', label: 'Nauru' },
+  { iso: 'NP', code: '+977', label: 'Nepal' },
+  { iso: 'NL', code: '+31', label: 'Netherlands' },
+  { iso: 'NC', code: '+687', label: 'New Caledonia' },
+  { iso: 'NZ', code: '+64', label: 'New Zealand' },
+  { iso: 'NI', code: '+505', label: 'Nicaragua' },
+  { iso: 'NE', code: '+227', label: 'Niger' },
+  { iso: 'NG', code: '+234', label: 'Nigeria' },
+  { iso: 'NU', code: '+683', label: 'Niue' },
+  { iso: 'NF', code: '+672', label: 'Norfolk Island' },
+  { iso: 'MP', code: '+1-670', label: 'Northern Mariana Islands' },
+  { iso: 'NO', code: '+47', label: 'Norway' },
+  { iso: 'OM', code: '+968', label: 'Oman' },
+  { iso: 'PK', code: '+92', label: 'Pakistan' },
+  { iso: 'PW', code: '+680', label: 'Palau' },
+  { iso: 'PA', code: '+507', label: 'Panama' },
+  { iso: 'PG', code: '+675', label: 'Papua New Guinea' },
+  { iso: 'PY', code: '+595', label: 'Paraguay' },
+  { iso: 'PE', code: '+51', label: 'Peru' },
+  { iso: 'PH', code: '+63', label: 'Philippines' },
+  { iso: 'PL', code: '+48', label: 'Poland' },
+  { iso: 'PT', code: '+351', label: 'Portugal' },
+  { iso: 'PR', code: '+1-787', label: 'Puerto Rico' },
+  { iso: 'QA', code: '+974', label: 'Qatar' },
+  { iso: 'RO', code: '+40', label: 'Romania' },
+  { iso: 'RU', code: '+7', label: 'Russia' },
+  { iso: 'WS', code: '+685', label: 'Samoa' },
+  { iso: 'SM', code: '+378', label: 'San Marino' },
+  { iso: 'ST', code: '+239', label: 'Sao Tome & Principe' },
+  { iso: 'SA', code: '+966', label: 'Saudi Arabia' },
+  { iso: 'SN', code: '+221', label: 'Senegal' },
+  { iso: 'RS', code: '+381', label: 'Serbia' },
+  { iso: 'SC', code: '+248', label: 'Seychelles' },
+  { iso: 'SL', code: '+232', label: 'Sierra Leone' },
+  { iso: 'SG', code: '+65', label: 'Singapore' },
+  { iso: 'SK', code: '+421', label: 'Slovakia' },
+  { iso: 'SI', code: '+386', label: 'Slovenia' },
+  { iso: 'SB', code: '+677', label: 'Solomon Islands' },
+  { iso: 'SO', code: '+252', label: 'Somalia' },
+  { iso: 'ZA', code: '+27', label: 'South Africa' },
+  { iso: 'ES', code: '+34', label: 'Spain' },
+  { iso: 'LK', code: '+94', label: 'Sri Lanka' },
+  { iso: 'KN', code: '+1-869', label: 'St Kitts & Nevis' },
+  { iso: 'LC', code: '+1-758', label: 'St Lucia' },
+  { iso: 'VC', code: '+1-784', label: 'St Vincent' },
+  { iso: 'SD', code: '+249', label: 'Sudan' },
+  { iso: 'SR', code: '+597', label: 'Suriname' },
+  { iso: 'SE', code: '+46', label: 'Sweden' },
+  { iso: 'CH', code: '+41', label: 'Switzerland' },
+  { iso: 'SY', code: '+963', label: 'Syria' },
+  { iso: 'TW', code: '+886', label: 'Taiwan' },
+  { iso: 'TJ', code: '+992', label: 'Tajikistan' },
+  { iso: 'TZ', code: '+255', label: 'Tanzania' },
+  { iso: 'TH', code: '+66', label: 'Thailand' },
+  { iso: 'TL', code: '+670', label: 'Timor-Leste' },
+  { iso: 'TG', code: '+228', label: 'Togo' },
+  { iso: 'TO', code: '+676', label: 'Tonga' },
+  { iso: 'TT', code: '+1-868', label: 'Trinidad & Tobago' },
+  { iso: 'TN', code: '+216', label: 'Tunisia' },
+  { iso: 'TR', code: '+90', label: 'Turkey' },
+  { iso: 'TM', code: '+993', label: 'Turkmenistan' },
+  { iso: 'TC', code: '+1-649', label: 'Turks & Caicos' },
+  { iso: 'TV', code: '+688', label: 'Tuvalu' },
+  { iso: 'UG', code: '+256', label: 'Uganda' },
+  { iso: 'UA', code: '+380', label: 'Ukraine' },
+  { iso: 'AE', code: '+971', label: 'United Arab Emirates' },
+  { iso: 'GB', code: '+44', label: 'United Kingdom' },
+  { iso: 'US', code: '+1', label: 'United States' },
+  { iso: 'UY', code: '+598', label: 'Uruguay' },
+  { iso: 'UZ', code: '+998', label: 'Uzbekistan' },
+  { iso: 'VU', code: '+678', label: 'Vanuatu' },
+  { iso: 'VE', code: '+58', label: 'Venezuela' },
+  { iso: 'VN', code: '+84', label: 'Vietnam' },
+  { iso: 'YE', code: '+967', label: 'Yemen' },
+  { iso: 'ZM', code: '+260', label: 'Zambia' },
   { iso: 'ZW', code: '+263', label: 'Zimbabwe' }
 ];
 
@@ -42,6 +256,29 @@ function initializeSupabaseAuth() {
     createProfileModal();
   } else {
     console.error('Supabase library not loaded in window.supabase');
+  }
+}
+
+// NEW FUNCTION: Get user profile from database
+async function getUserProfile(userId) {
+  if (!supabase) return null;
+  
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getUserProfile:', error);
+    return null;
   }
 }
 
@@ -133,12 +370,15 @@ function setupAuthUI() {
 
   // Listen to auth state changes
   if (supabase) {
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN') {
         currentUser = session.user;
+        // NEW: Get user profile when user signs in
+        currentUserProfile = await getUserProfile(currentUser.id);
         updateUIForLoggedInUser(session.user);
       } else if (event === 'SIGNED_OUT') {
         currentUser = null;
+        currentUserProfile = null;
         updateUIForLoggedOutUser();
       }
     });
@@ -427,7 +667,7 @@ async function handleRegister(name, email, password, confirmPassword) {
     });
     if (error) throw error;
 
-    // === NEW CODE: Create profile in profiles table ===
+    // Create profile in profiles table
     if (data.user) {
       const { error: profileError } = await supabase
         .from('profiles')
@@ -438,14 +678,11 @@ async function handleRegister(name, email, password, confirmPassword) {
             full_name: name,
             is_admin: false,
             created_at: new Date().toISOString()
-            // phone, updated_at left as null by default
           }
         ]);
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
-        // Don't throw here - the user was created successfully, just profile failed
-        // You might want to handle this differently based on your needs
       }
     }
 
@@ -480,6 +717,8 @@ async function checkAuthStatus() {
     const { data } = await supabase.auth.getSession();
     if (data && data.session && data.session.user) {
       currentUser = data.session.user;
+      // NEW: Get user profile including admin status
+      currentUserProfile = await getUserProfile(currentUser.id);
       updateUIForLoggedInUser(currentUser);
     } else {
       updateUIForLoggedOutUser();
@@ -489,12 +728,19 @@ async function checkAuthStatus() {
   }
 }
 
-function updateUIForLoggedInUser(user) {
+// MODIFIED FUNCTION: Update UI for logged in user with admin check
+async function updateUIForLoggedInUser(user) {
   const openModalBtn = document.getElementById('openModal');
   if (!openModalBtn) return;
 
   const displayName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
+  
+  // NEW: Check if user is admin
+  const isAdmin = currentUserProfile?.is_admin === true;
+  
+  // Admin badge HTML
+  const adminBadge = isAdmin ? '<span style="background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Admin</span>' : '';
 
   // Replace sign-in button with avatar + dropdown (styled to match pink theme)
   openModalBtn.outerHTML = `
@@ -506,11 +752,21 @@ function updateUIForLoggedInUser(user) {
 
       <div id="userDropdown" style="display:none; position:absolute; top:64px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); min-width:260px; z-index:1000; overflow:visible;">
         <div style="padding:14px 16px; border-radius:14px; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
-          <p style="margin:0; font-weight:800; color:#221; font-size:15px;">${displayName}</p>
+          <div style="display: flex; align-items: center;">
+            <p style="margin:0; font-weight:800; color:#221; font-size:15px;">${displayName}</p>
+            ${adminBadge}
+          </div>
           <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b;">${user.email || ''}</p>
         </div>
 
         <div style="padding:12px; display:flex; flex-direction:column; gap:10px;">
+          ${isAdmin ? `
+            <button id="adminPanelBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">
+              <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">⚙️</span>
+              <span style="color:#333;">Admin Panel</span>
+            </button>
+          ` : ''}
+          
           <button id="viewProfileBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">
             <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">👤</span>
             <span style="color:#333;">View Profile</span>
@@ -530,6 +786,7 @@ function updateUIForLoggedInUser(user) {
   const dropdown = document.getElementById('userDropdown');
   const viewProfileBtn = document.getElementById('viewProfileBtn');
   const logoutBtn = document.getElementById('logoutBtn');
+  const adminPanelBtn = document.getElementById('adminPanelBtn'); // NEW
 
   if (avatarBtn && dropdown) {
     avatarBtn.addEventListener('click', function(e) {
@@ -549,6 +806,14 @@ function updateUIForLoggedInUser(user) {
         dropdown.style.transform = 'translateY(-6px)';
         setTimeout(() => { dropdown.style.display = 'none'; }, 140);
       }
+    });
+  }
+
+  // NEW: Admin panel button handler
+  if (adminPanelBtn) {
+    adminPanelBtn.addEventListener('click', function() {
+      if (dropdown) dropdown.style.display = 'none';
+      window.location.href = 'admin.html';
     });
   }
 
