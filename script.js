@@ -534,54 +534,31 @@ async function loadUserProfile() {
   const nameEl = document.getElementById('userName'); if (nameEl) nameEl.textContent = currentUser.user_metadata?.full_name || (currentUser.email ? currentUser.email.split('@')[0] : 'User');
   const emailEl = document.getElementById('userEmail'); if (emailEl) emailEl.textContent = currentUser.email || '';
 
-  // phone from metadata
-  const phoneField = currentUser.user_metadata?.phone || currentUser.phone || '';
-  const phoneInput = document.getElementById('phoneInput');
-  const countrySelect = document.getElementById('countryCodeSelect');
-  if (phoneField && phoneInput) {
-    const m = phoneField.match(/^\+(\d{1,3})(.*)$/);
-    if (m && countrySelect) {
-      const code = '+' + m[1];
-      const opt = Array.from(countrySelect.options).find(o => o.value === code);
-      if (opt) countrySelect.value = code;
-      phoneInput.value = m[2].replace(/^0+/, '');
+  // Load phone from profiles table instead of user_metadata
+  if (currentUserProfile) {
+    const phoneField = currentUserProfile.phone || '';
+    const phoneInput = document.getElementById('phoneInput');
+    const countrySelect = document.getElementById('countryCodeSelect');
+    
+    if (phoneField && phoneInput) {
+      const m = phoneField.match(/^\+(\d{1,3})(.*)$/);
+      if (m && countrySelect) {
+        const code = '+' + m[1];
+        const opt = Array.from(countrySelect.options).find(o => o.value === code);
+        if (opt) countrySelect.value = code;
+        phoneInput.value = m[2].replace(/^0+/, '');
+      } else {
+        if (countrySelect) countrySelect.value = '+250';
+        phoneInput.value = phoneField;
+      }
     } else {
       if (countrySelect) countrySelect.value = '+250';
-      phoneInput.value = phoneField;
+      if (phoneInput) phoneInput.value = '';
     }
-  } else {
-    if (countrySelect) countrySelect.value = '+250';
-    if (phoneInput) phoneInput.value = '';
   }
 }
 
-// session helper
-async function _ensureSessionOrShowError(targetMessageEl) {
-  if (!supabase) {
-    if (targetMessageEl) { targetMessageEl.style.color = UI.danger; targetMessageEl.textContent = 'Auth unavailable.'; }
-    return false;
-  }
-  try {
-    const { data } = await supabase.auth.getSession();
-    if (!data || !data.session || !data.session.user) {
-      if (targetMessageEl) {
-        targetMessageEl.style.color = UI.danger;
-        targetMessageEl.textContent = 'Session expired. Please sign out and sign in again.';
-      } else {
-        alert('Session expired. Please sign out and sign in again.');
-      }
-      return false;
-    }
-    currentUser = data.session.user;
-    return true;
-  } catch (err) {
-    console.error('Error checking session:', err);
-    if (targetMessageEl) { targetMessageEl.style.color = UI.danger; targetMessageEl.textContent = 'Session check failed. Re-login required.'; }
-    return false;
-  }
-}
-
-// ====== handleUpdatePhone ======
+// ====== handleUpdatePhone (FIXED: Now updates profiles table) ======
 async function handleUpdatePhone() {
   const countrySelect = document.getElementById('countryCodeSelect');
   const phoneRaw = document.getElementById('phoneInput').value.trim();
@@ -593,8 +570,11 @@ async function handleUpdatePhone() {
     return;
   }
 
-  const ok = await _ensureSessionOrShowError(message);
-  if (!ok) return;
+  if (!currentUser) {
+    message.style.color = UI.danger;
+    message.textContent = 'Please sign in to update your phone number.';
+    return;
+  }
 
   let normalized = phoneRaw.replace(/\s|-/g, '');
   if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
@@ -617,20 +597,32 @@ async function handleUpdatePhone() {
   }
 
   try {
-    const { data, error } = await supabase.auth.updateUser({
-      data: { phone: normalized }
-    });
+    // Update phone in profiles table
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ 
+        phone: normalized,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', currentUser.id);
 
     if (error) {
-      console.error('Error saving phone to user_metadata:', error);
+      console.error('Error saving phone to profiles:', error);
       message.style.color = UI.danger;
       message.textContent = error.message || 'Failed to save phone.';
       return;
     }
 
-    if (data && data.user) currentUser = data.user;
+    // Also update in user_metadata for consistency
+    await supabase.auth.updateUser({
+      data: { phone: normalized }
+    });
+
+    // Refresh profile data
+    currentUserProfile = await getUserProfile(currentUser.id);
+    
     message.style.color = '#2e7d32';
-    message.textContent = 'Phone saved to profile.';
+    message.textContent = 'Phone number updated successfully!';
   } catch (err) {
     console.error('Unexpected error saving phone:', err);
     message.style.color = UI.danger;
@@ -638,12 +630,15 @@ async function handleUpdatePhone() {
   }
 }
 
-// Change password
+// Change password (FIXED: Proper error messages and functionality)
 async function handleChangePassword() {
   const currentPassword = document.getElementById('currentPassword').value;
   const newPassword = document.getElementById('newPassword').value;
   const confirmPassword = document.getElementById('confirmNewPassword').value;
   const message = document.getElementById('passwordMessage');
+
+  // Clear previous messages
+  message.textContent = '';
 
   if (!currentPassword || !newPassword || !confirmPassword) {
     message.style.color = UI.danger;
@@ -662,17 +657,40 @@ async function handleChangePassword() {
   }
 
   try {
-    const signInResult = await supabase.auth.signInWithPassword({ email: currentUser.email, password: currentPassword });
-    if (signInResult.error) throw new Error('Current password is incorrect');
+    message.style.color = UI.primaryPink;
+    message.textContent = 'Changing password...';
 
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) throw error;
+    // Verify current password first
+    const signInResult = await supabase.auth.signInWithPassword({ 
+      email: currentUser.email, 
+      password: currentPassword 
+    });
+    
+    if (signInResult.error) {
+      message.style.color = UI.danger;
+      message.textContent = 'Current password is incorrect';
+      return;
+    }
+
+    // Update to new password
+    const { error } = await supabase.auth.updateUser({ 
+      password: newPassword 
+    });
+    
+    if (error) {
+      message.style.color = UI.danger;
+      message.textContent = error.message || 'Password change failed';
+      return;
+    }
 
     message.style.color = '#2e7d32';
     message.textContent = 'Password changed successfully!';
+    
+    // Clear fields
     document.getElementById('currentPassword').value = '';
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmNewPassword').value = '';
+    
   } catch (error) {
     console.error('Change password error:', error);
     message.style.color = UI.danger;
@@ -739,6 +757,7 @@ async function handleRegister(name, email, password, confirmPassword) {
   }
 }
 
+// FIXED: Proper logout function
 async function handleLogout(e) {
   if (e) e.preventDefault();
   if (!supabase) return;
@@ -748,7 +767,7 @@ async function handleLogout(e) {
     window.location.reload();
   } catch (error) {
     console.error('Logout error:', error);
-    alert('Error logging out');
+    alert('Error logging out: ' + error.message);
   }
 }
 
@@ -784,7 +803,7 @@ async function updateUIForLoggedInUser(user) {
   // Admin badge HTML
   const adminBadge = isAdmin ? '<span style="background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Admin</span>' : '';
 
-  // Replace sign-in button with avatar + dropdown
+  // Replace sign-in button with avatar + dropdown (FIXED: Proper width)
   openModalBtn.outerHTML = `
     <div id="userMenuContainer" style="position:relative; display:flex; align-items:center; gap:12px;">
       <button id="userAvatarBtn" aria-label="Open user menu" 
@@ -792,31 +811,31 @@ async function updateUIForLoggedInUser(user) {
         ${initial}
       </button>
 
-      <div id="userDropdown" style="display:none; position:absolute; top:64px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); min-width:260px; z-index:1000; overflow:visible;">
+      <div id="userDropdown" style="display:none; position:absolute; top:64px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:220px; z-index:1000; overflow:visible;">
         <div style="padding:14px 16px; border-radius:14px; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
-          <div style="display: flex; align-items: center;">
-            <p style="margin:0; font-weight:800; color:#221; font-size:15px;">${displayName}</p>
+          <div style="display: flex; align-items: center; flex-wrap: wrap;">
+            <p style="margin:0; font-weight:800; color:#221; font-size:15px; line-height:1.4;">${displayName}</p>
             ${adminBadge}
           </div>
-          <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b;">${user.email || ''}</p>
+          <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b; word-break:break-all;">${user.email || ''}</p>
         </div>
 
-        <div style="padding:12px; display:flex; flex-direction:column; gap:10px;">
+        <div style="padding:12px; display:flex; flex-direction:column; gap:8px;">
           ${isAdmin ? `
-            <button id="adminPanelBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">
+            <button id="adminPanelBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
               <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">⚙️</span>
-              <span style="color:#333;">Admin Panel</span>
+              <span style="color:#333; text-align:left;">Admin Panel</span>
             </button>
           ` : ''}
           
-          <button id="viewProfileBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">
+          <button id="viewProfileBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
             <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">👤</span>
-            <span style="color:#333;">View Profile</span>
+            <span style="color:#333; text-align:left;">View Profile</span>
           </button>
 
-          <button id="logoutBtn" style="display:flex; align-items:center; gap:1010px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; color:${UI.danger}; box-shadow:0 6px 18px rgba(0,0,0,0.04);">
+          <button id="logoutBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; color:${UI.danger}; box-shadow:0 6px 18px rgba(0,0,0,0.04); width:100%;">
             <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#ffdcd3; color:${UI.danger}; font-size:14px;">🚪</span>
-            <span style="color:${UI.danger};">Logout</span>
+            <span style="color:${UI.danger}; text-align:left;">Logout</span>
           </button>
         </div>
       </div>
@@ -1127,9 +1146,9 @@ function updateCartBadge() {
 
 // Cart open/close
 function openCart() {
-    cartPanel.classList.add("open");
-    cartPanel.setAttribute("aria-hidden", "false");
-    cartBackdrop.hidden = false;
+    cartPanel.classList.remove("open");
+    cartPanel.setAttribute("aria-hidden", "true");
+    cartBackdrop.hidden = true;
     renderCart();
 }
 
@@ -1190,6 +1209,3 @@ document.addEventListener("click", function(e) {
         openCart();
     }
 });
-
-
-
