@@ -1128,8 +1128,8 @@ function updateCartBadge() {
 // Cart open/close
 function openCart() {
     cartPanel.classList.remove("open");
-    cartPanel.setAttribute("aria-hidden", "false");
-    cartBackdrop.hidden = false;
+    cartPanel.setAttribute("aria-hidden", "true");
+    cartBackdrop.hidden = true;
     renderCart();
 }
 
@@ -1190,4 +1190,5 @@ document.addEventListener("click", function(e) {
         openCart();
     }
 });
+
 
