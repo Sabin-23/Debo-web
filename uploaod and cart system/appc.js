@@ -372,3 +372,4 @@ updateCartBadge();
 
 // Initial load
 loadAndRender();
+
