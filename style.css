@@ -1024,16 +1024,6 @@ button.normal{
     width: 100%;
 
   }
-  #cart-add{
-    flex-direction: column;
-  }
-  #coupon{
-    width: 100%;
-  }
-  #subtotal{
-    width: 100%;
-    padding: 20px;
-  }
   .about-container {
     display: flex;
     flex-direction: column; /* stack items vertically */
@@ -1190,7 +1180,188 @@ button.normal{
   }
 }
 
+/* Cart Side Menu Styles */
+.cart-panel {
+    position: fixed;
+    right: -420px;
+    top: 0;
+    height: 100%;
+    width: 380px;
+    max-width: 92%;
+    background: linear-gradient(180deg, #0e1116, #0b0c0f);
+    box-shadow: -20px 0 40px rgba(0, 0, 0, 0.6);
+    border-left: 1px solid rgba(255, 255, 255, 0.03);
+    transition: right 0.22s ease;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+}
 
+.cart-panel.open {
+    right: 0;
+}
+
+.cart-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1100;
+}
+
+.cart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.cart-header h3 {
+    margin: 0;
+    color: #e5e7eb;
+}
+
+.cart-header button {
+    background: none;
+    border: none;
+    color: #e5e7eb;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.cart-items {
+    flex: 1;
+    overflow: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cart-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.cart-item img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.cart-item .ci-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.qty-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.qty-controls button {
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #374151;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+.cart-footer {
+    padding: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cart-totals {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: #e5e7eb;
+}
+
+.cart-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.cart-actions button {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.05s ease;
+}
+
+.cart-actions button:active {
+    transform: translateY(1px);
+}
+
+.cart-actions .accent {
+    background: #4ade80;
+    color: #08130a;
+}
+
+.cart-actions .secondary {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+.empty {
+    text-align: center;
+    padding: 22px;
+    color: #7d8799;
+}
+
+/* Cart button styles */
+.cart-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 8px 12px;
+    border-radius: 10px;
+    color: #e6eef3;
+    cursor: pointer;
+}
+
+.badge {
+    display: inline-block;
+    min-width: 22px;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: 8px;
+    border-radius: 14px;
+    background: #ef4444;
+    color: #fff;
+    text-align: center;
+}
+
+/* Small screens: full width cart */
+@media (max-width: 600px) {
+    .cart-panel {
+        width: 100%;
+        right: -100%;
+    }
+    
+    .cart-panel.open {
+        right: 0;
+    }
+}
 /* Signin Page*/
 
 
@@ -1198,6 +1369,7 @@ body {
   background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
   background-size: cover;
 }
+
 
 
 
