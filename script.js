@@ -1,6 +1,6 @@
 // ==========================================
-// SUPABASE AUTHENTICATION WITH USER PROFILE
-// Complete working version with full country list
+// SUPABASE AUTHENTICATION WITH USER PROFILE & ORDER HISTORY
+// Complete working version with all features
 // ==========================================
 
 // Supabase Configuration
@@ -18,7 +18,8 @@ const UI = {
   avatarPink: '#ff7da7',
   dropdownBg: '#ffffff',
   subtleGray: '#f6f3f4',
-  danger: '#c62828'
+  danger: '#c62828',
+  success: '#2e7d32'
 };
 
 // Complete country list with codes 
@@ -272,6 +273,7 @@ window.addEventListener('load', function() {
   initializeSupabaseAuth();
   setupFormToggle();
   setupModalHandlers();
+  initializeCart();
 });
 
 function initializeSupabaseAuth() {
@@ -306,6 +308,29 @@ async function getUserProfile(userId) {
   } catch (error) {
     console.error('Error in getUserProfile:', error);
     return null;
+  }
+}
+
+// Get user orders from database
+async function getUserOrders(userId) {
+  if (!supabase) return [];
+  
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching user orders:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getUserOrders:', error);
+    return [];
   }
 }
 
@@ -442,7 +467,7 @@ function createProfileModal() {
 
   const modalHTML = `
     <div id="userProfileModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:10000; justify-content:center; align-items:center;">
-      <div style="background:#fff; border-radius:12px; width:90%; max-width:780px; max-height:90vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+      <div style="background:#fff; border-radius:12px; width:90%; max-width:900px; max-height:90vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
         <div style="padding:20px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
             <h2 style="margin:0; color:#222; font-size:20px;">Account Settings</h2>
@@ -479,6 +504,15 @@ function createProfileModal() {
             <button id="changePasswordBtn" style="width:100%; padding:10px; background:${UI.primaryPink}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Change Password</button>
             <p id="passwordMessage" style="margin:10px 0 0 0; font-size:13px;"></p>
           </div>
+
+          <div style="margin-bottom:16px; padding:14px; background:#fff; border-radius:8px; border:1px solid #f2f2f2;">
+            <h3 style="margin:0 0 10px 0; color:#222; font-size:15px;">Order History</h3>
+            <div id="orderHistoryContainer">
+              <div style="text-align:center; padding:20px; color:#666;">
+                <p>Loading order history...</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -513,6 +547,7 @@ function openProfileModal() {
   }
   modal.style.display = 'flex';
   loadUserProfile();
+  loadOrderHistory();
 }
 
 function closeProfileModal() {
@@ -558,7 +593,85 @@ async function loadUserProfile() {
   }
 }
 
-// ====== handleUpdatePhone (FIXED: Now updates profiles table) ======
+// Load and display order history
+async function loadOrderHistory() {
+  if (!currentUser) return;
+  
+  const container = document.getElementById('orderHistoryContainer');
+  if (!container) return;
+
+  container.innerHTML = '<div style="text-align:center; padding:10px; color:#666;">Loading orders...</div>';
+  
+  try {
+    const orders = await getUserOrders(currentUser.id);
+    
+    if (orders.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:30px; color:#666;">
+          <p style="margin:0;">No orders found</p>
+          <p style="margin:10px 0 0 0; font-size:14px;">Start shopping to see your order history here!</p>
+        </div>
+      `;
+      return;
+    }
+
+    let ordersHTML = '';
+    
+    orders.forEach(order => {
+      const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      const statusColor = order.payment_status === 'paid' ? UI.success : 
+                         order.payment_status === 'pending' ? '#ff9800' : UI.danger;
+      
+      ordersHTML += `
+        <div style="border:1px solid #eee; border-radius:8px; padding:16px; margin-bottom:12px; background:#fafafa;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+            <div>
+              <strong style="color:#222; font-size:14px;">Order #${order.id.slice(-8)}</strong>
+              <p style="margin:4px 0 0 0; color:#666; font-size:12px;">${orderDate}</p>
+            </div>
+            <span style="background:${statusColor}; color:white; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:700;">
+              ${order.payment_status?.toUpperCase() || 'PENDING'}
+            </span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <p style="margin:0; color:#444; font-size:13px;">
+                Product ID: ${order.product_id || 'N/A'}
+              </p>
+              <p style="margin:4px 0 0 0; color:#444; font-size:13px;">
+                Quantity: ${order.quantity || 1}
+              </p>
+            </div>
+            <div style="text-align:right;">
+              <p style="margin:0; color:#222; font-size:14px; font-weight:700;">
+                Total: $${((order.total_amount || 0) / 100).toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = ordersHTML;
+    
+  } catch (error) {
+    console.error('Error loading order history:', error);
+    container.innerHTML = `
+      <div style="text-align:center; padding:20px; color:${UI.danger};">
+        <p>Error loading order history</p>
+      </div>
+    `;
+  }
+}
+
+// ====== handleUpdatePhone ======
 async function handleUpdatePhone() {
   const countrySelect = document.getElementById('countryCodeSelect');
   const phoneRaw = document.getElementById('phoneInput').value.trim();
@@ -621,7 +734,7 @@ async function handleUpdatePhone() {
     // Refresh profile data
     currentUserProfile = await getUserProfile(currentUser.id);
     
-    message.style.color = '#2e7d32';
+    message.style.color = UI.success;
     message.textContent = 'Phone number updated successfully!';
   } catch (err) {
     console.error('Unexpected error saving phone:', err);
@@ -630,7 +743,7 @@ async function handleUpdatePhone() {
   }
 }
 
-// Change password (FIXED: Proper error messages and functionality)
+// Change password
 async function handleChangePassword() {
   const currentPassword = document.getElementById('currentPassword').value;
   const newPassword = document.getElementById('newPassword').value;
@@ -683,7 +796,7 @@ async function handleChangePassword() {
       return;
     }
 
-    message.style.color = '#2e7d32';
+    message.style.color = UI.success;
     message.textContent = 'Password changed successfully!';
     
     // Clear fields
@@ -757,7 +870,7 @@ async function handleRegister(name, email, password, confirmPassword) {
   }
 }
 
-// FIXED: Proper logout function
+// Proper logout function
 async function handleLogout(e) {
   if (e) e.preventDefault();
   if (!supabase) return;
@@ -803,7 +916,7 @@ async function updateUIForLoggedInUser(user) {
   // Admin badge HTML
   const adminBadge = isAdmin ? '<span style="background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Admin</span>' : '';
 
-  // Replace sign-in button with avatar + dropdown (FIXED: Proper width)
+  // Replace sign-in button with avatar + dropdown
   openModalBtn.outerHTML = `
     <div id="userMenuContainer" style="position:relative; display:flex; align-items:center; gap:12px;">
       <button id="userAvatarBtn" aria-label="Open user menu" 
@@ -958,45 +1071,9 @@ function isValidEmail(email) {
   return emailRegex.test(email);
 }
 
-// trial-success shop page
-const KEY = "local_products_v1";
-
-function loadAll() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || []; }
-  catch { return []; }
-}
-
-// Render shop products
-function renderShopProducts() {
-  const products = loadAll();
-  const container = document.querySelector(".pro-container");
-  if (!container) return;
-  
-  container.innerHTML = "";
-
-  products.forEach(p => {
-    container.innerHTML += `
-      <div class="pro">
-        <img src="${p.image_data_url}" alt="${p.name}">
-        <div class="des">
-          <span>Custom</span>
-          <h5>${p.name}</h5>
-          <h4>$${(p.price_cents/100).toFixed(2)}</h4>
-        </div>
-        <a href="#"><i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i></a>
-      </div>
-    `;
-  });
-}
-
-// Initialize shop products on load
-window.addEventListener('load', function() {
-  renderShopProducts();
-});
-
-
-// ===== Cart functionality only =====
+// ===== CART FUNCTIONALITY =====
 const CART_KEY = "local_cart_v1";
+const PRODUCTS_KEY = "local_products_v1";
 
 // Cart helpers
 function loadCart() {
@@ -1034,41 +1111,104 @@ function clearCart() {
     updateCartBadge();
 }
 
+function loadProducts() {
+  try { return JSON.parse(localStorage.getItem(PRODUCTS_KEY)) || []; }
+  catch { return []; }
+}
+
 // UI refs
-const cartToggle = document.getElementById("cart-toggle");
-const cartBadge = document.getElementById("cart-badge");
-const cartPanel = document.getElementById("cart-panel");
-const cartBackdrop = document.getElementById("cart-backdrop");
-const cartClose = document.getElementById("cart-close");
-const cartItemsNode = document.getElementById("cart-items");
-const cartSubtotalNode = document.getElementById("cart-subtotal");
-const checkoutBtn = document.getElementById("checkout");
-const clearCartBtn = document.getElementById("clear-cart");
+let cartToggle, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
 
 const fmt = new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency: "CAD"
 });
 
+function initializeCart() {
+  cartToggle = document.getElementById("cart-toggle");
+  cartBadge = document.getElementById("cart-badge");
+  cartPanel = document.getElementById("cart-panel");
+  cartBackdrop = document.getElementById("cart-backdrop");
+  cartClose = document.getElementById("cart-close");
+  cartItemsNode = document.getElementById("cart-items");
+  cartSubtotalNode = document.getElementById("cart-subtotal");
+  checkoutBtn = document.getElementById("checkout");
+  clearCartBtn = document.getElementById("clear-cart");
+
+  if (!cartToggle) return;
+
+  // Event listeners
+  cartToggle.addEventListener("click", () => {
+    if (cartPanel.classList.contains("open")) {
+      closeCart();
+    } else {
+      openCart();
+    }
+  });
+
+  if (cartClose) cartClose.addEventListener("click", closeCart);
+  if (cartBackdrop) cartBackdrop.addEventListener("click", closeCart);
+
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener("click", () => {
+      const cart = loadCart();
+      const entries = Object.entries(cart);
+      
+      if (entries.length === 0) {
+        alert("Cart is empty.");
+        return;
+      }
+      
+      // Simulate checkout
+      if (confirm(`Checkout — total ${cartSubtotalNode.textContent}. Simulate payment?`)) {
+        clearCart();
+        renderCart();
+        closeCart();
+        alert("Thank you! (This was a simulated checkout.)");
+      }
+    });
+  }
+
+  if (clearCartBtn) {
+    clearCartBtn.addEventListener("click", () => {
+      if (confirm("Clear cart?")) {
+        clearCart();
+        renderCart();
+      }
+    });
+  }
+
+  // Initialize cart badge on load
+  updateCartBadge();
+
+  // Add to cart functionality for product buttons
+  document.addEventListener("click", function(e) {
+    if (e.target.closest(".fa-cart-shopping")) {
+      e.preventDefault();
+      const productElement = e.target.closest(".pro");
+      const productId = productElement?.getAttribute("data-product-id") || "demo-1";
+      addToCart(productId, 1);
+      openCart();
+    }
+  });
+}
+
 // Cart rendering
 function renderCart() {
+    if (!cartItemsNode) return;
+    
     const cart = loadCart();
+    const products = loadProducts();
     cartItemsNode.innerHTML = "";
 
     const entries = Object.entries(cart);
     if (entries.length === 0) {
         cartItemsNode.innerHTML = `<div class="empty">Your cart is empty.</div>`;
-        cartSubtotalNode.textContent = fmt.format(0);
+        if (cartSubtotalNode) cartSubtotalNode.textContent = fmt.format(0);
         return;
     }
 
     let subtotalCents = 0;
-
-    // For demo purposes - you'll need to replace this with your actual product data
-    const products = [
-        // Add your actual products here or fetch from your data source
-        // Example: { id: "1", name: "Blue Dress", price_cents: 7800, image_data_url: "Products/f1.jpg" }
-    ];
 
     for (const [productId, qty] of entries) {
         const product = products.find(p => p.id === productId);
@@ -1103,7 +1243,7 @@ function renderCart() {
         cartItemsNode.appendChild(ci);
     }
 
-    cartSubtotalNode.textContent = fmt.format(subtotalCents / 100);
+    if (cartSubtotalNode) cartSubtotalNode.textContent = fmt.format(subtotalCents / 100);
 
     // Bind quantity buttons & remove
     cartItemsNode.querySelectorAll("button[data-increase]").forEach(b => {
@@ -1139,6 +1279,7 @@ function computeCartCount() {
 }
 
 function updateCartBadge() {
+    if (!cartBadge) return;
     const count = computeCartCount();
     cartBadge.textContent = count;
     cartBadge.style.display = count ? "inline-block" : "none";
@@ -1146,6 +1287,7 @@ function updateCartBadge() {
 
 // Cart open/close
 function openCart() {
+    if (!cartPanel || !cartBackdrop) return;
     cartPanel.classList.add("open");
     cartPanel.setAttribute("aria-hidden", "false");
     cartBackdrop.hidden = false;
@@ -1153,60 +1295,36 @@ function openCart() {
 }
 
 function closeCart() {
+    if (!cartPanel || !cartBackdrop) return;
     cartPanel.classList.remove("open");
     cartPanel.setAttribute("aria-hidden", "true");
     cartBackdrop.hidden = true;
 }
 
-// Event listeners
-cartToggle.addEventListener("click", () => {
-    if (cartPanel.classList.contains("open")) {
-        closeCart();
-    } else {
-        openCart();
-    }
+// Render shop products
+function renderShopProducts() {
+  const products = loadProducts();
+  const container = document.querySelector(".pro-container");
+  if (!container) return;
+  
+  container.innerHTML = "";
+
+  products.forEach(p => {
+    container.innerHTML += `
+      <div class="pro" data-product-id="${p.id}">
+        <img src="${p.image_data_url}" alt="${p.name}">
+        <div class="des">
+          <span>Custom</span>
+          <h5>${p.name}</h5>
+          <h4>$${(p.price_cents/100).toFixed(2)}</h4>
+        </div>
+        <a href="#"><i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i></a>
+      </div>
+    `;
+  });
+}
+
+// Initialize shop products on load
+window.addEventListener('load', function() {
+  renderShopProducts();
 });
-
-cartClose.addEventListener("click", closeCart);
-cartBackdrop.addEventListener("click", closeCart);
-
-checkoutBtn.addEventListener("click", () => {
-    const cart = loadCart();
-    const entries = Object.entries(cart);
-    
-    if (entries.length === 0) {
-        alert("Cart is empty.");
-        return;
-    }
-    
-    // Simulate checkout
-    if (confirm(`Checkout — total ${cartSubtotalNode.textContent}. Simulate payment?`)) {
-        clearCart();
-        renderCart();
-        closeCart();
-        alert("Thank you! (This was a simulated checkout.)");
-    }
-});
-
-clearCartBtn.addEventListener("click", () => {
-    if (confirm("Clear cart?")) {
-        clearCart();
-        renderCart();
-    }
-});
-
-// Initialize cart badge on load
-updateCartBadge();
-
-// Add to cart functionality for product buttons
-document.addEventListener("click", function(e) {
-    if (e.target.closest(".fa-cart-shopping")) {
-        e.preventDefault();
-        // You'll need to get the product ID from your product elements
-        const productElement = e.target.closest(".pro");
-        const productId = productElement?.getAttribute("data-product-id") || "demo-1";
-        addToCart(productId, 1);
-        openCart();
-    }
-});
-
