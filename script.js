@@ -1,4 +1,5 @@
 //Josue don't do those redundancy bullsh*t on this please 
+//Sabin Don't worry bro😂😂
 const bar = document.getElementById('bar');
 const close = document.getElementById('close');
 const nav = document.getElementById('navbar');
@@ -1711,3 +1712,4 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
