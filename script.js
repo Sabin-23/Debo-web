@@ -907,7 +907,7 @@ async function handleUpdatePhone() {
       }
     }
 
-    // FIX: Corrected update query
+    // FIX: Corrected update query - REMOVED auth.updateUser that causes loops
     const { error } = await supabase
       .from('profiles')
       .update({ 
@@ -917,22 +917,17 @@ async function handleUpdatePhone() {
       .eq('id', currentUser.id);
 
     if (error) {
-      console.error('❌ Phone update error:', error);
+      console.error('Phone update error:', error);
       throw error;
     }
-
-    // Update user metadata
-    await supabase.auth.updateUser({
-      data: { phone: normalized }
-    });
 
     // Refresh profile data
     currentUserProfile = await getUserProfile(currentUser.id);
     
-    showMessage(message, '✅ Phone number updated successfully!', 'success');
+    showMessage(message, 'Phone number updated successfully!', 'success');
     
   } catch (error) {
-    console.error('❌ Error updating phone:', error);
+    console.error('Error updating phone:', error);
     showMessage(message, error.message || 'Failed to update phone number.', 'error');
   } finally {
     setButtonLoading(updateBtn, false, originalText);
@@ -1004,7 +999,10 @@ async function handleChangePassword() {
 
 async function updateUIForLoggedInUser(user) {
   const openModalBtn = document.getElementById('openModal');
-  if (!openModalBtn) return;
+  if (!openModalBtn) {
+    console.error('❌ Sign-in button not found');
+    return;
+  }
 
   const displayName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
@@ -1013,15 +1011,16 @@ async function updateUIForLoggedInUser(user) {
   
   const adminBadge = isAdmin ? '<span style="background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Admin</span>' : '';
 
-  openModalBtn.outerHTML = `
-    <div id="userMenuContainer" style="position:relative; display:flex; align-items:center; gap:12px;">
+  // Create a list item to replace the button
+  const userMenuHTML = `
+    <li id="userMenuContainer" style="position:relative; list-style:none;">
       <button id="userAvatarBtn" aria-label="Open user menu" 
         style="width:48px; height:48px; border-radius:50%; background:${UI.avatarPink}; color:#fff; border:3px solid #fff; cursor:pointer; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(255,125,167,0.12);">
         ${initial}
       </button>
 
-      <div id="userDropdown" style="display:none; position:absolute; top:64px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:220px; z-index:1000; overflow:visible;">
-        <div style="padding:14px 16px; border-radius:14px; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
+      <div id="userDropdown" style="display:none; position:absolute; top:60px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:220px; z-index:1000; overflow:visible;">
+        <div style="padding:14px 16px; border-radius:14px 14px 0 0; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
           <div style="display: flex; align-items: center; flex-wrap: wrap;">
             <p style="margin:0; font-weight:800; color:#221; font-size:15px; line-height:1.4;">${displayName}</p>
             ${adminBadge}
@@ -1048,10 +1047,18 @@ async function updateUIForLoggedInUser(user) {
           </button>
         </div>
       </div>
-    </div>
+    </li>
   `;
 
-  attachUserMenuHandlers();
+  // Replace the button with the user menu
+  openModalBtn.outerHTML = userMenuHTML;
+  
+  console.log('✅ UI updated for logged in user');
+  
+  // Attach event handlers after DOM update
+  setTimeout(() => {
+    attachUserMenuHandlers();
+  }, 100);
 }
 
 function attachUserMenuHandlers() {
@@ -1238,6 +1245,15 @@ function showGlobalMessage(text, type = 'info') {
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+// ==========================================
+// 14. CART INITIALIZATION (STUB)
+// ==========================================
+
+function initializeCart() {
+  // Add your cart initialization logic here
+  console.log('Cart initialized');
 }
 
 // ==========================================
@@ -1598,6 +1614,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
