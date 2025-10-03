@@ -15,7 +15,6 @@ if (close){
     })
 }
 
-
 // ==========================================
 // SUPABASE AUTHENTICATION SYSTEM - FIXED
 // Complete solution with profile management, order history, and cart
@@ -281,15 +280,20 @@ async function createUserProfile(userId) {
       .single();
 
     if (error) {
-      console.error('❌ Profile creation error:', error);
+      // If profile already exists, just fetch it
+      if (error.code === '23505') {
+        console.log('Profile already exists, fetching...');
+        return await getUserProfile(userId);
+      }
+      console.error('Profile creation error:', error);
       throw error;
     }
     
-    console.log('✅ Successfully created new user profile');
+    console.log('Successfully created new user profile');
     return data;
     
   } catch (error) {
-    console.error('❌ Error creating user profile:', error);
+    console.error('Error creating user profile:', error);
     throw new Error(`Failed to create user profile: ${error.message}`);
   }
 }
@@ -1245,6 +1249,16 @@ function initializeCart() {
   // Add your cart initialization logic here
   console.log('Cart initialized');
 }
+
+
+// ==========================================
+// 14. CART INITIALIZATION (STUB)
+// ==========================================
+
+function initializeCart() {
+  // Add your cart initialization logic here
+  console.log('Cart initialized');
+}
 // ==========================================
 // 14. CART FUNCTIONALITY
 // ==========================================
@@ -1576,5 +1590,6 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
