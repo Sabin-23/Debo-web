@@ -14,7 +14,6 @@ if (close){
         nav.classList.remove('active');
     })
 }
-
 // ==========================================
 // SUPABASE AUTHENTICATION SYSTEM - FIXED
 // Complete solution with profile management, order history, and cart
@@ -1250,6 +1249,15 @@ function initializeCart() {
   console.log('Cart initialized');
 }
 
+// ==========================================
+// 14. CART INITIALIZATION (STUB)
+// ==========================================
+
+function initializeCart() {
+  // Add your cart initialization logic here
+  console.log('Cart initialized');
+}
+
 
 // ==========================================
 // 14. CART INITIALIZATION (STUB)
@@ -1590,6 +1598,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
