@@ -4,10 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Dashboard</title>
-  <!-- Supabase JS (UMD build) -->
+
+  <!-- UMD bundle for Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
   <style>
-    /* --- Pink theme + basic reset --- */
+    /* Pink theme + basic reset */
     *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial}
     html,body{height:100%}
     body{display:flex;min-height:100vh;background:linear-gradient(180deg,#ffeef6,#fff0f8);color:#2a0a20}
@@ -174,76 +176,103 @@
   </main>
 
   <script>
-    // --------------------- Configuration ---------------------
+    /***** Config - replace with your project values if different *****/
     const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
-    // Create client (UMD builds expose a `supabase` namespace)
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // Tab switching
-    function selectTab(name){
-      document.querySelectorAll('.nav button[data-tab]').forEach(b=>b.classList.remove('active'));
-      const btn = document.querySelector(`.nav button[data-tab="${name}"]`);
-      if(btn) btn.classList.add('active');
-      document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
-      const panel = document.getElementById('tab-'+name);
-      if(panel) panel.style.display='block';
-      // Lazy load relevant tab
-      if(name==='orders') loadOrders();
-      if(name==='products') loadProducts();
-      if(name==='users') loadUsers();
-      if(name==='analysis') loadAnalysis();
-      if(name==='messages') loadMessages();
-    }
-
-    document.querySelectorAll('.nav button[data-tab]').forEach(btn=>{
-      btn.addEventListener('click', ()=> selectTab(btn.getAttribute('data-tab')));
-    });
-
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-      try{
-        await supabase.auth.signOut();
-      }catch(e){ /* ignore */ }
-      // simple UX: reload page after sign out
-      location.reload();
-    });
-
-    // --------------------- ORDERS ---------------------
-    async function loadOrders(){
-      const ordersGrid = document.getElementById('ordersGrid');
-      const empty = document.getElementById('ordersEmpty');
-      ordersGrid.innerHTML='';
-      // Fetch orders with product info
-      const {data:orders, error} = await supabase
-        .from('orders')
-        .select(`id, product_id, user_id, phone, location, quantity, amount, payment_status, created_at, products ( id, name, price, stock, image_url )`)
-        .order('created_at', {ascending:false});
-      if(error){ console.error(error); empty.style.display='block'; empty.textContent = 'Could not load orders: ' + error.message; return }
-      if(!orders || orders.length===0){ empty.style.display='block'; empty.textContent = 'No orders yet.'; return }
-      empty.style.display='none';
-      orders.forEach(o=>{
-        const card = document.createElement('div'); card.className='order-card';
-        const img = document.createElement('img');
-        const prod = (o.products && o.products[0]) ? o.products[0] : null;
-        img.src = prod && prod.image_url ? prod.image_url : 'https://via.placeholder.com/86/ffe6f0/ff6fb5?text=No+Img';
-        const info = document.createElement('div'); info.className='order-info';
-        const title = document.createElement('div'); title.innerHTML = `<strong>${prod? prod.name : 'Product'}</strong>`;
-        const meta = document.createElement('div'); meta.className='order-meta';
-        const phone = document.createElement('div'); phone.className='pill'; phone.textContent = 'Phone: ' + (o.phone || (o.user_id ? 'from profile' : 'guest'));
-        const loc = document.createElement('div'); loc.className='pill'; loc.textContent = 'Location: ' + (o.location || '—');
-        const qty = document.createElement('div'); qty.className='pill'; qty.textContent = 'Qty: ' + (o.quantity||1);
-        const amt = document.createElement('div'); amt.className='pill'; amt.textContent = 'RWF ' + (o.amount||0);
-        const dot = document.createElement('div'); dot.className='status-dot'; dot.title = o.payment_status ? 'Paid' : 'Pending'; dot.style.background = o.payment_status ? 'green' : 'orange';
-        meta.append(phone, loc, qty, amt, dot);
-        info.append(title, meta);
-        card.append(img, info);
-        ordersGrid.appendChild(card);
+    /***** Safe tab initialization (runs before other scripts to ensure tabs always work) *****/
+    (function attachTabsImmediately(){
+      const tabButtons = document.querySelectorAll('.nav button[data-tab]');
+      const panels = document.querySelectorAll('.tab-panel');
+      function show(name){
+        tabButtons.forEach(b=>b.classList.remove('active'));
+        const btn = document.querySelector(`.nav button[data-tab="${name}"]`);
+        if(btn) btn.classList.add('active');
+        panels.forEach(p=>p.style.display='none');
+        const panel = document.getElementById('tab-'+name);
+        if(panel) panel.style.display='block';
+      }
+      tabButtons.forEach(btn=>{
+        btn.addEventListener('click', ()=> show(btn.getAttribute('data-tab')));
       });
+      // default
+      const initial = document.querySelector('.nav button[data-tab].active') ? document.querySelector('.nav button[data-tab].active').getAttribute('data-tab') : 'orders';
+      show(initial);
+    })();
+
+    /***** Create Supabase client *****/
+    let supabase = null;
+    try {
+      // UMD bundle exposes `supabase` object with createClient
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+      console.error('Supabase init error (continuing but Supabase calls will fail):', e);
     }
 
-    // --------------------- UPLOAD ---------------------
+    /***** Utilities *****/
+    function escapeHtml(str){
+      if(!str) return '';
+      return String(str).replace(/[&<>\"']/g, function(s){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":"&#39;"})[s]; });
+    }
+
+    function safeGetPublicUrl(bucket, path){
+      // wrapper to handle different response shapes defensively
+      try {
+        const res = supabase.storage.from(bucket).getPublicUrl(path);
+        // res may be { data: { publicUrl }, error } or { publicURL } or similar
+        if(res && res.data && res.data.publicUrl) return res.data.publicUrl;
+        if(res && res.publicURL) return res.publicURL;
+        if(res && res.data && res.data.publicURL) return res.data.publicURL;
+      } catch(e){ console.warn('getPublicUrl error', e) }
+      return null;
+    }
+
+    /***** Tab-specific logic (wrapped so errors don't break UI) *****/
+
+    // ORDERS
+    async function loadOrders(){
+      try{
+        const ordersGrid = document.getElementById('ordersGrid');
+        const empty = document.getElementById('ordersEmpty');
+        ordersGrid.innerHTML = '';
+        if(!supabase){ empty.style.display='block'; empty.textContent='Supabase not initialized'; return; }
+
+        // select orders with joined product
+        const resp = await supabase
+          .from('orders')
+          .select(`id, product_id, user_id, phone, location, quantity, amount, payment_status, created_at, products ( id, name, price, stock, image_url )`)
+          .order('created_at', {ascending:false});
+        if(resp.error){ throw resp.error }
+        const orders = resp.data || [];
+        if(orders.length === 0){ empty.style.display='block'; empty.textContent='No orders yet.'; return }
+        empty.style.display='none';
+        orders.forEach(o=>{
+          const card = document.createElement('div'); card.className='order-card';
+          const img = document.createElement('img');
+          const prod = (o.products && o.products[0]) ? o.products[0] : null;
+          img.src = prod && prod.image_url ? prod.image_url : 'https://via.placeholder.com/86/ffe6f0/ff6fb5?text=No+Img';
+          const info = document.createElement('div'); info.className='order-info';
+          const title = document.createElement('div'); title.innerHTML = `<strong>${prod ? escapeHtml(prod.name) : 'Product'}</strong>`;
+          const meta = document.createElement('div'); meta.className='order-meta';
+          const phone = document.createElement('div'); phone.className='pill'; phone.textContent = 'Phone: ' + (o.phone || (o.user_id ? 'from profile' : 'guest'));
+          const loc = document.createElement('div'); loc.className='pill'; loc.textContent = 'Location: ' + (o.location || '—');
+          const qty = document.createElement('div'); qty.className='pill'; qty.textContent = 'Qty: ' + (o.quantity||1);
+          const amt = document.createElement('div'); amt.className='pill'; amt.textContent = 'RWF ' + (o.amount||0);
+          const dot = document.createElement('div'); dot.className='status-dot'; dot.title = o.payment_status ? 'Paid' : 'Pending'; dot.style.background = o.payment_status ? 'green' : 'orange';
+          meta.append(phone, loc, qty, amt, dot);
+          info.append(title, meta);
+          card.append(img, info);
+          ordersGrid.appendChild(card);
+        });
+      } catch (err){
+        console.error('loadOrders error', err);
+        const empty = document.getElementById('ordersEmpty');
+        empty.style.display = 'block';
+        empty.textContent = 'Error loading orders: ' + (err.message || JSON.stringify(err));
+      }
+    }
+
+    // UPLOAD
     const fileInput = document.getElementById('fileInput');
     const previewImg = document.getElementById('previewImg');
     let selectedFile = null;
@@ -275,227 +304,227 @@
       if(!name){ alert('Name required'); return }
       statusEl.textContent = 'Uploading...';
       try{
+        if(!supabase) throw new Error('Supabase not initialized');
+
         let image_url = null;
         if(selectedFile){
           // upload to bucket 'product-images'
-          const fileExt = selectedFile.name.split('.').pop();
-          const fileName = `prod_${Date.now()}.${fileExt}`;
+          const fileExt = (selectedFile.name || '').split('.').pop();
+          const fileName = `prod_${Date.now()}.${fileExt || 'png'}`;
           const path = fileName;
-          const {data:uploadData, error:uploadErr} = await supabase.storage.from('product-images').upload(path, selectedFile, {cacheControl: '3600', upsert: false, contentType: selectedFile.type});
-          if(uploadErr){
-            console.warn('uploadErr', uploadErr);
-            statusEl.textContent = 'Image upload failed, saving product without image URL.';
+          const uploadResp = await supabase.storage.from('product-images').upload(path, selectedFile, {cacheControl: '3600', upsert: false, contentType: selectedFile.type});
+          if(uploadResp.error){
+            console.warn('uploadResp.error', uploadResp.error);
+            // continue, we will insert without image_url
           } else {
-            // get public URL
-            const {data:publicData, error:publicErr} = supabase.storage.from('product-images').getPublicUrl(path);
-            if(publicErr){ console.warn('publicErr', publicErr); image_url = null } else {
-              image_url = publicData.publicUrl;
-            }
+            // get public URL defensively
+            const pub = safeGetPublicUrl('product-images', path);
+            if(pub) image_url = pub;
           }
         }
 
-        const {data, error} = await supabase.from('products').insert([{name, price, stock:qty, description:desc, image_url}]);
-        if(error){ throw error }
+        const insertResp = await supabase.from('products').insert([{name, price, stock:qty, description:desc, image_url}]);
+        if(insertResp.error) throw insertResp.error;
         statusEl.textContent = 'Saved to products table.';
         // reset form
         document.getElementById('clearForm').click();
         // refresh products list if visible
-        if(document.getElementById('tab-products').style.display!=='none') loadProducts();
-      }catch(err){
-        console.error(err); statusEl.textContent = 'Error: ' + (err.message || JSON.stringify(err));
+        if(document.getElementById('tab-products').style.display !== 'none') loadProducts();
+      } catch (err){
+        console.error('product upload error', err);
+        statusEl.textContent = 'Error: ' + (err.message || JSON.stringify(err));
       }
     });
 
-    // --------------------- ANALYSIS ---------------------
+    // ANALYSIS
     async function loadAnalysis(){
-      const tbody = document.querySelector('#analysisTable tbody'); tbody.innerHTML='';
-      // Fetch profiles
-      const {data:profiles, error:prErr} = await supabase.from('profiles').select('id, full_name, email');
-      if(prErr){ console.warn(prErr) }
+      try{
+        const tbody = document.querySelector('#analysisTable tbody'); tbody.innerHTML='';
+        if(!supabase){ tbody.innerHTML = '<tr><td colspan="5">Supabase not initialized</td></tr>'; return; }
 
-      // Fetch orders
-      const {data:orders, error:ordErr} = await supabase.from('orders').select('id, user_id, quantity, amount');
-      if(ordErr){ console.warn(ordErr) }
+        const {data:profiles} = await supabase.from('profiles').select('id, full_name, email');
+        const {data:orders} = await supabase.from('orders').select('id, user_id, quantity, amount');
+        const {data:visits} = await supabase.from('visits').select('id, user_id');
 
-      const map = new Map();
-      let guest = {orders:0,total_qty:0,total_spent:0};
-      if(orders){
-        orders.forEach(o=>{
+        const map = new Map(); let guest = {orders:0,total_qty:0,total_spent:0};
+        (orders||[]).forEach(o=>{
           const uid = o.user_id || 'guest';
-          if(uid==='guest'){
-            guest.orders += 1; guest.total_qty += (o.quantity||0); guest.total_spent += (o.amount||0);
-          } else {
-            if(!map.has(uid)) map.set(uid,{orders:0,total_qty:0,total_spent:0});
+          if(uid === 'guest'){ guest.orders += 1; guest.total_qty += (o.quantity||0); guest.total_spent += (o.amount||0); }
+          else {
+            if(!map.has(uid)) map.set(uid, {orders:0,total_qty:0,total_spent:0});
             const v = map.get(uid); v.orders += 1; v.total_qty += (o.quantity||0); v.total_spent += (o.amount||0);
           }
         });
-      }
 
-      // Visits table optional
-      const {data:visits, error:vErr} = await supabase.from('visits').select('id, user_id');
-      const visitsCount = {};
-      if(!vErr && visits){ visits.forEach(v=>{ const k = v.user_id||'guest'; visitsCount[k] = (visitsCount[k]||0) + 1 }) }
+        const visitsCount = {};
+        (visits||[]).forEach(v => { const k = v.user_id || 'guest'; visitsCount[k] = (visitsCount[k]||0) + 1 });
 
-      if(profiles && profiles.length>0){
-        for(const p of profiles){
+        (profiles||[]).forEach(p=>{
           const uid = p.id;
           const stats = map.get(uid) || {orders:0,total_qty:0,total_spent:0};
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${p.full_name || p.email || uid}</td><td>${visitsCount[uid]||0}</td><td>${stats.orders}</td><td>${stats.total_qty}</td><td>${stats.total_spent}</td>`;
+          tr.innerHTML = `<td>${escapeHtml(p.full_name || p.email || uid)}</td><td>${visitsCount[uid]||0}</td><td>${stats.orders}</td><td>${stats.total_qty}</td><td>${stats.total_spent}</td>`;
           tbody.appendChild(tr);
-        }
+        });
+
+        const trg = document.createElement('tr');
+        trg.innerHTML = `<td>Guest</td><td>${visitsCount['guest']||0}</td><td>${guest.orders}</td><td>${guest.total_qty}</td><td>${guest.total_spent}</td>`;
+        tbody.appendChild(trg);
+      } catch (err){
+        console.error('loadAnalysis error', err);
+        const tbody = document.querySelector('#analysisTable tbody'); tbody.innerHTML = `<tr><td colspan="5">Error: ${escapeHtml(err.message || String(err))}</td></tr>`;
       }
-      const trg = document.createElement('tr');
-      trg.innerHTML = `<td>Guest</td><td>${visitsCount['guest']||0}</td><td>${guest.orders}</td><td>${guest.total_qty}</td><td>${guest.total_spent}</td>`;
-      tbody.appendChild(trg);
     }
 
-    // --------------------- USERS ---------------------
+    // USERS
     async function loadUsers(){
-      const tbody = document.querySelector('#usersTable tbody'); tbody.innerHTML='';
-      const {data, error} = await supabase.from('profiles').select('id, full_name, email, phone, is_admin, created_at').order('created_at', {ascending:false});
-      if(error){ console.warn(error); return }
-      data.forEach(u=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${u.full_name||''}</td><td>${u.email||''}</td><td>${u.phone||''}</td><td>${u.is_admin? 'Yes':'No'}</td><td>${u.created_at? new Date(u.created_at).toLocaleString() : ''}</td>`;
-        tbody.appendChild(tr);
-      });
+      try{
+        const tbody = document.querySelector('#usersTable tbody'); tbody.innerHTML='';
+        if(!supabase){ tbody.innerHTML = '<tr><td colspan="5">Supabase not initialized</td></tr>'; return; }
+        const resp = await supabase.from('profiles').select('id, full_name, email, phone, is_admin, created_at').order('created_at', {ascending:false});
+        if(resp.error) throw resp.error;
+        (resp.data||[]).forEach(u=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${escapeHtml(u.full_name||'')}</td><td>${escapeHtml(u.email||'')}</td><td>${escapeHtml(u.phone||'')}</td><td>${u.is_admin? 'Yes':'No'}</td><td>${u.created_at? new Date(u.created_at).toLocaleString() : ''}</td>`;
+          tbody.appendChild(tr);
+        });
+      } catch(err){ console.error('loadUsers error', err); document.querySelector('#usersTable tbody').innerHTML = `<tr><td colspan="5">Error: ${escapeHtml(err.message||String(err))}</td></tr>`; }
     }
 
-    // --------------------- PRODUCTS ---------------------
+    // PRODUCTS
     async function loadProducts(){
-      const tbody = document.querySelector('#productsTable tbody'); tbody.innerHTML='';
-      const {data, error} = await supabase.from('products').select('*').order('created_at', {ascending:false});
-      if(error){ console.warn(error); return }
-      data.forEach(p=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td><img src="${p.image_url||'https://via.placeholder.com/60/ffe6f0/ff6fb5?text=No+Img'}" alt="" style="width:60px;height:40px;object-fit:cover;border-radius:6px"/></td>
-          <td>${escapeHtml(p.name||'')}</td>
-          <td>${p.price||0}</td>
-          <td>${p.stock||0}</td>
-          <td>${escapeHtml((p.description||''))}</td>
-          <td><button data-id="${p.id}" class="editBtn secondary">Edit</button> <button data-id="${p.id}" class="delBtn danger">Delete</button></td>`;
-        tbody.appendChild(tr);
-      });
-
-      // attach handlers
-      document.querySelectorAll('.delBtn').forEach(b=>{
-        b.addEventListener('click', async (ev)=>{
-          const id = b.getAttribute('data-id');
-          if(!confirm('Delete this product?')) return;
-          const {error} = await supabase.from('products').delete().eq('id', id);
-          if(error){ alert('Delete error: '+error.message); return }
-          loadProducts();
+      try{
+        const tbody = document.querySelector('#productsTable tbody'); tbody.innerHTML='';
+        if(!supabase){ tbody.innerHTML = '<tr><td colspan="6">Supabase not initialized</td></tr>'; return; }
+        const resp = await supabase.from('products').select('*').order('created_at', {ascending:false});
+        if(resp.error) throw resp.error;
+        (resp.data||[]).forEach(p=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td><img src="${p.image_url||'https://via.placeholder.com/60/ffe6f0/ff6fb5?text=No+Img'}" alt="" style="width:60px;height:40px;object-fit:cover;border-radius:6px"/></td>
+            <td>${escapeHtml(p.name||'')}</td>
+            <td>${p.price||0}</td>
+            <td>${p.stock||0}</td>
+            <td>${escapeHtml(p.description||'')}</td>
+            <td><button data-id="${p.id}" class="editBtn secondary">Edit</button> <button data-id="${p.id}" class="delBtn danger">Delete</button></td>`;
+          tbody.appendChild(tr);
         });
-      });
 
-      document.querySelectorAll('.editBtn').forEach(b=>{
-        b.addEventListener('click', async ()=>{
-          const id = b.getAttribute('data-id');
-          const {data} = await supabase.from('products').select('*').eq('id', id).single();
-          if(!data) return alert('Product not found');
-          // inline edit modal
-          const modal = document.createElement('div'); modal.style.position='fixed'; modal.style.inset=0; modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
-          const box = document.createElement('div'); box.style.width='680px'; box.className='card';
-          box.innerHTML = `
-            <h3>Edit product</h3>
-            <div style="display:flex;gap:12px;margin-top:10px">
-              <div style="width:180px">
-                <img src="${data.image_url||'https://via.placeholder.com/180/ffe6f0/ff6fb5?text=No+Img'}" style="width:180px;height:180px;object-fit:cover;border-radius:8px" />
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-                <div><label>Name</label><input id='editName' value='${escapeHtml(data.name||'')}' /></div>
-                <div><label>Price (RWF)</label><input id='editPrice' value='${data.price||0}' type='number' /></div>
-                <div><label>Stock</label><input id='editStock' value='${data.stock||0}' type='number' /></div>
-                <div><label>Description</label><textarea id='editDesc' rows='4'>${escapeHtml(data.description||'')}</textarea></div>
-                <div style="display:flex;gap:8px;margin-top:8px"><button id='saveEdit' class='primary'>Save</button><button id='cancelEdit' class='secondary'>Cancel</button></div>
-              </div>
-            </div>
-          `;
-          box.querySelector('#cancelEdit').addEventListener('click', ()=>document.body.removeChild(modal));
-          box.querySelector('#saveEdit').addEventListener('click', async ()=>{
-            const newName = box.querySelector('#editName').value.trim();
-            const newPrice = parseInt(box.querySelector('#editPrice').value||0,10);
-            const newStock = parseInt(box.querySelector('#editStock').value||0,10);
-            const newDesc = box.querySelector('#editDesc').value.trim();
-            const {error} = await supabase.from('products').update({name:newName, price:newPrice, stock:newStock, description:newDesc}).eq('id', id);
-            if(error){ alert('Update error: '+error.message); return }
-            document.body.removeChild(modal);
-            loadProducts();
-          });
-          modal.appendChild(box); document.body.appendChild(modal);
+        // attach handlers using event delegation to avoid multiple rebindings
+        tbody.querySelectorAll('.delBtn').forEach(btn=>{
+          btn.onclick = async ()=>{
+            const id = btn.getAttribute('data-id');
+            if(!confirm('Delete this product?')) return;
+            try{
+              const {error} = await supabase.from('products').delete().eq('id', id);
+              if(error) throw error;
+              loadProducts();
+            } catch(err){ alert('Delete error: ' + (err.message||String(err))); }
+          };
         });
-      });
+
+        tbody.querySelectorAll('.editBtn').forEach(btn=>{
+          btn.onclick = async ()=>{
+            const id = btn.getAttribute('data-id');
+            try{
+              const {data, error} = await supabase.from('products').select('*').eq('id', id).single();
+              if(error) throw error;
+              const modal = document.createElement('div'); modal.style.position='fixed'; modal.style.inset=0; modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
+              const box = document.createElement('div'); box.style.width='680px'; box.className='card';
+              box.innerHTML = `
+                <h3>Edit product</h3>
+                <div style="display:flex;gap:12px;margin-top:10px">
+                  <div style="width:180px">
+                    <img src="${data.image_url||'https://via.placeholder.com/180/ffe6f0/ff6fb5?text=No+Img'}" style="width:180px;height:180px;object-fit:cover;border-radius:8px" />
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                    <div><label>Name</label><input id='editName' value='${escapeHtml(data.name||'')}' /></div>
+                    <div><label>Price (RWF)</label><input id='editPrice' value='${data.price||0}' type='number' /></div>
+                    <div><label>Stock</label><input id='editStock' value='${data.stock||0}' type='number' /></div>
+                    <div><label>Description</label><textarea id='editDesc' rows='4'>${escapeHtml(data.description||'')}</textarea></div>
+                    <div style="display:flex;gap:8px;margin-top:8px"><button id='saveEdit' class='primary'>Save</button><button id='cancelEdit' class='secondary'>Cancel</button></div>
+                  </div>
+                </div>
+              `;
+              box.querySelector('#cancelEdit').addEventListener('click', ()=>document.body.removeChild(modal));
+              box.querySelector('#saveEdit').addEventListener('click', async ()=>{
+                const newName = box.querySelector('#editName').value.trim();
+                const newPrice = parseInt(box.querySelector('#editPrice').value||0,10);
+                const newStock = parseInt(box.querySelector('#editStock').value||0,10);
+                const newDesc = box.querySelector('#editDesc').value.trim();
+                try{
+                  const {error:updateErr} = await supabase.from('products').update({name:newName, price:newPrice, stock:newStock, description:newDesc}).eq('id', id);
+                  if(updateErr) throw updateErr;
+                  document.body.removeChild(modal);
+                  loadProducts();
+                } catch(upErr){ alert('Update error: ' + (upErr.message||String(upErr))); }
+              });
+              modal.appendChild(box); document.body.appendChild(modal);
+            } catch(err){ alert('Could not load product: ' + (err.message||String(err))); }
+          };
+        });
+
+      } catch(err){
+        console.error('loadProducts error', err);
+        document.querySelector('#productsTable tbody').innerHTML = `<tr><td colspan="6">Error: ${escapeHtml(err.message||String(err))}</td></tr>`;
+      }
     }
 
-    // --------------------- MESSAGES ---------------------
+    // MESSAGES
     async function loadMessages(){
-      const list = document.getElementById('messagesList'); list.innerHTML='';
-      const {data, error} = await supabase.from('messages').select('*').order('created_at', {ascending:false});
-      if(error){ console.warn(error); list.innerHTML = '<div class="muted">Could not load messages (or table missing).</div>'; return }
-      if(!data || data.length===0){ list.innerHTML = '<div class="muted">No messages yet.</div>'; return }
-      data.forEach(m=>{
-        const item = document.createElement('div'); item.className='msg-item';
-        item.innerHTML = `<div style="width:48px;height:48px;border-radius:50%;background:#fff0f6;display:flex;align-items:center;justify-content:center;font-weight:600">${escapeHtml((m.name||'G').slice(0,1).toUpperCase())}</div>
-          <div class="msg-content"><div style="font-weight:600">${escapeHtml(m.name||m.email||'Anonymous')}</div><div class="muted" style="font-size:13px">${escapeHtml((m.message||'').slice(0,80))}</div></div>`;
-        item.addEventListener('click', ()=>{
-          const modal = document.createElement('div'); modal.style.position='fixed'; modal.style.inset=0; modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
-          const box = document.createElement('div'); box.style.width='700px'; box.style.maxHeight='80vh'; box.style.overflow='auto'; box.className='card';
-          box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h3>Message from: ${escapeHtml(m.name||m.email)}</h3><button id='closeModal' class='secondary'>Close</button></div><div style='margin-top:8px'><strong>Email:</strong> ${escapeHtml(m.email||'—')}<br/><strong>Date:</strong> ${m.created_at? new Date(m.created_at).toLocaleString() : ''}<hr/><p>${escapeHtml(m.message||'')}</p></div>`;
-          box.querySelector('#closeModal').addEventListener('click', ()=>document.body.removeChild(modal));
-          modal.appendChild(box); document.body.appendChild(modal);
+      try{
+        const list = document.getElementById('messagesList'); list.innerHTML='';
+        if(!supabase){ list.innerHTML = '<div class="muted">Supabase not initialized</div>'; return; }
+        const resp = await supabase.from('messages').select('*').order('created_at', {ascending:false});
+        if(resp.error) throw resp.error;
+        const data = resp.data || [];
+        if(data.length === 0){ list.innerHTML = '<div class="muted">No messages yet.</div>'; return; }
+        data.forEach(m=>{
+          const item = document.createElement('div'); item.className='msg-item';
+          item.innerHTML = `<div style="width:48px;height:48px;border-radius:50%;background:#fff0f6;display:flex;align-items:center;justify-content:center;font-weight:600">${escapeHtml((m.name||'G').slice(0,1).toUpperCase())}</div>
+            <div class="msg-content"><div style="font-weight:600">${escapeHtml(m.name||m.email||'Anonymous')}</div><div class="muted" style="font-size:13px">${escapeHtml((m.message||'').slice(0,80))}</div></div>`;
+          item.addEventListener('click', ()=>{
+            const modal = document.createElement('div'); modal.style.position='fixed'; modal.style.inset=0; modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
+            const box = document.createElement('div'); box.style.width='700px'; box.style.maxHeight='80vh'; box.style.overflow='auto'; box.className='card';
+            box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h3>Message from: ${escapeHtml(m.name||m.email)}</h3><button id='closeModal' class='secondary'>Close</button></div><div style='margin-top:8px'><strong>Email:</strong> ${escapeHtml(m.email||'—')}<br/><strong>Date:</strong> ${m.created_at? new Date(m.created_at).toLocaleString() : ''}<hr/><p>${escapeHtml(m.message||'')}</p></div>`;
+            box.querySelector('#closeModal').addEventListener('click', ()=>document.body.removeChild(modal));
+            modal.appendChild(box); document.body.appendChild(modal);
+          });
+          list.appendChild(item);
         });
-        list.appendChild(item);
+      } catch(err){
+        console.error('loadMessages error', err);
+        document.getElementById('messagesList').innerHTML = '<div class="muted">Error loading messages.</div>';
+      }
+    }
+
+    /***** Wire up sidebar tab lazy-loading so actual data loads when user opens tab *****/
+    (function lazyLoadOnTabClick(){
+      const tabs = document.querySelectorAll('.nav button[data-tab]');
+      tabs.forEach(btn=>{
+        btn.addEventListener('click', async () => {
+          const tab = btn.getAttribute('data-tab');
+          // call loader functions when tab is shown
+          if(tab === 'orders') setTimeout(loadOrders, 50);
+          if(tab === 'products') setTimeout(loadProducts, 50);
+          if(tab === 'users') setTimeout(loadUsers, 50);
+          if(tab === 'analysis') setTimeout(loadAnalysis, 50);
+          if(tab === 'messages') setTimeout(loadMessages, 50);
+        });
       });
-    }
+      // initial load for orders
+      setTimeout(loadOrders, 200);
+    })();
 
-    // --------------------- Utilities ---------------------
-    function escapeHtml(str){
-      if(!str) return '';
-      return String(str).replace(/[&<>"']/g, function(s){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[s]; });
-    }
+    // Logout handler
+    document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+      try{ if(supabase) await supabase.auth.signOut(); }catch(e){ console.warn('signOut error', e); }
+      // reload to show signed-out state (or clear client-side state)
+      location.reload();
+    });
 
-    // Initial load
-    selectTab('orders');
+    // If you need to debug: open console and call loadProducts(), loadUsers(), loadOrders() manually.
 
-    // Helpful SQL samples (run in Supabase SQL editor if needed):
-    /*
-    create table products (
-      id uuid primary key default gen_random_uuid(),
-      name text,
-      description text,
-      price integer,
-      stock integer,
-      image_url text,
-      created_at timestamptz default now()
-    );
-
-    create table orders (
-      id uuid primary key default gen_random_uuid(),
-      product_id uuid references products(id),
-      user_id uuid references profiles(id),
-      phone text,
-      location text,
-      quantity integer,
-      amount integer,
-      payment_status boolean default false,
-      created_at timestamptz default now()
-    );
-
-    create table messages (
-      id uuid primary key default gen_random_uuid(),
-      name text,
-      email text,
-      message text,
-      created_at timestamptz default now()
-    );
-
-    create table visits (
-      id uuid primary key default gen_random_uuid(),
-      user_id uuid references profiles(id),
-      created_at timestamptz default now()
-    );
-    */
+    /***** End of script *****/
   </script>
 </body>
 </html>
