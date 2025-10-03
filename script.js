@@ -14,7 +14,6 @@ if (close){
         nav.classList.remove('active');
     })
 }
-
 // ==========================================
 // SUPABASE AUTHENTICATION SYSTEM - FIXED
 // Complete solution with profile management, order history, and cart
@@ -242,21 +241,26 @@ async function getUserProfile(userId) {
   }
 
   try {
+    console.log('🔍 Fetching profile for user:', userId);
+    
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
+      console.error('❌ Profile fetch error:', error);
       if (error.code === 'PGRST116') {
-        console.log('📝 No existing profile found for user:', userId);
+        console.log('📝 No existing profile found');
         return null;
       }
       throw error;
     }
 
+    console.log('✅ Profile fetched successfully:', data);
     return data;
+    
   } catch (error) {
     console.error('❌ Error fetching user profile:', error);
     return null;
@@ -1290,6 +1294,15 @@ function initializeCart() {
   console.log('Cart initialized');
 }
 
+// ==========================================
+// 14. CART INITIALIZATION (STUB)
+// ==========================================
+
+function initializeCart() {
+  // Add your cart initialization logic here
+  console.log('Cart initialized');
+}
+
 
 // ==========================================
 // 14. CART INITIALIZATION (STUB)
@@ -1630,6 +1643,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
