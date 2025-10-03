@@ -1039,76 +1039,102 @@ async function handleChangePassword() {
 // 11. UI UPDATE FUNCTIONS
 // ==========================================
 
+// REPLACE updateUIForLoggedInUser WITH THIS
 async function updateUIForLoggedInUser(user) {
+  // ensure there's a stable container to render into
+  let authRoot = document.getElementById('auth-controls');
   const openModalBtn = document.getElementById('openModal');
-  if (!openModalBtn) {
-    console.error('❌ Sign-in button not found');
+
+  if (!authRoot) {
+    if (openModalBtn && openModalBtn.parentNode) {
+      // create a wrapper and move the existing openModal into it (keeps old markup if present)
+      authRoot = document.createElement('div');
+      authRoot.id = 'auth-controls';
+      openModalBtn.parentNode.insertBefore(authRoot, openModalBtn);
+      authRoot.appendChild(openModalBtn);
+    } else {
+      // if nothing found, append to body as a last resort
+      authRoot = document.createElement('div');
+      authRoot.id = 'auth-controls';
+      document.body.insertBefore(authRoot, document.body.firstChild);
+    }
+  }
+
+  // Use provided user or fallback to currentUser
+  const u = user || currentUser;
+  if (!u) {
+    console.warn('updateUIForLoggedInUser called without user');
     return;
   }
 
-  const displayName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'User');
+  const displayName = u.user_metadata?.full_name || (u.email ? u.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
-  
   const isAdmin = currentUserProfile?.is_admin === true;
-  
   const adminBadge = isAdmin ? '<span style="background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Admin</span>' : '';
 
-  // Create a list item to replace the button
   const userMenuHTML = `
-    <li id="userMenuContainer" style="position:relative; list-style:none;">
-      <button id="userAvatarBtn" aria-label="Open user menu" 
-        style="width:48px; height:48px; border-radius:50%; background:${UI.avatarPink}; color:#fff; border:3px solid #fff; cursor:pointer; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(255,125,167,0.12);">
-        ${initial}
-      </button>
-
-      <div id="userDropdown" style="display:none; position:absolute; top:60px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:220px; z-index:1000; overflow:visible;">
-        <div style="padding:14px 16px; border-radius:14px 14px 0 0; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
-          <div style="display: flex; align-items: center; flex-wrap: wrap;">
-            <p style="margin:0; font-weight:800; color:#221; font-size:15px; line-height:1.4;">${displayName}</p>
-            ${adminBadge}
+    <ul id="userMenuContainer" style="margin:0; padding:0; display:flex; align-items:center; gap:12px; list-style:none;">
+      <li style="list-style:none;">
+        <button id="userAvatarBtn" aria-label="Open user menu"
+          style="width:48px; height:48px; border-radius:50%; background:${UI.avatarPink}; color:#fff; border:3px solid #fff; cursor:pointer; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(255,125,167,0.12);">
+          ${initial}
+        </button>
+        <div id="userDropdown" style="display:none; position:absolute; top:60px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:220px; z-index:1000; overflow:visible;">
+          <div style="padding:14px 16px; border-radius:14px 14px 0 0; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
+            <div style="display:flex; align-items: center; flex-wrap: wrap;">
+              <p style="margin:0; font-weight:800; color:#221; font-size:15px; line-height:1.4;">${displayName}</p>
+              ${adminBadge}
+            </div>
+            <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b; word-break:break-all;">${u.email || ''}</p>
           </div>
-          <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b; word-break:break-all;">${user.email || ''}</p>
-        </div>
 
-        <div style="padding:12px; display:flex; flex-direction:column; gap:8px;">
-          ${isAdmin ? `
-            <button id="adminPanelBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
-              <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">⚙️</span>
-              <span style="color:#333; text-align:left;">Admin Panel</span>
+          <div style="padding:12px; display:flex; flex-direction:column; gap:8px;">
+            ${isAdmin ? `
+              <button id="adminPanelBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
+                <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">⚙️</span>
+                <span style="color:#333; text-align:left;">Admin Panel</span>
+              </button>
+            ` : ''}
+            
+            <button id="viewProfileBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
+              <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">👤</span>
+              <span style="color:#333; text-align:left;">View Profile</span>
             </button>
-          ` : ''}
-          
-          <button id="viewProfileBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
-            <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">👤</span>
-            <span style="color:#333; text-align:left;">View Profile</span>
-          </button>
 
-          <button id="logoutBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; color:${UI.danger}; box-shadow:0 6px 18px rgba(0,0,0,0.04); width:100%;">
-            <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#ffdcd3; color:${UI.danger}; font-size:14px;">🚪</span>
-            <span style="color:${UI.danger}; text-align:left;">Logout</span>
-          </button>
+            <button id="logoutBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; color:${UI.danger}; box-shadow:0 6px 18px rgba(0,0,0,0.04); width:100%;">
+              <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#ffdcd3; color:${UI.danger}; font-size:14px;">🚪</span>
+              <span style="color:${UI.danger}; text-align:left;">Logout</span>
+            </button>
+          </div>
         </div>
-      </div>
-    </li>
+      </li>
+    </ul>
   `;
 
-  // Replace the button with the user menu
-  openModalBtn.outerHTML = userMenuHTML;
-  
-  console.log('✅ UI updated for logged in user');
-  
-  // Attach event handlers after DOM update
-  setTimeout(() => {
-    attachUserMenuHandlers();
-  }, 100);
+  // render into stable container (no outerHTML)
+  authRoot.innerHTML = userMenuHTML;
+
+  // attach handlers
+  attachUserMenuHandlers();
 }
 
+
+// REPLACE attachUserMenuHandlers WITH THIS
 function attachUserMenuHandlers() {
-  const avatarBtn = document.getElementById('userAvatarBtn');
+  // helper to replace node with clone to remove prior listeners (idempotent)
+  function freshNode(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    return clone;
+  }
+
+  let avatarBtn = freshNode('userAvatarBtn') || document.getElementById('userAvatarBtn');
   const dropdown = document.getElementById('userDropdown');
-  const viewProfileBtn = document.getElementById('viewProfileBtn');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const adminPanelBtn = document.getElementById('adminPanelBtn');
+  const viewProfileBtn = freshNode('viewProfileBtn') || document.getElementById('viewProfileBtn');
+  const logoutBtn = freshNode('logoutBtn') || document.getElementById('logoutBtn');
+  const adminPanelBtn = freshNode('adminPanelBtn') || document.getElementById('adminPanelBtn');
 
   if (avatarBtn && dropdown) {
     avatarBtn.addEventListener('click', function(e) {
@@ -1149,11 +1175,12 @@ function attachUserMenuHandlers() {
     logoutBtn.addEventListener('click', handleLogout);
   }
 
+  // close dropdown on outside click
   document.addEventListener('click', function(event) {
     const dd = document.getElementById('userDropdown');
     const av = document.getElementById('userAvatarBtn');
     if (!dd) return;
-    if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av.contains(event.target)) {
+    if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av?.contains(event.target)) {
       if (dd.style.display === 'block') {
         dd.style.transition = 'opacity 120ms ease, transform 120ms ease';
         dd.style.opacity = '0';
@@ -1164,15 +1191,35 @@ function attachUserMenuHandlers() {
   });
 }
 
+
+// REPLACE updateUIForLoggedOutUser WITH THIS
 function updateUIForLoggedOutUser() {
-  const userMenu = document.getElementById('userMenuContainer');
-  if (!userMenu) return;
-  
-  userMenu.outerHTML = '<button id="openModal" style="padding:8px 12px; border-radius:8px; background:transparent; border:1px solid #eee; cursor:pointer;">Sign in</button>';
-  
-  const newOpenModalBtn = document.getElementById('openModal');
+  const authRoot = document.getElementById('auth-controls');
   const modal = document.getElementById('modal');
-  
+
+  const signInHTML = `<button id="openModal" style="padding:8px 12px; border-radius:8px; background:transparent; border:1px solid #eee; cursor:pointer;">Sign in</button>`;
+
+  if (authRoot) {
+    authRoot.innerHTML = signInHTML;
+  } else {
+    // fallback: try to replace userMenuContainer or append to body
+    const userMenu = document.getElementById('userMenuContainer');
+    if (userMenu && userMenu.parentNode) {
+      const wrapper = document.createElement('div');
+      wrapper.id = 'auth-controls';
+      userMenu.parentNode.insertBefore(wrapper, userMenu);
+      wrapper.innerHTML = signInHTML;
+      userMenu.remove();
+    } else {
+      const btn = document.createElement('div');
+      btn.id = 'auth-controls';
+      btn.innerHTML = signInHTML;
+      document.body.insertBefore(btn, document.body.firstChild);
+    }
+  }
+
+  // reattach click handler for the sign-in button
+  const newOpenModalBtn = document.getElementById('openModal');
   if (newOpenModalBtn && modal) {
     newOpenModalBtn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -1630,6 +1677,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
