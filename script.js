@@ -1389,7 +1389,7 @@ const CART_KEY = "local_cart_v1";
 const PRODUCTS_KEY = "local_products_v1";
 
 // Cart UI element references
-let cartToggle, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
+let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
 
 // Currency formatter for price display
 const fmt = new Intl.NumberFormat("en-CA", {
@@ -1401,7 +1401,8 @@ const fmt = new Intl.NumberFormat("en-CA", {
  * Initializes cart functionality and event listeners
  */
 function initializeCart() {
-  cartToggle = document.getElementById("cart-toggle");
+  cartToggleMobile = document.getElementById("cart-toggle-mobile");
+  cartToggleDesktop = document.getElementById("cart-toggle-desktop");
   cartBadge = document.getElementById("cart-badge");
   cartPanel = document.getElementById("cart-panel");
   cartBackdrop = document.getElementById("cart-backdrop");
@@ -1411,10 +1412,19 @@ function initializeCart() {
   checkoutBtn = document.getElementById("checkout");
   clearCartBtn = document.getElementById("clear-cart");
 
-  if (!cartToggle) return;
+  if (!cartToggleMobile) return;
+  if (!cartToggleDesktop) return;
 
   // Cart toggle event
-  cartToggle.addEventListener("click", () => {
+  cartToggleMobile.addEventListener("click", () => {
+    if (cartPanel.classList.contains("open")) {
+      closeCart();
+    } else {
+      openCart();
+    }
+  });
+
+  cartToggleDesktop.addEventListener("click", () => {
     if (cartPanel.classList.contains("open")) {
       closeCart();
     } else {
@@ -1701,4 +1711,3 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
-
