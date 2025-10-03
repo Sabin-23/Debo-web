@@ -3,53 +3,56 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin Dashboard — Mini Shop</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>Admin Dashboard</title>
+  <!-- Supabase JS (UMD build) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    /* Basic reset */
-    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
-    body{display:flex;min-height:100vh;background:#f4f6f8}
+    /* --- Pink theme + basic reset --- */
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial}
+    html,body{height:100%}
+    body{display:flex;min-height:100vh;background:linear-gradient(180deg,#ffeef6,#fff0f8);color:#2a0a20}
+
     /* Sidebar */
-    .sidebar{width:260px;background:#0f1724;color:#fff;padding:18px;display:flex;flex-direction:column;gap:10px}
-    .brand{font-size:18px;font-weight:700;margin-bottom:6px}
-    .muted{opacity:.7;font-size:13px}
-    .nav{margin-top:18px;display:flex;flex-direction:column;gap:6px}
-    .nav button{background:transparent;border:none;color:inherit;text-align:left;padding:10px;border-radius:8px;cursor:pointer}
-    .nav button.active{background:#0b1220}
-    .nav .logout{margin-top:auto;background:transparent;border-top:1px solid rgba(255,255,255,0.04);padding-top:12px}
+    .sidebar{width:260px;background:#ff6fb5;color:#fff;padding:20px;display:flex;flex-direction:column;gap:10px}
+    .brand{font-size:20px;font-weight:800}
+    .muted{opacity:.9;font-size:13px}
+    .nav{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+    .nav button{background:transparent;border:none;color:inherit;text-align:left;padding:10px;border-radius:8px;cursor:pointer;font-weight:600}
+    .nav button.active{background:rgba(255,255,255,0.12)}
+    .nav .logout{margin-top:auto;background:transparent;border-top:1px solid rgba(255,255,255,0.12);padding-top:12px}
 
     /* Main area */
-    .main{flex:1;padding:20px}
+    .main{flex:1;padding:22px}
     .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(13,22,38,0.06)}
+    .card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(200,40,90,0.08)}
 
     /* Orders grid */
     .orders-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
-    .order-card{display:flex;gap:12px;align-items:center;padding:12px;border-radius:8px;border:1px solid #eef2f6}
+    .order-card{display:flex;gap:12px;align-items:center;padding:12px;border-radius:8px;border:1px solid #ffe6f0;background:linear-gradient(180deg,#fff,#fff6fb)}
     .order-card img{width:86px;height:86px;object-fit:cover;border-radius:8px}
     .order-info{flex:1}
-    .order-meta{display:flex;gap:10px;align-items:center;margin-top:6px}
-    .pill{padding:6px 8px;border-radius:999px;background:#f3f4f6;font-size:13px}
-    .status-dot{width:12px;height:12px;border-radius:50%}
+    .order-meta{display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap}
+    .pill{padding:6px 8px;border-radius:999px;background:#fff9fb;font-size:13px;border:1px solid #ffe6f0}
+    .status-dot{width:12px;height:12px;border-radius:50%;box-shadow:0 0 0 3px rgba(0,0,0,0.02)}
 
     /* Upload form */
     form .row{display:flex;gap:8px}
     label{display:block;font-size:13px;margin-bottom:6px}
-    input[type=text],input[type=number],textarea{width:100%;padding:8px;border:1px solid #e6e9ee;border-radius:6px}
-    button.primary{background:#0b5fff;color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
-    button.secondary{background:#eef2ff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
-    button.danger{background:#ffefef;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+    input[type=text],input[type=number],textarea{width:100%;padding:8px;border:1px solid #f5d9e8;border-radius:6px;background:#fff}
+    button.primary{background:#ff3b99;color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+    button.secondary{background:#ffd6ec;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+    button.danger{background:#ffb3d6;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
 
     /* Tables */
     table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;text-align:left;border-bottom:1px solid #eef2f6}
-    th{background:#fbfcfe}
+    th,td{padding:10px;text-align:left;border-bottom:1px solid #fff1f6}
+    th{background:#fff}
 
-    /* Messages layout (simple instagram-like) */
+    /* Messages layout */
     .messages-wrap{display:flex;gap:12px}
-    .msg-list{width:320px;background:#fff;border-radius:10px;padding:10px;height:600px;overflow:auto}
+    .msg-list{width:360px;background:#fff;border-radius:10px;padding:10px;height:600px;overflow:auto}
     .msg-item{display:flex;gap:10px;padding:10px;border-radius:8px;align-items:center;cursor:pointer}
-    .msg-item:hover{background:#fbfbfe}
+    .msg-item:hover{background:#fff6fb}
     .msg-content{flex:1}
 
     /* Responsive */
@@ -58,8 +61,8 @@
 </head>
 <body>
   <aside class="sidebar">
-    <div class="brand">Mini Shop — Admin</div>
-    <div class="muted">Signed as admin</div>
+    <div class="brand">Admin</div>
+    <div class="muted">Administrator panel</div>
     <nav class="nav">
       <button data-tab="orders" class="active">Orders</button>
       <button data-tab="upload">Upload (new product)</button>
@@ -74,7 +77,7 @@
   <main class="main">
     <div class="topbar">
       <h2>Admin Dashboard</h2>
-      <div class="muted">Supabase: provided project</div>
+      <div class="muted">Connected to your Supabase project</div>
     </div>
 
     <!-- ORDERS -->
@@ -89,13 +92,13 @@
       <h3>Upload New Product</h3>
       <form id="productForm" style="margin-top:12px">
         <div style="display:flex;gap:12px;align-items:flex-start">
-          <div style="width:180px">
+          <div style="width:200px">
             <label>Image</label>
             <div class="preview-wrap">
-              <img id="previewImg" src="" alt="preview" style="width:160px;height:160px;object-fit:cover;border-radius:8px;border:1px solid #eee"/>
+              <img id="previewImg" src="" alt="preview" style="width:180px;height:180px;object-fit:cover;border-radius:8px;border:1px solid #ffe6f0"/>
               <input id="fileInput" type="file" accept="image/*" />
             </div>
-            <div class="muted" style="font-size:12px">Keep images small (&lt;2MB) for faster uploads.</div>
+            <div class="muted" style="font-size:12px">Images uploaded to Supabase storage bucket <code>product-images</code>.</div>
           </div>
           <div style="flex:1;display:flex;flex-direction:column;gap:8px">
             <div>
@@ -172,33 +175,39 @@
 
   <script>
     // --------------------- Configuration ---------------------
-    // Supabase credentials provided by you.
     const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
-    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Create client (UMD builds expose a `supabase` namespace)
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Utility: select tab
+    // Tab switching
+    function selectTab(name){
+      document.querySelectorAll('.nav button[data-tab]').forEach(b=>b.classList.remove('active'));
+      const btn = document.querySelector(`.nav button[data-tab="${name}"]`);
+      if(btn) btn.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+      const panel = document.getElementById('tab-'+name);
+      if(panel) panel.style.display='block';
+      // Lazy load relevant tab
+      if(name==='orders') loadOrders();
+      if(name==='products') loadProducts();
+      if(name==='users') loadUsers();
+      if(name==='analysis') loadAnalysis();
+      if(name==='messages') loadMessages();
+    }
+
     document.querySelectorAll('.nav button[data-tab]').forEach(btn=>{
-      btn.addEventListener('click',()=>{
-        document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-        const tab = btn.getAttribute('data-tab');
-        document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
-        document.getElementById('tab-'+tab).style.display='block';
-        // lazy-load each tab content
-        if(tab==='orders') loadOrders();
-        if(tab==='analysis') loadAnalysis();
-        if(tab==='users') loadUsers();
-        if(tab==='products') loadProducts();
-        if(tab==='messages') loadMessages();
-      })
+      btn.addEventListener('click', ()=> selectTab(btn.getAttribute('data-tab')));
     });
 
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-      await supabase.auth.signOut();
-      alert('Signed out (if you were signed in).');
+      try{
+        await supabase.auth.signOut();
+      }catch(e){ /* ignore */ }
+      // simple UX: reload page after sign out
+      location.reload();
     });
 
     // --------------------- ORDERS ---------------------
@@ -206,20 +215,21 @@
       const ordersGrid = document.getElementById('ordersGrid');
       const empty = document.getElementById('ordersEmpty');
       ordersGrid.innerHTML='';
-      // Attempt to load orders with joined product and profile
+      // Fetch orders with product info
       const {data:orders, error} = await supabase
         .from('orders')
-        .select(`id, product_id, user_id, phone, location, quantity, amount, payment_status, created_at, products(*)`)
+        .select(`id, product_id, user_id, phone, location, quantity, amount, payment_status, created_at, products ( id, name, price, stock, image_url )`)
         .order('created_at', {ascending:false});
-      if(error){ console.error(error); empty.style.display='block'; return }
-      if(!orders || orders.length===0){ empty.style.display='block'; return }
+      if(error){ console.error(error); empty.style.display='block'; empty.textContent = 'Could not load orders: ' + error.message; return }
+      if(!orders || orders.length===0){ empty.style.display='block'; empty.textContent = 'No orders yet.'; return }
       empty.style.display='none';
       orders.forEach(o=>{
         const card = document.createElement('div'); card.className='order-card';
         const img = document.createElement('img');
-        img.src = (o.products && o.products[0] && o.products[0].image_url) ? o.products[0].image_url : 'https://via.placeholder.com/86';
+        const prod = (o.products && o.products[0]) ? o.products[0] : null;
+        img.src = prod && prod.image_url ? prod.image_url : 'https://via.placeholder.com/86/ffe6f0/ff6fb5?text=No+Img';
         const info = document.createElement('div'); info.className='order-info';
-        const title = document.createElement('div'); title.innerHTML = `<strong>${(o.products && o.products[0])? o.products[0].name : 'Product'}</strong>`;
+        const title = document.createElement('div'); title.innerHTML = `<strong>${prod? prod.name : 'Product'}</strong>`;
         const meta = document.createElement('div'); meta.className='order-meta';
         const phone = document.createElement('div'); phone.className='pill'; phone.textContent = 'Phone: ' + (o.phone || (o.user_id ? 'from profile' : 'guest'));
         const loc = document.createElement('div'); loc.className='pill'; loc.textContent = 'Location: ' + (o.location || '—');
@@ -233,19 +243,17 @@
       });
     }
 
-    // --------------------- UPLOAD (Products) ---------------------
+    // --------------------- UPLOAD ---------------------
     const fileInput = document.getElementById('fileInput');
     const previewImg = document.getElementById('previewImg');
-    let uploadImageDataUrl = null; // will hold base64 dataURL when a file is chosen
+    let selectedFile = null;
+
     fileInput.addEventListener('change', e=>{
       const f = e.target.files[0];
-      if(!f) return;
-      const reader = new FileReader();
-      reader.onload = ()=>{
-        uploadImageDataUrl = reader.result;
-        previewImg.src = uploadImageDataUrl;
-      };
-      reader.readAsDataURL(f);
+      selectedFile = f || null;
+      if(!f){ previewImg.src=''; return }
+      const url = URL.createObjectURL(f);
+      previewImg.src = url;
     });
 
     document.getElementById('clearForm').addEventListener('click', ()=>{
@@ -253,7 +261,7 @@
       document.getElementById('prodPrice').value='';
       document.getElementById('prodQty').value='';
       document.getElementById('prodDesc').value='';
-      fileInput.value=''; uploadImageDataUrl=null; previewImg.src='';
+      fileInput.value=''; selectedFile=null; previewImg.src='';
       document.getElementById('uploadStatus').textContent = 'Cleared';
     });
 
@@ -267,25 +275,23 @@
       if(!name){ alert('Name required'); return }
       statusEl.textContent = 'Uploading...';
       try{
-        // Strategy: upload image to supabase storage if available, else store data URL in image_url
         let image_url = null;
-        if(uploadImageDataUrl){
-          // Try to save to storage 'product-images' (must exist in Supabase project) otherwise save as data URL
-          try{
-            // Convert dataURL to blob
-            const res = await fetch(uploadImageDataUrl);
-            const blob = await res.blob();
-            const fileName = 'prod_' + Date.now() + '.png';
-            const {data, error:upErr} = await supabase.storage.from('product-images').upload(fileName, blob, {upsert:true});
-            if(upErr){
-              console.warn('Storage upload failed, falling back to dataURL', upErr);
-              image_url = uploadImageDataUrl;
-            } else {
-              // build public URL (requires bucket to be public or use signed URL)
-              const {publicURL, error:pubErr} = supabase.storage.from('product-images').getPublicUrl(fileName);
-              image_url = publicURL || uploadImageDataUrl;
+        if(selectedFile){
+          // upload to bucket 'product-images'
+          const fileExt = selectedFile.name.split('.').pop();
+          const fileName = `prod_${Date.now()}.${fileExt}`;
+          const path = fileName;
+          const {data:uploadData, error:uploadErr} = await supabase.storage.from('product-images').upload(path, selectedFile, {cacheControl: '3600', upsert: false, contentType: selectedFile.type});
+          if(uploadErr){
+            console.warn('uploadErr', uploadErr);
+            statusEl.textContent = 'Image upload failed, saving product without image URL.';
+          } else {
+            // get public URL
+            const {data:publicData, error:publicErr} = supabase.storage.from('product-images').getPublicUrl(path);
+            if(publicErr){ console.warn('publicErr', publicErr); image_url = null } else {
+              image_url = publicData.publicUrl;
             }
-          }catch(err){ console.warn(err); image_url = uploadImageDataUrl }
+          }
         }
 
         const {data, error} = await supabase.from('products').insert([{name, price, stock:qty, description:desc, image_url}]);
@@ -293,6 +299,8 @@
         statusEl.textContent = 'Saved to products table.';
         // reset form
         document.getElementById('clearForm').click();
+        // refresh products list if visible
+        if(document.getElementById('tab-products').style.display!=='none') loadProducts();
       }catch(err){
         console.error(err); statusEl.textContent = 'Error: ' + (err.message || JSON.stringify(err));
       }
@@ -300,62 +308,46 @@
 
     // --------------------- ANALYSIS ---------------------
     async function loadAnalysis(){
-      const tbody = document.querySelector('#analysisTable tbody');
-      tbody.innerHTML='';
-      // Get users from profiles
-      const {data:profiles, error:prErr} = await supabase.from('profiles').select('id, full_name, email, created_at');
-      if(prErr){ console.warn('profiles missing or error', prErr) }
+      const tbody = document.querySelector('#analysisTable tbody'); tbody.innerHTML='';
+      // Fetch profiles
+      const {data:profiles, error:prErr} = await supabase.from('profiles').select('id, full_name, email');
+      if(prErr){ console.warn(prErr) }
 
-      // Get aggregated order stats grouped by user_id
-      // We will try to get summary per user_id
-      const {data:ordersSummary, error:ordErr} = await supabase.rpc('orders_summary', {});
-      // NOTE: orders_summary is a recommended Postgres function — if it doesn't exist, we'll fall back to manual queries below.
-      if(!ordersSummary || ordErr){
-        // Manual approach: fetch orders and aggregate in JS
-        const {data:orders, error:oErr} = await supabase.from('orders').select('id, user_id, quantity, amount');
-        if(oErr){ console.warn('orders fetch error', oErr); }
-        const map = new Map();
-        let guest = {user:'Guest', visits:0, orders:0, total_qty:0, total_spent:0};
-        if(orders){
-          orders.forEach(o=>{
-            const uid = o.user_id || 'guest';
-            if(uid==='guest'){
-              guest.orders += 1; guest.total_qty += (o.quantity||0); guest.total_spent += (o.amount||0);
-            } else {
-              if(!map.has(uid)) map.set(uid,{orders:0,total_qty:0, total_spent:0});
-              const v = map.get(uid); v.orders += 1; v.total_qty += (o.quantity||0); v.total_spent += (o.amount||0);
-            }
-          });
-        }
-        // Visits table optional
-        const {data:visits, error:vErr} = await supabase.from('visits').select('id, user_id');
-        const visitsCount = {};
-        if(!vErr && visits){ visits.forEach(v=>{ const k = v.user_id||'guest'; visitsCount[k] = (visitsCount[k]||0) + 1 }) }
+      // Fetch orders
+      const {data:orders, error:ordErr} = await supabase.from('orders').select('id, user_id, quantity, amount');
+      if(ordErr){ console.warn(ordErr) }
 
-        // Render profiles
-        if(profiles && profiles.length>0){
-          for(const p of profiles){
-            const uid = p.id;
-            const stats = map.get(uid) || {orders:0,total_qty:0,total_spent:0};
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${p.full_name || p.email || uid}</td><td>${visitsCount[uid]||0}</td><td>${stats.orders}</td><td>${stats.total_qty}</td><td>${stats.total_spent}</td>`;
-            tbody.appendChild(tr);
+      const map = new Map();
+      let guest = {orders:0,total_qty:0,total_spent:0};
+      if(orders){
+        orders.forEach(o=>{
+          const uid = o.user_id || 'guest';
+          if(uid==='guest'){
+            guest.orders += 1; guest.total_qty += (o.quantity||0); guest.total_spent += (o.amount||0);
+          } else {
+            if(!map.has(uid)) map.set(uid,{orders:0,total_qty:0,total_spent:0});
+            const v = map.get(uid); v.orders += 1; v.total_qty += (o.quantity||0); v.total_spent += (o.amount||0);
           }
-        }
-        // Guest row
-        const trg = document.createElement('tr');
-        trg.innerHTML = `<td>Guest</td><td>${visitsCount['guest']||0}</td><td>${guest.orders}</td><td>${guest.total_qty}</td><td>${guest.total_spent}</td>`;
-        tbody.appendChild(trg);
-
-        return;
+        });
       }
 
-      // If orders_summary RPC returned data, use it (not implemented by default)
-      ordersSummary.forEach(r=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.full_name || r.user_id}</td><td>${r.visits||0}</td><td>${r.orders_count||0}</td><td>${r.total_qty||0}</td><td>${r.total_spent||0}</td>`;
-        tbody.appendChild(tr);
-      });
+      // Visits table optional
+      const {data:visits, error:vErr} = await supabase.from('visits').select('id, user_id');
+      const visitsCount = {};
+      if(!vErr && visits){ visits.forEach(v=>{ const k = v.user_id||'guest'; visitsCount[k] = (visitsCount[k]||0) + 1 }) }
+
+      if(profiles && profiles.length>0){
+        for(const p of profiles){
+          const uid = p.id;
+          const stats = map.get(uid) || {orders:0,total_qty:0,total_spent:0};
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${p.full_name || p.email || uid}</td><td>${visitsCount[uid]||0}</td><td>${stats.orders}</td><td>${stats.total_qty}</td><td>${stats.total_spent}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+      const trg = document.createElement('tr');
+      trg.innerHTML = `<td>Guest</td><td>${visitsCount['guest']||0}</td><td>${guest.orders}</td><td>${guest.total_qty}</td><td>${guest.total_spent}</td>`;
+      tbody.appendChild(trg);
     }
 
     // --------------------- USERS ---------------------
@@ -377,37 +369,63 @@
       if(error){ console.warn(error); return }
       data.forEach(p=>{
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><img src="${p.image_url||'https://via.placeholder.com/60'}" alt="" style="width:60px;height:40px;object-fit:cover;border-radius:6px"/></td>
-          <td>${p.name||''}</td>
+        tr.innerHTML = `<td><img src="${p.image_url||'https://via.placeholder.com/60/ffe6f0/ff6fb5?text=No+Img'}" alt="" style="width:60px;height:40px;object-fit:cover;border-radius:6px"/></td>
+          <td>${escapeHtml(p.name||'')}</td>
           <td>${p.price||0}</td>
           <td>${p.stock||0}</td>
-          <td>${(p.description||'').slice(0,80)}</td>
+          <td>${escapeHtml((p.description||''))}</td>
           <td><button data-id="${p.id}" class="editBtn secondary">Edit</button> <button data-id="${p.id}" class="delBtn danger">Delete</button></td>`;
         tbody.appendChild(tr);
       });
 
       // attach handlers
-      document.querySelectorAll('.delBtn').forEach(b=>b.addEventListener('click', async ()=>{
-        if(!confirm('Delete this product?')) return;
-        const id = b.getAttribute('data-id');
-        const {error} = await supabase.from('products').delete().eq('id', id);
-        if(error){ alert('Delete error: '+error.message); return }
-        loadProducts();
-      }));
+      document.querySelectorAll('.delBtn').forEach(b=>{
+        b.addEventListener('click', async (ev)=>{
+          const id = b.getAttribute('data-id');
+          if(!confirm('Delete this product?')) return;
+          const {error} = await supabase.from('products').delete().eq('id', id);
+          if(error){ alert('Delete error: '+error.message); return }
+          loadProducts();
+        });
+      });
 
-      document.querySelectorAll('.editBtn').forEach(b=>b.addEventListener('click', async ()=>{
-        const id = b.getAttribute('data-id');
-        const {data} = await supabase.from('products').select('*').eq('id', id).single();
-        if(!data) return alert('Product not found');
-        // simple inline edit using prompt (keeps implementation minimal for non-JS users)
-        const newName = prompt('Name', data.name); if(newName===null) return;
-        const newPrice = prompt('Price (RWF)', data.price); if(newPrice===null) return;
-        const newStock = prompt('Stock', data.stock); if(newStock===null) return;
-        const newDesc = prompt('Description', data.description||''); if(newDesc===null) return;
-        const {error} = await supabase.from('products').update({name:newName, price:parseInt(newPrice,10)||0, stock:parseInt(newStock,10)||0, description:newDesc}).eq('id', id);
-        if(error) return alert('Update error: ' + error.message);
-        loadProducts();
-      }));
+      document.querySelectorAll('.editBtn').forEach(b=>{
+        b.addEventListener('click', async ()=>{
+          const id = b.getAttribute('data-id');
+          const {data} = await supabase.from('products').select('*').eq('id', id).single();
+          if(!data) return alert('Product not found');
+          // inline edit modal
+          const modal = document.createElement('div'); modal.style.position='fixed'; modal.style.inset=0; modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
+          const box = document.createElement('div'); box.style.width='680px'; box.className='card';
+          box.innerHTML = `
+            <h3>Edit product</h3>
+            <div style="display:flex;gap:12px;margin-top:10px">
+              <div style="width:180px">
+                <img src="${data.image_url||'https://via.placeholder.com/180/ffe6f0/ff6fb5?text=No+Img'}" style="width:180px;height:180px;object-fit:cover;border-radius:8px" />
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                <div><label>Name</label><input id='editName' value='${escapeHtml(data.name||'')}' /></div>
+                <div><label>Price (RWF)</label><input id='editPrice' value='${data.price||0}' type='number' /></div>
+                <div><label>Stock</label><input id='editStock' value='${data.stock||0}' type='number' /></div>
+                <div><label>Description</label><textarea id='editDesc' rows='4'>${escapeHtml(data.description||'')}</textarea></div>
+                <div style="display:flex;gap:8px;margin-top:8px"><button id='saveEdit' class='primary'>Save</button><button id='cancelEdit' class='secondary'>Cancel</button></div>
+              </div>
+            </div>
+          `;
+          box.querySelector('#cancelEdit').addEventListener('click', ()=>document.body.removeChild(modal));
+          box.querySelector('#saveEdit').addEventListener('click', async ()=>{
+            const newName = box.querySelector('#editName').value.trim();
+            const newPrice = parseInt(box.querySelector('#editPrice').value||0,10);
+            const newStock = parseInt(box.querySelector('#editStock').value||0,10);
+            const newDesc = box.querySelector('#editDesc').value.trim();
+            const {error} = await supabase.from('products').update({name:newName, price:newPrice, stock:newStock, description:newDesc}).eq('id', id);
+            if(error){ alert('Update error: '+error.message); return }
+            document.body.removeChild(modal);
+            loadProducts();
+          });
+          modal.appendChild(box); document.body.appendChild(modal);
+        });
+      });
     }
 
     // --------------------- MESSAGES ---------------------
@@ -418,13 +436,12 @@
       if(!data || data.length===0){ list.innerHTML = '<div class="muted">No messages yet.</div>'; return }
       data.forEach(m=>{
         const item = document.createElement('div'); item.className='msg-item';
-        item.innerHTML = `<div style="width:48px;height:48px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-weight:600">${(m.name||'G').slice(0,1).toUpperCase()}</div>
-          <div class="msg-content"><div style="font-weight:600">${m.name||m.email||'Anonymous'}</div><div class="muted" style="font-size:13px">${(m.message||'').slice(0,80)}</div></div>`;
+        item.innerHTML = `<div style="width:48px;height:48px;border-radius:50%;background:#fff0f6;display:flex;align-items:center;justify-content:center;font-weight:600">${escapeHtml((m.name||'G').slice(0,1).toUpperCase())}</div>
+          <div class="msg-content"><div style="font-weight:600">${escapeHtml(m.name||m.email||'Anonymous')}</div><div class="muted" style="font-size:13px">${escapeHtml((m.message||'').slice(0,80))}</div></div>`;
         item.addEventListener('click', ()=>{
-          // open simple modal-ish view
           const modal = document.createElement('div'); modal.style.position='fixed'; modal.style.inset=0; modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
           const box = document.createElement('div'); box.style.width='700px'; box.style.maxHeight='80vh'; box.style.overflow='auto'; box.className='card';
-          box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h3>Message from: ${m.name||m.email}</h3><button id='closeModal' class='secondary'>Close</button></div><div style='margin-top:8px'><strong>Email:</strong> ${m.email||'—'}<br/><strong>Date:</strong> ${m.created_at? new Date(m.created_at).toLocaleString() : ''}<hr/><p>${(m.message||'')}</p></div>`;
+          box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h3>Message from: ${escapeHtml(m.name||m.email)}</h3><button id='closeModal' class='secondary'>Close</button></div><div style='margin-top:8px'><strong>Email:</strong> ${escapeHtml(m.email||'—')}<br/><strong>Date:</strong> ${m.created_at? new Date(m.created_at).toLocaleString() : ''}<hr/><p>${escapeHtml(m.message||'')}</p></div>`;
           box.querySelector('#closeModal').addEventListener('click', ()=>document.body.removeChild(modal));
           modal.appendChild(box); document.body.appendChild(modal);
         });
@@ -432,11 +449,16 @@
       });
     }
 
-    // Initial load of orders
-    loadOrders();
+    // --------------------- Utilities ---------------------
+    function escapeHtml(str){
+      if(!str) return '';
+      return String(str).replace(/[&<>"']/g, function(s){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[s]; });
+    }
 
-    // Helpful note for non-JS users: make sure your Supabase project has these tables with these columns.
-    // You can create them from SQL editor in Supabase dashboard. Example SQL (run in SQL editor):
+    // Initial load
+    selectTab('orders');
+
+    // Helpful SQL samples (run in Supabase SQL editor if needed):
     /*
     create table products (
       id uuid primary key default gen_random_uuid(),
@@ -474,8 +496,6 @@
       created_at timestamptz default now()
     );
     */
-
-    // End of script
   </script>
 </body>
 </html>
