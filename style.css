@@ -945,7 +945,7 @@ button.normal{
     color: #222;
     font-size: 24px;
   }
-  #navbar .cart-toggle{
+  #navbar .cart-btn{
     display: none;
   }
 
@@ -1369,7 +1369,6 @@ body {
   background: url("Hands\ of\ God.jpg") no-repeat center center fixed;
   background-size: cover;
 }
-
 
 
 
