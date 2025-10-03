@@ -1,3 +1,21 @@
+//Josue don't do those redundancy bullsh*t on this please 
+const bar = document.getElementById('bar');
+const close = document.getElementById('close');
+const nav = document.getElementById('navbar');
+
+if (bar){
+    bar.addEventListener('click', ()=>{
+        nav.classList.add('active');
+    })
+}
+
+if (close){
+    close.addEventListener('click', ()=>{
+        nav.classList.remove('active');
+    })
+}
+
+
 // ==========================================
 // FULL REWRITE: supabase auth + profile modal + profile table sync
 // - Recreates auth modal if missing (so popup always works)
@@ -917,3 +935,336 @@ async function createProfileForUser(user, { full_name = '', email = '', phone = 
 // End of main script
 // -------------------------------
 
+
+
+// ==========================================
+// 14. CART FUNCTIONALITY
+// ==========================================
+
+// Cart storage keys for localStorage
+const CART_KEY = "local_cart_v1";
+const PRODUCTS_KEY = "local_products_v1";
+
+// Cart UI element references
+let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
+
+// Currency formatter for price display
+const fmt = new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD"
+});
+
+/**
+ * Initializes cart functionality and event listeners
+ */
+function initializeCart() {
+  cartToggleMobile = document.getElementById("cart-toggle-mobile");
+  cartToggleDesktop = document.getElementById("cart-toggle-desktop");
+  cartBadge = document.getElementById("cart-badge");
+  cartPanel = document.getElementById("cart-panel");
+  cartBackdrop = document.getElementById("cart-backdrop");
+  cartClose = document.getElementById("cart-close");
+  cartItemsNode = document.getElementById("cart-items");
+  cartSubtotalNode = document.getElementById("cart-subtotal");
+  checkoutBtn = document.getElementById("checkout");
+  clearCartBtn = document.getElementById("clear-cart");
+
+  if (!cartToggleMobile) return;
+  if (!cartToggleDesktop) return;
+
+  // Cart toggle event
+  cartToggleMobile.addEventListener("click", () => {
+    if (cartPanel.classList.contains("open")) {
+      closeCart();
+    } else {
+      openCart();
+    }
+  });
+
+  cartToggleDesktop.addEventListener("click", () => {
+    if (cartPanel.classList.contains("open")) {
+      closeCart();
+    } else {
+      openCart();
+    }
+  });
+
+  // Close cart events
+  if (cartClose) cartClose.addEventListener("click", closeCart);
+  if (cartBackdrop) cartBackdrop.addEventListener("click", closeCart);
+
+  // Checkout button event
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener("click", () => {
+      const cart = loadCart();
+      const entries = Object.entries(cart);
+      
+      if (entries.length === 0) {
+        alert("Cart is empty.");
+        return;
+      }
+      
+      // Simulate checkout process
+      if (confirm(`Checkout — total ${cartSubtotalNode.textContent}. Simulate payment?`)) {
+        clearCart();
+        renderCart();
+        closeCart();
+        alert("Thank you! (This was a simulated checkout.)");
+      }
+    });
+  }
+
+  // Clear cart button event
+  if (clearCartBtn) {
+    clearCartBtn.addEventListener("click", () => {
+      if (confirm("Clear cart?")) {
+        clearCart();
+        renderCart();
+      }
+    });
+  }
+
+  // Initialize cart badge count
+  updateCartBadge();
+
+  // Add to cart functionality for product buttons
+  document.addEventListener("click", function(e) {
+    if (e.target.closest(".fa-cart-shopping")) {
+      e.preventDefault();
+      const productElement = e.target.closest(".pro");
+      const productId = productElement?.getAttribute("data-product-id") || "demo-1";
+      addToCart(productId, 1);
+      openCart();
+    }
+  });
+}
+
+/**
+ * Loads cart data from localStorage
+ * @returns {Object} Cart object with product IDs as keys and quantities as values
+ */
+function loadCart() {
+    try {
+        return JSON.parse(localStorage.getItem(CART_KEY)) || {};
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * Saves cart data to localStorage
+ * @param {Object} cart - Cart object to save
+ */
+function saveCart(cart) {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+}
+
+/**
+ * Adds product to cart or increments quantity
+ * @param {string} productId - ID of product to add
+ * @param {number} qty - Quantity to add (default: 1)
+ */
+function addToCart(productId, qty = 1) {
+    const cart = loadCart();
+    cart[productId] = (cart[productId] || 0) + qty;
+    saveCart(cart);
+    updateCartBadge();
+}
+
+/**
+ * Sets specific quantity for a product in cart
+ * @param {string} productId - ID of product to update
+ * @param {number} qty - New quantity (0 removes item)
+ */
+function setCartQty(productId, qty) {
+    const cart = loadCart();
+    if (qty <= 0) {
+        delete cart[productId];
+    } else {
+        cart[productId] = qty;
+    }
+    saveCart(cart);
+    updateCartBadge();
+}
+
+/**
+ * Clears all items from cart
+ */
+function clearCart() {
+    localStorage.removeItem(CART_KEY);
+    updateCartBadge();
+}
+
+/**
+ * Loads product data from localStorage
+ * @returns {Array} Array of product objects
+ */
+function loadProducts() {
+  try { return JSON.parse(localStorage.getItem(PRODUCTS_KEY)) || []; }
+  catch { return []; }
+}
+
+/**
+ * Renders cart contents in the cart panel
+ */
+function renderCart() {
+    if (!cartItemsNode) return;
+    
+    const cart = loadCart();
+    const products = loadProducts();
+    cartItemsNode.innerHTML = "";
+
+    const entries = Object.entries(cart);
+    if (entries.length === 0) {
+        cartItemsNode.innerHTML = `<div class="empty">Your cart is empty.</div>`;
+        if (cartSubtotalNode) cartSubtotalNode.textContent = fmt.format(0);
+        return;
+    }
+
+    let subtotalCents = 0;
+
+    // Render each cart item
+    for (const [productId, qty] of entries) {
+        const product = products.find(p => p.id === productId);
+        if (!product) {
+            // Product not found, clean up cart entry
+            setCartQty(productId, 0);
+            continue;
+        }
+        
+        const itemTotal = (product.price_cents || 0) * qty;
+        subtotalCents += itemTotal;
+
+        const ci = document.createElement("div");
+        ci.className = "cart-item";
+        ci.innerHTML = `
+            <img src="${product.image_data_url}" alt="${product.name}" />
+            <div class="ci-meta">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>${product.name}</div>
+                    <div style="font-weight:700">${fmt.format(itemTotal / 100)}</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="qty-controls">
+                        <button data-decrease="${productId}">−</button>
+                        <div style="min-width:28px; text-align:center;">${qty}</div>
+                        <button data-increase="${productId}">+</button>
+                    </div>
+                    <button data-remove="${productId}" class="danger" style="padding:6px 8px; border-radius:6px; background:#ef4444; color:#0b0c10; border:none; cursor:pointer">Remove</button>
+                </div>
+            </div>
+        `;
+        cartItemsNode.appendChild(ci);
+    }
+
+    // Update subtotal display
+    if (cartSubtotalNode) cartSubtotalNode.textContent = fmt.format(subtotalCents / 100);
+
+    // Bind quantity control event listeners
+    bindCartEventListeners();
+}
+
+/**
+ * Binds event listeners to cart quantity controls
+ */
+function bindCartEventListeners() {
+    // Increase quantity buttons
+    cartItemsNode.querySelectorAll("button[data-increase]").forEach(b => {
+        b.addEventListener("click", () => {
+            const id = b.getAttribute("data-increase");
+            addToCart(id, 1);
+            renderCart();
+        });
+    });
+    
+    // Decrease quantity buttons
+    cartItemsNode.querySelectorAll("button[data-decrease]").forEach(b => {
+        b.addEventListener("click", () => {
+            const id = b.getAttribute("data-decrease");
+            const cart = loadCart();
+            const newQ = (cart[id] || 0) - 1;
+            setCartQty(id, newQ);
+            renderCart();
+        });
+    });
+    
+    // Remove item buttons
+    cartItemsNode.querySelectorAll("button[data-remove]").forEach(b => {
+        b.addEventListener("click", () => {
+            const id = b.getAttribute("data-remove");
+            setCartQty(id, 0);
+            renderCart();
+        });
+    });
+}
+
+/**
+ * Calculates total number of items in cart
+ * @returns {number} Total quantity of all items in cart
+ */
+function computeCartCount() {
+    const cart = loadCart();
+    return Object.values(cart).reduce((s, q) => s + q, 0);
+}
+
+/**
+ * Updates cart badge with current item count
+ */
+function updateCartBadge() {
+    if (!cartBadge) return;
+    const count = computeCartCount();
+    cartBadge.textContent = count;
+    cartBadge.style.display = count ? "inline-block" : "none";
+}
+
+/**
+ * Opens cart panel and renders contents
+ */
+function openCart() {
+    if (!cartPanel || !cartBackdrop) return;
+    cartPanel.classList.add("open");
+    cartPanel.setAttribute("aria-hidden", "false");
+    cartBackdrop.hidden = false;
+    renderCart();
+}
+
+/**
+ * Closes cart panel
+ */
+function closeCart() {
+    if (!cartPanel || !cartBackdrop) return;
+    cartPanel.classList.remove("open");
+    cartPanel.setAttribute("aria-hidden", "true");
+    cartBackdrop.hidden = true;
+}
+
+/**
+ * Renders shop products in the product container
+ */
+function renderShopProducts() {
+  const products = loadProducts();
+  const container = document.querySelector(".pro-container");
+  if (!container) return;
+  
+  container.innerHTML = "";
+
+  // Generate HTML for each product
+  products.forEach(p => {
+    container.innerHTML += `
+      <div class="pro" data-product-id="${p.id}">
+        <img src="${p.image_data_url}" alt="${p.name}">
+        <div class="des">
+          <span>Custom</span>
+          <h5>${p.name}</h5>
+          <h4>$${(p.price_cents/100).toFixed(2)}</h4>
+        </div>
+        <a href="#"><i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i></a>
+      </div>
+    `;
+  });
+}
+
+// Initialize shop products when page loads
+window.addEventListener('load', function() {
+  renderShopProducts();
+});
