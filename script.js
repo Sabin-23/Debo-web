@@ -1,3 +1,25 @@
+//Josue don't do those redundancy bullsh*t on this please 
+const bar = document.getElementById('bar');
+const close = document.getElementById('close');
+const nav = document.getElementById('navbar');
+
+if (bar){
+    bar.addEventListener('click', ()=>{
+        nav.classList.add('active');
+    })
+}
+
+if (close){
+    close.addEventListener('click', ()=>{
+        nav.classList.remove('active');
+    })
+}
+
+
+
+
+
+
 // ==========================================
 // SUPABASE AUTHENTICATION SYSTEM
 // Complete solution with profile management, order history, and cart
@@ -1679,3 +1701,4 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
