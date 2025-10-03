@@ -8,8 +8,6 @@
     <title> About Us - God's only Store</title>
      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <!-- Your existing head content -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -23,7 +21,12 @@
                 <li><a href="shop.html">Shop</a></li>
                 <li><a href="About.html">About</a></li>
                 <li><a class="active" href="contact.html">Contact</a></li>
-                <li id="lg-bag"><a href="cart.html"><i class="fa-solid fa-bag-shopping"></i></a></li>
+                <li>
+                    <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                        <span id="cart-badge" class="badge">0</span>
+                    </a>
+                </li>
                 <button id="openModal">Sign-in/Register</button>
                 <div class="modal" id="modal">
                     <div class="auth-container">
@@ -54,7 +57,10 @@
                 <a href="#" id="close"><i class="far fa-times-circle"></i></a>
             </ul>
             <div id="mobile">
-                <a href="cart.html"><i class="fa-solid fa-bag-shopping"></i></a>
+                <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span id="cart-badge" class="badge">0</span>
+                </a>
                 <i id="bar" class="fas fa-outdent"></i>
             </div>
         </div>
@@ -165,10 +171,28 @@
             <p>@whatis50</p>
         </div>
     </footer>
+    
+    <aside id="cart-panel" class="cart-panel" aria-hidden="true">
+        <div class="cart-header">
+            <h3>Your Cart</h3>
+            <button id="cart-close" aria-label="Close cart">✕</button>
+        </div>
+        <div id="cart-items" class="cart-items"></div>
+        <div class="cart-footer">
+            <div class="cart-totals">
+                <div>Subtotal</div>
+                <div id="cart-subtotal">—</div>
+            </div>
+            <div class="cart-actions">
+                <button id="checkout" class="accent">Checkout</button>
+                <button id="clear-cart" class="secondary">Clear Cart</button>
+            </div>
+        </div>
+    </aside>
+                
+    <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
     <script src="script.js"></script>
 </body>
 
 </html>
-
-
