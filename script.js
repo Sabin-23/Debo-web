@@ -147,35 +147,57 @@ function setupAuthStateListener() {
     
     switch (event) {
       case 'SIGNED_IN':
+        if (isProcessingAuth) {
+          console.log('Already processing auth, skipping...');
+          return;
+        }
+        
         isProcessingAuth = true;
         currentUser = session.user;
-        console.log('👤 User signed in:', currentUser.email);
+        console.log('User signed in:', currentUser.email);
+        
+        // Wait a moment to ensure session is fully established
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         try {
+          console.log('Starting profile load...');
+          
           // Load or create profile
           currentUserProfile = await getUserProfile(currentUser.id);
-          console.log('📋 Profile fetched:', currentUserProfile);
+          console.log('Profile result:', currentUserProfile);
           
           if (!currentUserProfile) {
-            console.log('📝 Creating new user profile...');
+            console.log('Creating new user profile...');
             currentUserProfile = await createUserProfile(currentUser.id);
-            console.log('✅ Profile created:', currentUserProfile);
+            console.log('Profile created:', currentUserProfile);
             
             if (!currentUserProfile) {
               throw new Error('Failed to create user profile');
             }
           }
           
-          console.log('🎨 Updating UI...');
+          // Check if user is admin and redirect
+          if (currentUserProfile.is_admin === true) {
+            console.log('Admin user detected, redirecting to admin panel...');
+            showGlobalMessage('Welcome Admin! Redirecting...', 'success');
+            setTimeout(() => {
+              window.location.href = 'admin.html';
+            }, 1000);
+            isProcessingAuth = false;
+            return;
+          }
+          
+          console.log('Updating UI for regular user...');
           updateUIForLoggedInUser(currentUser);
           showGlobalMessage('Successfully signed in!', 'success');
           
         } catch (error) {
-          console.error('❌ Error during sign-in process:', error);
+          console.error('FULL ERROR during sign-in:', error);
+          console.error('Error stack:', error.stack);
           showGlobalMessage('Error loading profile: ' + error.message, 'error');
         } finally {
           isProcessingAuth = false;
-          console.log('✅ Auth processing complete');
+          console.log('Auth processing complete');
         }
         break;
         
@@ -237,11 +259,12 @@ async function checkAuthStatus() {
 
 async function getUserProfile(userId) {
   if (!supabase) {
+    console.error('Supabase client not initialized');
     throw new Error('Supabase client not initialized');
   }
 
   try {
-    console.log('🔍 Fetching profile for user:', userId);
+    console.log('Fetching profile for user:', userId);
     
     const { data, error } = await supabase
       .from('profiles')
@@ -249,20 +272,28 @@ async function getUserProfile(userId) {
       .eq('id', userId)
       .maybeSingle();
 
+    console.log('Profile query result - data:', data);
+    console.log('Profile query result - error:', error);
+
     if (error) {
-      console.error('❌ Profile fetch error:', error);
+      console.error('Profile fetch error:', error);
       if (error.code === 'PGRST116') {
-        console.log('📝 No existing profile found');
+        console.log('No existing profile found');
         return null;
       }
       throw error;
     }
 
-    console.log('✅ Profile fetched successfully:', data);
+    if (!data) {
+      console.log('Profile query returned null/undefined');
+      return null;
+    }
+
+    console.log('Profile fetched successfully:', data);
     return data;
     
   } catch (error) {
-    console.error('❌ Error fetching user profile:', error);
+    console.error('Exception in getUserProfile:', error);
     return null;
   }
 }
@@ -1259,15 +1290,6 @@ function isValidEmail(email) {
 }
 
 
-// ==========================================
-// 14. CART INITIALIZATION (STUB)
-// ==========================================
-
-function initializeCart() {
-  // Add your cart initialization logic here
-  console.log('Cart initialized');
-}
-
 
 // ==========================================
 // 14. CART INITIALIZATION (STUB)
@@ -1608,6 +1630,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
