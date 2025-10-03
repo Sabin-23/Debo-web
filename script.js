@@ -16,7 +16,6 @@ if (close){
 }
 
 
-
 // ==========================================
 // SUPABASE AUTHENTICATION SYSTEM - FIXED
 // Complete solution with profile management, order history, and cart
@@ -134,17 +133,26 @@ function initializeSupabaseAuth() {
 // 4. AUTHENTICATION STATE MANAGEMENT - FIXED
 // ==========================================
 
+let isProcessingAuth = false; // Prevent infinite loops
+
 function setupAuthStateListener() {
   if (!supabase) return;
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('🔄 Auth state changed:', event);
     
+    // Prevent processing multiple auth events simultaneously
+    if (event === 'SIGNED_IN' && isProcessingAuth) {
+      console.log('⏸️ Already processing auth, skipping...');
+      return;
+    }
+    
     switch (event) {
       case 'SIGNED_IN':
+        isProcessingAuth = true;
         currentUser = session.user;
         try {
-          // FIX: Properly handle profile creation
+          // FIX: Properly handle profile creation without loops
           currentUserProfile = await getUserProfile(currentUser.id);
           
           if (!currentUserProfile) {
@@ -157,25 +165,28 @@ function setupAuthStateListener() {
           }
           
           updateUIForLoggedInUser(currentUser);
-          showGlobalMessage('✅ Successfully signed in!', 'success');
+          showGlobalMessage('Successfully signed in!', 'success');
           
         } catch (error) {
           console.error('❌ Error during sign-in process:', error);
           showGlobalMessage('Error loading profile: ' + error.message, 'error');
+        } finally {
+          isProcessingAuth = false;
         }
         break;
         
       case 'SIGNED_OUT':
+        isProcessingAuth = false;
         currentUser = null;
         currentUserProfile = null;
         updateUIForLoggedOutUser();
-        showGlobalMessage('👋 Successfully signed out.', 'info');
+        showGlobalMessage('Successfully signed out.', 'info');
         break;
         
       case 'USER_UPDATED':
-        currentUser = session.user;
-        if (currentUser) {
-          currentUserProfile = await getUserProfile(currentUser.id);
+        // Don't reload profile on update to prevent loops
+        if (session?.user) {
+          currentUser = session.user;
         }
         break;
         
@@ -1227,6 +1238,14 @@ function isValidEmail(email) {
 }
 
 // ==========================================
+// 14. CART INITIALIZATION (STUB)
+// ==========================================
+
+function initializeCart() {
+  // Add your cart initialization logic here
+  console.log('Cart initialized');
+}
+// ==========================================
 // 14. CART FUNCTIONALITY
 // ==========================================
 
@@ -1557,4 +1576,5 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
