@@ -14,1372 +14,6 @@ if (close){
         nav.classList.remove('active');
     })
 }
-
-
-
-
-
-
-// ==========================================
-// SUPABASE AUTHENTICATION SYSTEM
-// Complete solution with profile management, order history, and cart
-// ==========================================
-
-// ==========================================
-// 1. CONFIGURATION & CONSTANTS
-// ==========================================
-
-// Supabase project configuration - Replace with your actual credentials
-const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
-
-// Global state variables to track user session and data
-let supabase = null;        // Supabase client instance
-let currentUser = null;     // Currently logged in user from Supabase Auth
-let currentUserProfile = null; // User profile data from profiles table
-
-// UI color scheme for consistent styling
-const UI = {
-  primaryPink: '#ff9db1',   // Main brand color
-  pinkSoft: '#fff0f3',      // Light pink for backgrounds
-  avatarPink: '#ff7da7',    // Avatar circle color
-  dropdownBg: '#ffffff',    // Dropdown background
-  subtleGray: '#f6f3f4',    // Subtle borders and backgrounds
-  danger: '#c62828',        // Error and danger states
-  success: '#2e7d32',       // Success messages
-  warning: '#ff9800'        // Warning states
-};
-
-// ==========================================
-// 2. COUNTRY DATA FOR PHONE NUMBER INPUT
-// ==========================================
-
-// Comprehensive list of countries with ISO codes, phone codes, and labels
-// Used for the country code dropdown in profile settings
-const COUNTRY_LIST = [
-  { iso: 'RW', code: '+250', label: 'Rwanda' },
-  { iso: 'AF', code: '+93', label: 'Afghanistan' },
-  // ... (include all other countries from your original list)
-  // For brevity, I'm showing just Rwanda but you should include all countries
-  { iso: 'ZW', code: '+263', label: 'Zimbabwe' }
-];
-
-// ==========================================
-// 3. INITIALIZATION & SETUP
-// ==========================================
-
-/**
- * Main initialization function that runs when page loads
- * Sets up Supabase client, event listeners, and checks auth status
- */
-window.addEventListener('load', function() {
-  console.log('🔧 Initializing application...');
-  initializeSupabaseAuth();
-  setupFormToggle();
-  setupModalHandlers();
-  initializeCart();
-});
-
-/**
- * Initializes the Supabase client and sets up authentication system
- * This must be called before any auth-related operations
- */
-function initializeSupabaseAuth() {
-  // Check if Supabase library is loaded
-  if (typeof window.supabase === 'undefined') {
-    console.error('❌ Supabase library not loaded');
-    showGlobalMessage('Authentication service not available. Please refresh the page.', 'error');
-    return;
-  }
-
-  try {
-    // Create Supabase client instance with project credentials
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('✅ Supabase client initialized successfully');
-    
-    // Set up authentication state listener for login/logout events
-    setupAuthStateListener();
-    
-    // Initialize UI components and check current authentication status
-    setupAuthUI();
-    createProfileModal();
-    checkAuthStatus();
-    
-  } catch (error) {
-    console.error('❌ Failed to initialize Supabase:', error);
-    showGlobalMessage('Failed to initialize authentication. Please refresh the page.', 'error');
-  }
-}
-
-// ==========================================
-// 4. AUTHENTICATION STATE MANAGEMENT
-// ==========================================
-
-/**
- * Sets up listener for authentication state changes
- * Handles user sign in, sign out, token refresh, and profile loading
- */
-function setupAuthStateListener() {
-  if (!supabase) return;
-
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('🔄 Auth state changed:', event);
-    
-    switch (event) {
-      case 'SIGNED_IN':
-        currentUser = session.user;
-        try {
-          // 🔧 CRITICAL FIX: Get or create user profile
-          currentUserProfile = await getUserProfile(currentUser.id);
-          if (!currentUserProfile) {
-            // Profile doesn't exist - create it automatically
-            console.log('📝 Creating new user profile...');
-            currentUserProfile = await createUserProfile(currentUser.id);
-          }
-          updateUIForLoggedInUser(currentUser);
-          showGlobalMessage('✅ Successfully signed in!', 'success');
-        } catch (error) {
-          console.error('❌ Error during sign-in process:', error);
-          showGlobalMessage('⚠️ Signed in but profile issues detected.', 'warning');
-        }
-        break;
-        
-      case 'SIGNED_OUT':
-        currentUser = null;
-        currentUserProfile = null;
-        updateUIForLoggedOutUser();
-        showGlobalMessage('👋 Successfully signed out.', 'info');
-        break;
-        
-      case 'USER_UPDATED':
-        currentUser = session.user;
-        break;
-        
-      case 'TOKEN_REFRESHED':
-        console.log('🔄 Token refreshed');
-        break;
-    }
-  });
-}
-
-/**
- * Checks if user has an active session when page loads
- * Useful for page refreshes or returning visitors
- */
-async function checkAuthStatus() {
-  if (!supabase) return;
-
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error('❌ Session check error:', error);
-      return;
-    }
-    
-    // If session exists, load user data and update UI
-    if (data.session?.user) {
-      currentUser = data.session.user;
-      currentUserProfile = await getUserProfile(currentUser.id);
-      updateUIForLoggedInUser(currentUser);
-    } else {
-      updateUIForLoggedOutUser();
-    }
-  } catch (error) {
-    console.error('❌ Error checking auth status:', error);
-  }
-}
-
-// ==========================================
-// 5. USER PROFILE MANAGEMENT
-// ==========================================
-
-/**
- * Fetches user profile from the database
- * @param {string} userId - The user's unique ID from Supabase Auth
- * @returns {Object|null} User profile object or null if not found
- */
-async function getUserProfile(userId) {
-  if (!supabase) {
-    throw new Error('Supabase client not initialized');
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-      .timeout(10000); // 10 second timeout
-
-    if (error) {
-      // Profile doesn't exist - this is normal for new users
-      if (error.code === 'PGRST116') {
-        console.log('📝 No existing profile found for user:', userId);
-        return null;
-      }
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('❌ Error fetching user profile:', error);
-    throw new Error(`Failed to load user profile: ${error.message}`);
-  }
-}
-
-/**
- * Creates a new user profile in the database
- * Called automatically when user signs up or if profile is missing
- * @param {string} userId - The user's unique ID from Supabase Auth
- * @returns {Object} The newly created profile
- */
-async function createUserProfile(userId) {
-  if (!supabase || !currentUser) {
-    throw new Error('Cannot create profile: missing user data');
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert([
-        {
-          id: userId,
-          email: currentUser.email,
-          full_name: currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
-          phone: null,
-          is_admin: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ])
-      .select()
-      .single();
-
-    if (error) throw error;
-    
-    console.log('✅ Successfully created new user profile');
-    return data;
-    
-  } catch (error) {
-    console.error('❌ Error creating user profile:', error);
-    throw new Error(`Failed to create user profile: ${error.message}`);
-  }
-}
-
-/**
- * Fetches user's order history from the database
- * @param {string} userId - The user's unique ID
- * @returns {Array} Array of order objects
- */
-async function getUserOrders(userId) {
-  if (!supabase) return [];
-
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('❌ Error fetching user orders:', error);
-      return [];
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('❌ Error in getUserOrders:', error);
-    return [];
-  }
-}
-
-// ==========================================
-// 6. AUTHENTICATION UI SETUP
-// ==========================================
-
-/**
- * Sets up authentication UI event listeners
- * Handles form submissions for sign in and register
- */
-function setupAuthUI() {
-  const modal = document.getElementById('modal');
-  const openModalBtn = document.getElementById('openModal');
-  const closeModalBtn = document.getElementById('closeModal');
-  const signinForm = document.getElementById('signin-form');
-  const registerForm = document.getElementById('register-form');
-
-  if (!modal || !openModalBtn) {
-    console.log('Auth modal elements not found');
-    return;
-  }
-
-  // Sign in form submission handler
-  if (signinForm) {
-    signinForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const inputs = signinForm.querySelectorAll('input');
-      const email = inputs[0].value.trim();
-      const password = inputs[1].value;
-      
-      // Show loading state on submit button
-      const submitBtn = signinForm.querySelector('button[type="submit"]');
-      const originalText = submitBtn.textContent;
-      
-      setButtonLoading(submitBtn, true);
-      await handleSignIn(email, password);
-      setButtonLoading(submitBtn, false, originalText);
-    });
-  }
-
-  // Register form submission handler
-  if (registerForm) {
-    registerForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const inputs = registerForm.querySelectorAll('input');
-      const name = inputs[0].value.trim();
-      const email = inputs[1].value.trim();
-      const password = inputs[2].value;
-      const confirmPassword = inputs[3].value;
-      
-      // Show loading state on submit button
-      const submitBtn = registerForm.querySelector('button[type="submit"]');
-      const originalText = submitBtn.textContent;
-      
-      setButtonLoading(submitBtn, true);
-      await handleRegister(name, email, password, confirmPassword);
-      setButtonLoading(submitBtn, false, originalText);
-    });
-  }
-}
-
-/**
- * Shows loading state on buttons during async operations
- * @param {HTMLElement} button - The button element
- * @param {boolean} isLoading - Whether to show loading state
- * @param {string} originalText - Original button text to restore
- */
-function setButtonLoading(button, isLoading, originalText = 'Submit') {
-  if (isLoading) {
-    button.disabled = true;
-    button.innerHTML = '<div class="loading-spinner"></div> Loading...';
-    button.style.opacity = '0.7';
-  } else {
-    button.disabled = false;
-    button.textContent = originalText;
-    button.style.opacity = '1';
-  }
-}
-
-// ==========================================
-// 7. FORM TOGGLE & MODAL MANAGEMENT
-// ==========================================
-
-/**
- * Sets up toggle functionality between sign in and register forms
- * Handles form switching and UI updates
- */
-function setupFormToggle() {
-  const signinForm = document.getElementById("signin-form");
-  const registerForm = document.getElementById("register-form");
-  const formTitle = document.getElementById("form-title");
-  const toggleText = document.querySelector(".toggle-text");
-
-  if (!signinForm || !registerForm || !formTitle || !toggleText) {
-    console.log('Form elements not found for toggle');
-    return;
-  }
-
-  /**
-   * Switches between sign in and register forms
-   * Updates form title and toggle link text
-   */
-  function switchForms() {
-    if (signinForm.classList.contains("active")) {
-      // Switch to register form
-      signinForm.classList.remove("active");
-      registerForm.classList.add("active");
-      formTitle.textContent = "Create Account";
-      toggleText.innerHTML = 'Already have an account? <span id="toggle">Sign In</span>';
-    } else {
-      // Switch to sign in form
-      registerForm.classList.remove("active");
-      signinForm.classList.add("active");
-      formTitle.textContent = "Sign In";
-      toggleText.innerHTML = 'Don\'t have an account? <span id="toggle">Register</span>';
-    }
-    
-    clearModalMessage();
-    
-    // Re-bind toggle span since innerHTML is replaced
-    const newToggle = document.getElementById("toggle");
-    if (newToggle) newToggle.addEventListener("click", switchForms);
-  }
-
-  // Initial bind for toggle link
-  const toggle = document.getElementById("toggle");
-  if (toggle) {
-    toggle.addEventListener("click", switchForms);
-  }
-}
-
-/**
- * Sets up modal open/close handlers
- * Manages authentication modal behavior
- */
-function setupModalHandlers() {
-  const openBtn = document.getElementById("openModal");
-  const closeBtn = document.getElementById("closeModal");
-  const modal = document.getElementById("modal");
-
-  // Open modal when sign in button is clicked
-  if (openBtn && modal) {
-    openBtn.addEventListener("click", () => {
-      modal.style.display = 'flex';
-      modal.classList.add("open");
-      clearModalMessage();
-    });
-  }
-
-  // Close modal when close button is clicked
-  if (closeBtn && modal) {
-    closeBtn.addEventListener("click", () => {
-      modal.style.display = 'none';
-      modal.classList.remove("open");
-      clearModalMessage();
-      resetAuthForms();
-    });
-  }
-
-  // Close modal when clicking outside content
-  if (modal) {
-    modal.addEventListener("click", function(e) {
-      if (e.target === modal) {
-        modal.style.display = 'none';
-        modal.classList.remove("open");
-        clearModalMessage();
-        resetAuthForms();
-      }
-    });
-  }
-}
-
-/**
- * Resets authentication forms to clean state
- */
-function resetAuthForms() {
-  const signinForm = document.getElementById('signin-form');
-  const registerForm = document.getElementById('register-form');
-  
-  if (signinForm) signinForm.reset();
-  if (registerForm) registerForm.reset();
-}
-
-// ==========================================
-// 8. AUTHENTICATION HANDLERS
-// ==========================================
-
-/**
- * Handles user sign in with email and password
- * @param {string} email - User's email address
- * @param {string} password - User's password
- */
-async function handleSignIn(email, password) {
-  if (!supabase) {
-    showModalMessage('Authentication service not available. Please refresh the page.', 'error');
-    return;
-  }
-
-  // Input validation
-  if (!email || !password) {
-    showModalMessage('Please fill in all fields.', 'error');
-    return;
-  }
-
-  if (!isValidEmail(email)) {
-    showModalMessage('Please enter a valid email address.', 'error');
-    return;
-  }
-
-  try {
-    showModalMessage('Signing in...', 'info');
-
-    // Attempt to sign in with Supabase
-    const { data, error } = await supabase.auth.signInWithPassword({ 
-      email, 
-      password 
-    });
-
-    if (error) throw error;
-
-    showModalMessage('✅ Sign in successful!', 'success');
-    
-    // Close modal after successful sign in
-    setTimeout(() => {
-      const modal = document.getElementById('modal');
-      if (modal) {
-        modal.style.display = 'none';
-        modal.classList.remove('open');
-      }
-      clearModalMessage();
-      resetAuthForms();
-    }, 1500);
-
-  } catch (error) {
-    console.error('❌ Sign in error:', error);
-    
-    // User-friendly error messages
-    let errorMessage = 'Sign in failed. ';
-    if (error.message.includes('Invalid login credentials')) {
-      errorMessage += 'Invalid email or password.';
-    } else if (error.message.includes('Email not confirmed')) {
-      errorMessage += 'Please confirm your email address first.';
-    } else {
-      errorMessage += error.message;
-    }
-    
-    showModalMessage(errorMessage, 'error');
-  }
-}
-
-/**
- * Handles new user registration
- * @param {string} name - User's full name
- * @param {string} email - User's email address
- * @param {string} password - User's password
- * @param {string} confirmPassword - Password confirmation
- */
-async function handleRegister(name, email, password, confirmPassword) {
-  if (!supabase) {
-    showModalMessage('Authentication service not available. Please refresh the page.', 'error');
-    return;
-  }
-
-  // Comprehensive validation
-  if (!name || !email || !password || !confirmPassword) {
-    showModalMessage('Please fill in all fields.', 'error');
-    return;
-  }
-
-  if (!isValidEmail(email)) {
-    showModalMessage('Please enter a valid email address.', 'error');
-    return;
-  }
-
-  if (password.length < 6) {
-    showModalMessage('Password must be at least 6 characters long.', 'error');
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    showModalMessage('Passwords do not match.', 'error');
-    return;
-  }
-
-  try {
-    showModalMessage('Creating your account...', 'info');
-
-    // Create user with Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { 
-        data: { 
-          full_name: name.trim()
-        } 
-      }
-    });
-
-    if (error) throw error;
-
-    // Handle different registration scenarios
-    if (data.user && !data.session) {
-      // Email confirmation required
-      showModalMessage('✅ Success! Please check your email to confirm your account before signing in.', 'success');
-    } else {
-      // Automatic sign in after registration
-      showModalMessage('✅ Registration successful! Welcome!', 'success');
-      setTimeout(() => {
-        const modal = document.getElementById('modal');
-        if (modal) {
-          modal.style.display = 'none';
-          modal.classList.remove('open');
-        }
-        clearModalMessage();
-        resetAuthForms();
-      }, 2000);
-    }
-
-  } catch (error) {
-    console.error('❌ Registration error:', error);
-    
-    // User-friendly error messages
-    let errorMessage = 'Registration failed. ';
-    if (error.message.includes('User already registered')) {
-      errorMessage += 'An account with this email already exists.';
-    } else {
-      errorMessage += error.message;
-    }
-    
-    showModalMessage(errorMessage, 'error');
-  }
-}
-
-/**
- * Handles user logout with confirmation
- * @param {Event} e - Click event
- */
-async function handleLogout(e) {
-  if (e) e.preventDefault();
-  
-  if (!supabase) {
-    alert('Authentication service not available.');
-    return;
-  }
-
-  // Confirm logout action
-  if (!confirm('Are you sure you want to sign out?')) {
-    return;
-  }
-
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    // Auth state listener will handle UI update automatically
-    
-  } catch (error) {
-    console.error('❌ Logout error:', error);
-    alert('Error signing out: ' + error.message);
-  }
-}
-
-// ==========================================
-// 9. PROFILE MODAL & SETTINGS MANAGEMENT
-// ==========================================
-
-/**
- * Creates the profile settings modal dynamically
- * Includes phone number, password change, and order history sections
- */
-function createProfileModal() {
-  if (document.getElementById('userProfileModal')) return;
-
-  // Generate country options for phone number dropdown
-  const countryOptions = COUNTRY_LIST.map(c => 
-    `<option value="${c.code}" data-iso="${c.iso}">${c.label} ${c.code}</option>`
-  ).join('\n');
-
-  const modalHTML = `
-    <div id="userProfileModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:10000; justify-content:center; align-items:center;">
-      <div style="background:#fff; border-radius:12px; width:90%; max-width:900px; max-height:90vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
-        <div style="padding:20px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <h2 style="margin:0; color:#222; font-size:20px;">Account Settings</h2>
-            <button id="closeProfileModal" style="background:none; border:none; font-size:26px; cursor:pointer; color:#666;">&times;</button>
-          </div>
-
-          <!-- User Info Section -->
-          <div style="margin-bottom:18px;">
-            <div style="display:flex; align-items:center; gap:14px;">
-              <div id="userAvatar" style="width:64px; height:64px; border-radius:50%; background:${UI.avatarPink}; display:flex; align-items:center; justify-content:center; color:#fff; font-size:26px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,0.06); border:3px solid #fff;"></div>
-              <div>
-                <h3 id="userName" style="margin:0 0 4px 0; color:#222; font-size:16px; font-weight:700;">Loading...</h3>
-                <p id="userEmail" style="margin:0; color:#666; font-size:13px;">Loading...</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Phone Number Section -->
-          <div style="margin-bottom:16px; padding:14px; background:${UI.pinkSoft}; border-radius:8px;">
-            <h3 style="margin:0 0 10px 0; color:#222; font-size:15px;">Phone Number</h3>
-            <div style="display:flex; gap:10px; align-items:center;">
-              <select id="countryCodeSelect" style="padding:10px; border-radius:8px; border:1px solid #f4d7df; background:#fff; min-width:140px; font-size:13px;">
-                ${countryOptions}
-              </select>
-              <input type="tel" id="phoneInput" placeholder="7XXXXXXXX" style="flex:1; padding:10px; border:1px solid #efe7ea; border-radius:8px; font-size:14px;">
-              <button id="updatePhoneBtn" style="padding:10px 14px; background:${UI.primaryPink}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Save</button>
-            </div>
-            <p id="phoneMessage" style="margin:10px 0 0 0; font-size:13px;"></p>
-          </div>
-
-          <!-- Change Password Section -->
-          <div style="margin-bottom:16px; padding:14px; background:#fff; border-radius:8px; border:1px solid #f2f2f2;">
-            <h3 style="margin:0 0 10px 0; color:#222; font-size:15px;">Change Password</h3>
-            <input type="password" id="currentPassword" placeholder="Current Password" style="width:100%; padding:10px; border:1px solid #f0f0f0; border-radius:8px; margin-bottom:8px;">
-            <input type="password" id="newPassword" placeholder="New Password (min 6 characters)" style="width:100%; padding:10px; border:1px solid #f0f0f0; border-radius:8px; margin-bottom:8px;">
-            <input type="password" id="confirmNewPassword" placeholder="Confirm New Password" style="width:100%; padding:10px; border:1px solid #f0f0f0; border-radius:8px; margin-bottom:10px;">
-            <button id="changePasswordBtn" style="width:100%; padding:10px; background:${UI.primaryPink}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Change Password</button>
-            <p id="passwordMessage" style="margin:10px 0 0 0; font-size:13px;"></p>
-          </div>
-
-          <!-- Order History Section -->
-          <div style="margin-bottom:16px; padding:14px; background:#fff; border-radius:8px; border:1px solid #f2f2f2;">
-            <h3 style="margin:0 0 10px 0; color:#222; font-size:15px;">Order History</h3>
-            <div id="orderHistoryContainer">
-              <div style="text-align:center; padding:20px; color:#666;">
-                <p>Loading order history...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Insert modal HTML into page
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-  // Add CSS for loading spinner animation
-  const style = document.createElement('style');
-  style.textContent = `
-    .loading-spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #ffffff;
-      border-radius: 50%;
-      border-top-color: transparent;
-      animation: spin 1s ease-in-out infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  `;
-  document.head.appendChild(style);
-
-  // Attach event handlers to modal elements
-  const closeBtn = document.getElementById('closeProfileModal');
-  if (closeBtn) closeBtn.addEventListener('click', closeProfileModal);
-  
-  const modalRoot = document.getElementById('userProfileModal');
-  if (modalRoot) {
-    modalRoot.addEventListener('click', function(e) {
-      if (e.target.id === 'userProfileModal') closeProfileModal();
-    });
-  }
-
-  const updateBtn = document.getElementById('updatePhoneBtn');
-  if (updateBtn) updateBtn.addEventListener('click', handleUpdatePhone);
-  
-  const changePwdBtn = document.getElementById('changePasswordBtn');
-  if (changePwdBtn) changePwdBtn.addEventListener('click', handleChangePassword);
-
-  // Set default country to Rwanda
-  const countrySelect = document.getElementById('countryCodeSelect');
-  if (countrySelect) countrySelect.value = '+250';
-}
-
-/**
- * Opens the profile modal and loads user data
- */
-function openProfileModal() {
-  const modal = document.getElementById('userProfileModal');
-  if (!modal) return;
-  
-  if (!currentUser) {
-    alert('Please sign in to open profile settings.');
-    return;
-  }
-  
-  modal.style.display = 'flex';
-  loadUserProfile();
-  loadOrderHistory();
-}
-
-/**
- * Closes the profile modal and cleans up sensitive data
- */
-function closeProfileModal() {
-  const modal = document.getElementById('userProfileModal');
-  if (!modal) return;
-  
-  modal.style.display = 'none';
-  
-  // Clear messages and sensitive password fields
-  const phoneMessage = document.getElementById('phoneMessage');
-  const passwordMessage = document.getElementById('passwordMessage');
-  const currentPassword = document.getElementById('currentPassword');
-  const newPassword = document.getElementById('newPassword');
-  const confirmNewPassword = document.getElementById('confirmNewPassword');
-  
-  if (phoneMessage) phoneMessage.textContent = '';
-  if (passwordMessage) passwordMessage.textContent = '';
-  if (currentPassword) currentPassword.value = '';
-  if (newPassword) newPassword.value = '';
-  if (confirmNewPassword) confirmNewPassword.value = '';
-}
-
-/**
- * Loads user data into the profile modal
- * Displays user info, avatar, and current phone number
- */
-async function loadUserProfile() {
-  if (!currentUser) return;
-
-  try {
-    const nameSource = currentUser.user_metadata?.full_name || currentUser.email || 'User';
-    const initial = nameSource.charAt(0).toUpperCase();
-    
-    // Update avatar and user info elements
-    const avatar = document.getElementById('userAvatar');
-    const nameEl = document.getElementById('userName');
-    const emailEl = document.getElementById('userEmail');
-    
-    if (avatar) avatar.textContent = initial;
-    if (nameEl) nameEl.textContent = currentUser.user_metadata?.full_name || (currentUser.email ? currentUser.email.split('@')[0] : 'User');
-    if (emailEl) emailEl.textContent = currentUser.email || '';
-
-    // Load phone number from profile data
-    if (currentUserProfile) {
-      const phoneField = currentUserProfile.phone || '';
-      const phoneInput = document.getElementById('phoneInput');
-      const countrySelect = document.getElementById('countryCodeSelect');
-      
-      if (phoneField && phoneInput) {
-        // Parse phone number to extract country code and local number
-        const m = phoneField.match(/^\+(\d{1,3})(.*)$/);
-        if (m && countrySelect) {
-          const code = '+' + m[1];
-          const opt = Array.from(countrySelect.options).find(o => o.value === code);
-          if (opt) countrySelect.value = code;
-          phoneInput.value = m[2].replace(/^0+/, '');
-        } else {
-          // Fallback to default Rwanda number
-          if (countrySelect) countrySelect.value = '+250';
-          phoneInput.value = phoneField;
-        }
-      } else {
-        // No phone number set - use defaults
-        if (countrySelect) countrySelect.value = '+250';
-        if (phoneInput) phoneInput.value = '';
-      }
-    }
-  } catch (error) {
-    console.error('❌ Error loading user profile:', error);
-  }
-}
-
-/**
- * Loads and displays user's order history
- * Fetches orders from database and renders them in the modal
- */
-async function loadOrderHistory() {
-  if (!currentUser) return;
-  
-  const container = document.getElementById('orderHistoryContainer');
-  if (!container) return;
-
-  try {
-    container.innerHTML = '<div style="text-align:center; padding:10px; color:#666;">Loading orders...</div>';
-    
-    const orders = await getUserOrders(currentUser.id);
-    
-    if (orders.length === 0) {
-      container.innerHTML = `
-        <div style="text-align:center; padding:30px; color:#666;">
-          <p style="margin:0;">No orders found</p>
-          <p style="margin:10px 0 0 0; font-size:14px;">Start shopping to see your order history here!</p>
-        </div>
-      `;
-      return;
-    }
-
-    let ordersHTML = '';
-    
-    // Generate HTML for each order
-    orders.forEach(order => {
-      const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      
-      // Color code based on payment status
-      const statusColor = order.payment_status === 'paid' ? UI.success : 
-                         order.payment_status === 'pending' ? '#ff9800' : UI.danger;
-      
-      ordersHTML += `
-        <div style="border:1px solid #eee; border-radius:8px; padding:16px; margin-bottom:12px; background:#fafafa;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-            <div>
-              <strong style="color:#222; font-size:14px;">Order #${order.id.slice(-8)}</strong>
-              <p style="margin:4px 0 0 0; color:#666; font-size:12px;">${orderDate}</p>
-            </div>
-            <span style="background:${statusColor}; color:white; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:700;">
-              ${order.payment_status?.toUpperCase() || 'PENDING'}
-            </span>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <p style="margin:0; color:#444; font-size:13px;">
-                Product ID: ${order.product_id || 'N/A'}
-              </p>
-              <p style="margin:4px 0 0 0; color:#444; font-size:13px;">
-                Quantity: ${order.quantity || 1}
-              </p>
-            </div>
-            <div style="text-align:right;">
-              <p style="margin:0; color:#222; font-size:14px; font-weight:700;">
-                Total: $${((order.total_amount || 0) / 100).toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
-      `;
-    });
-    
-    container.innerHTML = ordersHTML;
-    
-  } catch (error) {
-    console.error('❌ Error loading order history:', error);
-    container.innerHTML = `
-      <div style="text-align:center; padding:20px; color:${UI.danger};">
-        <p>Error loading order history</p>
-      </div>
-    `;
-  }
-}
-
-// ==========================================
-// 10. PROFILE UPDATE HANDLERS
-// ==========================================
-
-/**
- * Handles phone number updates in user profile
- * Validates phone format and saves to database
- */
-async function handleUpdatePhone() {
-  const countrySelect = document.getElementById('countryCodeSelect');
-  const phoneInput = document.getElementById('phoneInput');
-  const phoneRaw = phoneInput.value.trim();
-  const message = document.getElementById('phoneMessage');
-  const updateBtn = document.getElementById('updatePhoneBtn');
-
-  // Validation
-  if (!phoneRaw) {
-    showMessage(message, 'Please enter a phone number.', 'error');
-    return;
-  }
-
-  if (!currentUser) {
-    showMessage(message, 'Please sign in to update your phone number.', 'error');
-    return;
-  }
-
-  // Show loading state on button
-  const originalText = updateBtn.textContent;
-  setButtonLoading(updateBtn, true);
-
-  try {
-    // Normalize phone number format
-    let normalized = phoneRaw.replace(/\s|-/g, '');
-    if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
-    const country = countrySelect ? countrySelect.value : '+250';
-    if (!/^\+/.test(normalized)) normalized = country + normalized;
-
-    // Rwanda-specific validation
-    if (country === '+250') {
-      if (!/^\+2507\d{8}$/.test(normalized)) {
-        throw new Error('Enter a valid Rwandan mobile number (e.g. +2507xxxxxxxx).');
-      }
-    } else {
-      // General international validation
-      if (!/^\+\d{5,15}$/.test(normalized)) {
-        throw new Error('Enter a valid international phone number.');
-      }
-    }
-
-    // Update phone in profiles table
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ 
-        phone: normalized,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', currentUser.id);
-
-    if (error) throw error;
-
-    // Also update in user_metadata for consistency
-    await supabase.auth.updateUser({
-      data: { phone: normalized }
-    });
-
-    // Refresh profile data
-    currentUserProfile = await getUserProfile(currentUser.id);
-    
-    showMessage(message, '✅ Phone number updated successfully!', 'success');
-    
-  } catch (error) {
-    console.error('❌ Error updating phone:', error);
-    showMessage(message, error.message || 'Failed to update phone number.', 'error');
-  } finally {
-    setButtonLoading(updateBtn, false, originalText);
-  }
-}
-
-/**
- * Handles password change with current password verification
- * Validates inputs and updates password in Supabase Auth
- */
-async function handleChangePassword() {
-  const currentPassword = document.getElementById('currentPassword').value;
-  const newPassword = document.getElementById('newPassword').value;
-  const confirmPassword = document.getElementById('confirmNewPassword').value;
-  const message = document.getElementById('passwordMessage');
-  const changeBtn = document.getElementById('changePasswordBtn');
-
-  // Clear previous messages
-  message.textContent = '';
-
-  // Validation
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    showMessage(message, 'Please fill in all password fields', 'error');
-    return;
-  }
-
-  if (newPassword.length < 6) {
-    showMessage(message, 'New password must be at least 6 characters', 'error');
-    return;
-  }
-
-  if (newPassword !== confirmPassword) {
-    showMessage(message, 'New passwords do not match', 'error');
-    return;
-  }
-
-  // Show loading state
-  const originalText = changeBtn.textContent;
-  setButtonLoading(changeBtn, true);
-
-  try {
-    showMessage(message, 'Changing password...', 'info');
-
-    // Verify current password is correct
-    const signInResult = await supabase.auth.signInWithPassword({ 
-      email: currentUser.email, 
-      password: currentPassword 
-    });
-    
-    if (signInResult.error) {
-      throw new Error('Current password is incorrect');
-    }
-
-    // Update to new password
-    const { error } = await supabase.auth.updateUser({ 
-      password: newPassword 
-    });
-    
-    if (error) throw error;
-
-    showMessage(message, '✅ Password changed successfully!', 'success');
-    
-    // Clear password fields for security
-    document.getElementById('currentPassword').value = '';
-    document.getElementById('newPassword').value = '';
-    document.getElementById('confirmNewPassword').value = '';
-    
-  } catch (error) {
-    console.error('❌ Change password error:', error);
-    showMessage(message, error.message || 'Password change failed', 'error');
-  } finally {
-    setButtonLoading(changeBtn, false, originalText);
-  }
-}
-
-// ==========================================
-// 11. UI UPDATE FUNCTIONS
-// ==========================================
-
-/**
- * Updates UI when user is logged in
- * Replaces sign-in button with user avatar and dropdown menu
- * @param {Object} user - The logged-in user object from Supabase
- */
-async function updateUIForLoggedInUser(user) {
-  const openModalBtn = document.getElementById('openModal');
-  if (!openModalBtn) return;
-
-  const displayName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'User');
-  const initial = displayName.charAt(0).toUpperCase();
-  
-  // Check if user has admin privileges
-  const isAdmin = currentUserProfile?.is_admin === true;
-  
-  // Admin badge HTML
-  const adminBadge = isAdmin ? '<span style="background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Admin</span>' : '';
-
-  // Replace sign-in button with user menu
-  openModalBtn.outerHTML = `
-    <div id="userMenuContainer" style="position:relative; display:flex; align-items:center; gap:12px;">
-      <button id="userAvatarBtn" aria-label="Open user menu" 
-        style="width:48px; height:48px; border-radius:50%; background:${UI.avatarPink}; color:#fff; border:3px solid #fff; cursor:pointer; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(255,125,167,0.12);">
-        ${initial}
-      </button>
-
-      <div id="userDropdown" style="display:none; position:absolute; top:64px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:220px; z-index:1000; overflow:visible;">
-        <div style="padding:14px 16px; border-radius:14px; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
-          <div style="display: flex; align-items: center; flex-wrap: wrap;">
-            <p style="margin:0; font-weight:800; color:#221; font-size:15px; line-height:1.4;">${displayName}</p>
-            ${adminBadge}
-          </div>
-          <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b; word-break:break-all;">${user.email || ''}</p>
-        </div>
-
-        <div style="padding:12px; display:flex; flex-direction:column; gap:8px;">
-          ${isAdmin ? `
-            <button id="adminPanelBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
-              <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">⚙️</span>
-              <span style="color:#333; text-align:left;">Admin Panel</span>
-            </button>
-          ` : ''}
-          
-          <button id="viewProfileBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); width:100%;">
-            <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background: #6b3fb0; color:#fff; font-size:14px;">👤</span>
-            <span style="color:#333; text-align:left;">View Profile</span>
-          </button>
-
-          <button id="logoutBtn" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; color:${UI.danger}; box-shadow:0 6px 18px rgba(0,0,0,0.04); width:100%;">
-            <span style="width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#ffdcd3; color:${UI.danger}; font-size:14px;">🚪</span>
-            <span style="color:${UI.danger}; text-align:left;">Logout</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // Attach event handlers to new user menu elements
-  attachUserMenuHandlers();
-}
-
-/**
- * Attaches event handlers to user dropdown menu elements
- * Handles menu toggle, profile viewing, and logout actions
- */
-function attachUserMenuHandlers() {
-  const avatarBtn = document.getElementById('userAvatarBtn');
-  const dropdown = document.getElementById('userDropdown');
-  const viewProfileBtn = document.getElementById('viewProfileBtn');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const adminPanelBtn = document.getElementById('adminPanelBtn');
-
-  // Toggle dropdown visibility with smooth animation
-  if (avatarBtn && dropdown) {
-    avatarBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      if (dropdown.style.display === 'none' || dropdown.style.display === '') {
-        dropdown.style.display = 'block';
-        dropdown.style.opacity = '0';
-        dropdown.style.transform = 'translateY(-6px)';
-        setTimeout(() => {
-          dropdown.style.transition = 'opacity 160ms ease, transform 160ms ease';
-          dropdown.style.opacity = '1';
-          dropdown.style.transform = 'translateY(0)';
-        }, 8);
-      } else {
-        dropdown.style.transition = 'opacity 120ms ease, transform 120ms ease';
-        dropdown.style.opacity = '0';
-        dropdown.style.transform = 'translateY(-6px)';
-        setTimeout(() => { dropdown.style.display = 'none'; }, 140);
-      }
-    });
-  }
-
-  // Admin panel navigation
-  if (adminPanelBtn) {
-    adminPanelBtn.addEventListener('click', function() {
-      if (dropdown) dropdown.style.display = 'none';
-      window.location.href = 'admin.html';
-    });
-  }
-
-  // Open profile modal
-  if (viewProfileBtn) {
-    viewProfileBtn.addEventListener('click', function() {
-      if (dropdown) dropdown.style.display = 'none';
-      openProfileModal();
-    });
-  }
-
-  // Handle logout
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', handleLogout);
-  }
-
-  // Close dropdown when clicking outside
-  document.addEventListener('click', function(event) {
-    const dd = document.getElementById('userDropdown');
-    const av = document.getElementById('userAvatarBtn');
-    if (!dd) return;
-    if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av.contains(event.target)) {
-      if (dd.style.display === 'block') {
-        dd.style.transition = 'opacity 120ms ease, transform 120ms ease';
-        dd.style.opacity = '0';
-        dd.style.transform = 'translateY(-6px)';
-        setTimeout(() => { dd.style.display = 'none'; }, 140);
-      }
-    }
-  });
-}
-
-/**
- * Updates UI when user logs out
- * Replaces user menu with sign-in button
- */
-function updateUIForLoggedOutUser() {
-  const userMenu = document.getElementById('userMenuContainer');
-  if (!userMenu) return;
-  
-  userMenu.outerHTML = '<button id="openModal" style="padding:8px 12px; border-radius:8px; background:transparent; border:1px solid #eee; cursor:pointer;">Sign in</button>';
-  
-  // Reattach event listener to new sign-in button
-  const newOpenModalBtn = document.getElementById('openModal');
-  const modal = document.getElementById('modal');
-  
-  if (newOpenModalBtn && modal) {
-    newOpenModalBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      modal.style.display = 'flex';
-      modal.classList.add('open');
-    });
-  }
-}
-
-// ==========================================
-// 12. MESSAGE & NOTIFICATION SYSTEM
-// ==========================================
-
-/**
- * Shows a message in a specific element with styled formatting
- * @param {HTMLElement} element - The element to show the message in
- * @param {string} text - The message text
- * @param {string} type - Message type: 'error', 'success', 'info', 'warning'
- */
-function showMessage(element, text, type = 'info') {
-  if (!element) return;
-  
-  element.textContent = text;
-  element.style.display = 'block';
-  
-  const colors = {
-    error: { color: UI.danger },
-    success: { color: UI.success },
-    warning: { color: UI.warning },
-    info: { color: UI.primaryPink }
-  };
-  
-  const style = colors[type] || colors.info;
-  element.style.color = style.color;
-}
-
-/**
- * Shows a message in the authentication modal
- * @param {string} text - The message text
- * @param {string} type - Message type: 'error', 'success', 'info', 'warning'
- */
-function showModalMessage(text, type = 'info') {
-  const modal = document.getElementById('modal');
-  if (!modal) return;
-  
-  let messageDiv = modal.querySelector('.auth-message');
-  if (!messageDiv) {
-    messageDiv = document.createElement('div');
-    messageDiv.className = 'auth-message';
-    messageDiv.style.cssText = 'padding:12px; margin:10px 0; border-radius:8px; text-align:center; font-weight:700;';
-    const formTitle = modal.querySelector('#form-title');
-    if (formTitle) formTitle.insertAdjacentElement('afterend', messageDiv);
-    else modal.insertAdjacentElement('afterbegin', messageDiv);
-  }
-  
-  messageDiv.textContent = text;
-  messageDiv.style.display = 'block';
-  
-  const colors = {
-    error: { bg: '#ffecec', text: UI.danger, border: '#f2a1a1' },
-    success: { bg: '#e8f5e9', text: UI.success, border: '#a8e0b5' },
-    info: { bg: '#fff4f7', text: UI.primaryPink, border: '#ffd1dc' },
-    warning: { bg: '#fff4e5', text: UI.warning, border: '#ffcc80' }
-  };
-  
-  const color = colors[type] || colors.info;
-  messageDiv.style.backgroundColor = color.bg;
-  messageDiv.style.color = color.text;
-  messageDiv.style.border = `1px solid ${color.border}`;
-}
-
-/**
- * Clears any messages from the authentication modal
- */
-function clearModalMessage() {
-  const modal = document.getElementById('modal');
-  if (!modal) return;
-  
-  const message = modal.querySelector('.auth-message'); 
-  if (message) message.style.display = 'none';
-}
-
-/**
- * Shows a global notification message (toast-style)
- * @param {string} text - The message text
- * @param {string} type - Message type: 'error', 'success', 'info', 'warning'
- */
-function showGlobalMessage(text, type = 'info') {
-  // Create or find global message container
-  let messageContainer = document.getElementById('global-message');
-  
-  if (!messageContainer) {
-    messageContainer = document.createElement('div');
-    messageContainer.id = 'global-message';
-    messageContainer.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-weight: 700;
-      z-index: 10001;
-      max-width: 400px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    `;
-    document.body.appendChild(messageContainer);
-  }
-  
-  const colors = {
-    error: { bg: '#ffecec', text: UI.danger, border: '#f2a1a1' },
-    success: { bg: '#e8f5e9', text: UI.success, border: '#a8e0b5' },
-    info: { bg: '#fff4f7', text: UI.primaryPink, border: '#ffd1dc' },
-    warning: { bg: '#fff4e5', text: UI.warning, border: '#ffcc80' }
-  };
-  
-  const color = colors[type] || colors.info;
-  messageContainer.style.backgroundColor = color.bg;
-  messageContainer.style.color = color.text;
-  messageContainer.style.border = `1px solid ${color.border}`;
-  messageContainer.textContent = text;
-  messageContainer.style.display = 'block';
-  
-  // Auto-hide after 5 seconds
-  setTimeout(() => {
-    messageContainer.style.display = 'none';
-  }, 5000);
-}
-
-// ==========================================
-// 13. UTILITY FUNCTIONS
-// ==========================================
-
-/**
- * Validates email format using regex
- * @param {string} email - Email address to validate
- * @returns {boolean} True if email is valid
- */
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
 // ==========================================
 // 14. CART FUNCTIONALITY
 // ==========================================
@@ -1711,3 +345,763 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
+
+// ==========================================
+// SUPABASE AUTHENTICATION SYSTEM (fixed profile link)
+// Creates/finds profile using auth_id (preferred) with fallback to id
+// ==========================================
+
+// 1. CONFIGURATION
+const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
+
+let supabase = null;
+let currentUser = null;
+let currentUserProfile = null;
+
+// UI colors
+const UI = {
+  primaryPink: '#ff9db1',
+  pinkSoft: '#fff0f3',
+  avatarPink: '#ff7da7',
+  dropdownBg: '#ffffff',
+  subtleGray: '#f6f3f4',
+  danger: '#c62828',
+  success: '#2e7d32',
+  warning: '#ff9800'
+};
+
+// COUNTRY LIST (keep yours expanded in production)
+const COUNTRY_LIST = [
+  { iso: 'RW', code: '+250', label: 'Rwanda' },
+  { iso: 'US', code: '+1', label: 'United States' },
+  { iso: 'GB', code: '+44', label: 'United Kingdom' },
+  { iso: 'KE', code: '+254', label: 'Kenya' },
+  { iso: 'ZW', code: '+263', label: 'Zimbabwe' }
+];
+
+// INIT
+window.addEventListener('load', function() {
+  initializeSupabaseAuth();
+  setupFormToggle();
+  setupModalHandlers();
+  initializeCart && typeof initializeCart === 'function' && initializeCart();
+});
+
+function initializeSupabaseAuth() {
+  if (typeof window.supabase === 'undefined') {
+    console.error('Supabase library not loaded');
+    showGlobalMessage('Authentication service not available. Please refresh the page.', 'error');
+    return;
+  }
+
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  console.log('Supabase client initialized');
+  setupAuthStateListener();
+  setupAuthUI();
+  createProfileModal();
+  checkAuthStatus();
+}
+
+// ========== AUTH STATE LISTENER ==========
+function setupAuthStateListener() {
+  if (!supabase) return;
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth state changed:', event);
+    try {
+      if (event === 'SIGNED_IN') {
+        currentUser = session.user;
+        // get or create profile (robust)
+        currentUserProfile = await getUserProfile(currentUser.id);
+        if (!currentUserProfile) {
+          currentUserProfile = await createUserProfile(currentUser);
+        }
+        updateUIForLoggedInUser(currentUser);
+        showGlobalMessage('✅ Successfully signed in!', 'success');
+      } else if (event === 'SIGNED_OUT') {
+        currentUser = null;
+        currentUserProfile = null;
+        updateUIForLoggedOutUser();
+        showGlobalMessage('👋 Successfully signed out.', 'info');
+      } else if (event === 'USER_UPDATED') {
+        currentUser = session.user;
+      }
+    } catch (err) {
+      console.error('Error during auth state handling:', err);
+      showGlobalMessage('⚠️ Signed in but profile issues detected.', 'warning');
+    }
+  });
+}
+
+// ========== CHECK AUTH STATUS ON LOAD ==========
+async function checkAuthStatus() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('getSession error:', error);
+      return;
+    }
+    if (data?.session?.user) {
+      currentUser = data.session.user;
+      currentUserProfile = await getUserProfile(currentUser.id);
+      // If profile missing, create it
+      if (!currentUserProfile) {
+        currentUserProfile = await createUserProfile(currentUser);
+      }
+      updateUIForLoggedInUser(currentUser);
+    } else {
+      updateUIForLoggedOutUser();
+    }
+  } catch (err) {
+    console.error('checkAuthStatus error:', err);
+  }
+}
+
+// ========== PROFILE HELPERS (FIXED) ==========
+
+/**
+ * Try to fetch the profile. Prefer auth_id column, then fallback to id column.
+ * Returns profile object or null if none found.
+ */
+async function getUserProfile(userId) {
+  if (!supabase) throw new Error('Supabase not initialized');
+  if (!userId) return null;
+
+  // 1) Try by auth_id (preferred)
+  try {
+    const { data: byAuth, error: errAuth } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('auth_id', userId)
+      .limit(1);
+
+    if (!errAuth && Array.isArray(byAuth) && byAuth.length > 0) {
+      return byAuth[0];
+    }
+    // if errAuth exists and indicates column missing, we'll fallback below
+    if (errAuth && !/column .*auth_id.* does not exist/i.test(errAuth.message || '')) {
+      // some other error
+      console.warn('profiles auth_id select error (non fatal):', errAuth);
+    }
+  } catch (err) {
+    // ignore — we'll try fallback
+    console.warn('getUserProfile auth_id query threw, will fallback:', err);
+  }
+
+  // 2) Fallback: try by id (some schemas use auth user id as profiles.id)
+  try {
+    const { data: byId, error: errId } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .limit(1);
+
+    if (!errId && Array.isArray(byId) && byId.length > 0) {
+      return byId[0];
+    }
+    if (errId) {
+      console.warn('profiles id select error (non fatal):', errId);
+    }
+  } catch (err) {
+    console.warn('getUserProfile id query threw:', err);
+  }
+
+  // Not found
+  return null;
+}
+
+/**
+ * Create a new profile for the given auth user.
+ * Tries to insert with auth_id first. If table doesn't have auth_id, falls back to inserting id = user.id.
+ * Returns the created profile object.
+ */
+async function createUserProfile(user) {
+  if (!supabase) throw new Error('Supabase not initialized');
+  if (!user) throw new Error('createUserProfile requires user');
+
+  // Prepare insert payload
+  const payload = {
+    auth_id: user.id,
+    email: user.email || null,
+    full_name: user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : null),
+    phone: user.user_metadata?.phone || null,
+    is_admin: false
+  };
+
+  // Try insert using auth_id column
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert([payload])
+      .select()
+      .limit(1);
+    if (error) {
+      // If auth_id column doesn't exist, the message typically mentions auth_id column
+      if (/column .*auth_id.* does not exist/i.test(error.message || '')) {
+        throw { code: 'NO_AUTH_ID_COLUMN', original: error };
+      }
+      throw error;
+    }
+    if (Array.isArray(data) && data.length > 0) {
+      console.log('Profile created with auth_id:', data[0]);
+      return data[0];
+    }
+  } catch (err) {
+    // If the table does not have auth_id, try fallback to inserting id = user.id
+    if (err && err.code === 'NO_AUTH_ID_COLUMN') {
+      console.warn('profiles table has no auth_id column — falling back to insert by id');
+      try {
+        // Build fallback payload using id column
+        const fallback = {
+          id: user.id,
+          email: user.email || null,
+          full_name: user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : null),
+          phone: user.user_metadata?.phone || null,
+          is_admin: false
+        };
+        const { data: fdata, error: ferr } = await supabase.from('profiles').insert([fallback]).select().limit(1);
+        if (ferr) throw ferr;
+        if (Array.isArray(fdata) && fdata.length > 0) {
+          console.log('Profile created with id fallback:', fdata[0]);
+          return fdata[0];
+        }
+      } catch (fErr) {
+        console.error('Fallback profile insert by id failed:', fErr);
+        throw new Error('Failed to create profile (fallback). Check profiles table schema and permissions.');
+      }
+    } else {
+      console.error('createUserProfile failed:', err);
+      throw err;
+    }
+  }
+
+  // If we got here nothing was created
+  throw new Error('Failed to create profile — unknown reason.');
+}
+
+// ========== PROFILE UPDATE (phone) ==========
+async function updateProfilePhoneByAuthOrId(userId, updates) {
+  if (!supabase) throw new Error('Supabase not initialized');
+  // Try update by auth_id
+  try {
+    const { error } = await supabase.from('profiles').update(updates).eq('auth_id', userId);
+    if (!error) return true;
+    // if column missing, continue to fallback
+    if (!/column .*auth_id.* does not exist/i.test(error.message || '')) {
+      console.warn('profiles update by auth_id returned error:', error);
+      return false;
+    }
+  } catch (err) {
+    console.warn('update by auth_id threw, will fallback:', err);
+  }
+
+  // Fallback update by id
+  try {
+    const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
+    if (error) {
+      console.warn('profiles update by id error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('update by id threw:', err);
+    return false;
+  }
+}
+
+// ========== AUTH UI SETUP ==========
+function setupAuthUI() {
+  const modal = document.getElementById('modal');
+  const openModalBtn = document.getElementById('openModal');
+  const closeModalBtn = document.getElementById('closeModal');
+  const signinForm = document.getElementById('signin-form');
+  const registerForm = document.getElementById('register-form');
+
+  if (!modal || !openModalBtn) return;
+
+  // open modal
+  openModalBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    modal.style.display = 'flex';
+  });
+
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      modal.style.display = 'none';
+      clearModalMessage();
+    });
+  }
+
+  if (signinForm) {
+    signinForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inputs = signinForm.querySelectorAll('input');
+      const email = inputs[0].value.trim();
+      const password = inputs[1].value;
+      await handleSignIn(email, password);
+    });
+  }
+
+  if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inputs = registerForm.querySelectorAll('input');
+      const name = inputs[0].value.trim();
+      const email = inputs[1].value.trim();
+      const password = inputs[2].value;
+      const confirm = inputs[3].value;
+      await handleRegister(name, email, password, confirm);
+    });
+  }
+
+  // auth change listener was already set in initialize
+}
+
+// ========== FORM TOGGLE / MODAL HELPERS ==========
+function setupFormToggle() {
+  const signinForm = document.getElementById("signin-form");
+  const registerForm = document.getElementById("register-form");
+  const formTitle = document.getElementById("form-title");
+  const toggleText = document.querySelector(".toggle-text");
+  if (!signinForm || !registerForm || !formTitle || !toggleText) return;
+  function switchForms() {
+    if (signinForm.classList.contains("active")) {
+      signinForm.classList.remove("active");
+      registerForm.classList.add("active");
+      formTitle.textContent = "Create Account";
+      toggleText.innerHTML = 'Already have an account? <span id="toggle">Sign In</span>';
+    } else {
+      registerForm.classList.remove("active");
+      signinForm.classList.add("active");
+      formTitle.textContent = "Sign In";
+      toggleText.innerHTML = 'Don\'t have an account? <span id="toggle">Register</span>';
+    }
+    const newToggle = document.getElementById("toggle");
+    if (newToggle) newToggle.addEventListener("click", switchForms);
+    clearModalMessage();
+  }
+  const toggle = document.getElementById("toggle");
+  if (toggle) toggle.addEventListener("click", switchForms);
+}
+
+function setupModalHandlers() {
+  const openBtn = document.getElementById("openModal");
+  const closeBtn = document.getElementById("closeModal");
+  const modal = document.getElementById("modal");
+  if (openBtn && modal) {
+    openBtn.addEventListener("click", () => { modal.style.display = 'flex'; clearModalMessage(); });
+  }
+  if (closeBtn && modal) {
+    closeBtn.addEventListener("click", () => { modal.style.display = 'none'; clearModalMessage(); resetAuthForms(); });
+  }
+  if (modal) {
+    modal.addEventListener("click", (e) => { if (e.target === modal) { modal.style.display = 'none'; clearModalMessage(); resetAuthForms(); }});
+  }
+}
+
+function resetAuthForms() {
+  const s = document.getElementById('signin-form');
+  const r = document.getElementById('register-form');
+  if (s) s.reset();
+  if (r) r.reset();
+}
+
+// ========== AUTH HANDLERS ==========
+async function handleSignIn(email, password) {
+  if (!supabase) { showModalMessage('Auth unavailable', 'error'); return; }
+  if (!email || !password) { showModalMessage('Please fill in all fields.', 'error'); return; }
+  if (!isValidEmail(email)) { showModalMessage('Invalid email', 'error'); return; }
+
+  try {
+    showModalMessage('Signing in...', 'info');
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    // onAuthStateChange will handle creating/loading profile and UI update
+    showModalMessage('✅ Sign in successful!', 'success');
+    setTimeout(() => { const modal = document.getElementById('modal'); if (modal) modal.style.display = 'none'; clearModalMessage(); resetAuthForms(); }, 900);
+  } catch (err) {
+    console.error('Sign in error:', err);
+    showModalMessage(err.message || 'Sign in failed', 'error');
+  }
+}
+
+async function handleRegister(name, email, password, confirmPassword) {
+  if (!supabase) { showModalMessage('Auth unavailable', 'error'); return; }
+  if (!name || !email || !password || !confirmPassword) { showModalMessage('Please fill all fields.', 'error'); return; }
+  if (!isValidEmail(email)) { showModalMessage('Invalid email', 'error'); return; }
+  if (password.length < 6) { showModalMessage('Password too short', 'error'); return; }
+  if (password !== confirmPassword) { showModalMessage('Passwords do not match', 'error'); return; }
+
+  try {
+    showModalMessage('Creating account...', 'info');
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } }
+    });
+    if (error) throw error;
+
+    // If user is returned with active session, create profile now (onAuthStateChange will also run)
+    if (data?.user) {
+      try { await createUserProfile(data.user); } catch (e) { console.warn('create profile on signUp non-critical:', e); }
+    }
+
+    if (data.user && !data.session) {
+      showModalMessage('✅ Check your email to confirm your account.', 'success');
+    } else {
+      showModalMessage('✅ Registration successful!', 'success');
+      setTimeout(() => { const modal = document.getElementById('modal'); if (modal) modal.style.display = 'none'; clearModalMessage(); resetAuthForms(); }, 1200);
+    }
+  } catch (err) {
+    console.error('Register error:', err);
+    showModalMessage(err.message || 'Registration failed', 'error');
+  }
+}
+
+async function handleLogout(e) {
+  if (e) e.preventDefault();
+  if (!supabase) return;
+  if (!confirm('Are you sure you want to sign out?')) return;
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  } catch (err) {
+    console.error('Logout error:', err);
+    alert('Error signing out: ' + err.message);
+  }
+}
+
+// ========== PROFILE MODAL UI ==========
+function createProfileModal() {
+  if (document.getElementById('userProfileModal')) return;
+
+  const countryOptions = COUNTRY_LIST.map(c => `<option value="${c.code}">${c.label} ${c.code}</option>`).join('\n');
+
+  const modalHTML = `
+    <div id="userProfileModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:10000; justify-content:center; align-items:center;">
+      <div style="background:#fff; border-radius:12px; width:90%; max-width:900px; max-height:90vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+        <div style="padding:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="margin:0; color:#222; font-size:20px;">Account Settings</h2>
+            <button id="closeProfileModal" style="background:none; border:none; font-size:26px; cursor:pointer; color:#666;">&times;</button>
+          </div>
+          <div style="margin-bottom:18px;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div id="userAvatar" style="width:64px; height:64px; border-radius:50%; background:${UI.avatarPink}; display:flex; align-items:center; justify-content:center; color:#fff; font-size:26px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,0.06); border:3px solid #fff;"></div>
+              <div>
+                <h3 id="userName" style="margin:0 0 4px 0; color:#222; font-size:16px; font-weight:700;">Loading...</h3>
+                <p id="userEmail" style="margin:0; color:#666; font-size:13px;">Loading...</p>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:16px; padding:14px; background:${UI.pinkSoft}; border-radius:8px;">
+            <h3 style="margin:0 0 10px 0; color:#222; font-size:15px;">Phone Number</h3>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <select id="countryCodeSelect" style="padding:10px; border-radius:8px; border:1px solid #f4d7df; background:#fff; min-width:140px; font-size:13px;">
+                ${countryOptions}
+              </select>
+              <input type="tel" id="phoneInput" placeholder="7XXXXXXXX" style="flex:1; padding:10px; border:1px solid #efe7ea; border-radius:8px; font-size:14px;">
+              <button id="updatePhoneBtn" style="padding:10px 14px; background:${UI.primaryPink}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Save</button>
+            </div>
+            <p id="phoneMessage" style="margin:10px 0 0 0; font-size:13px;"></p>
+          </div>
+
+          <div style="margin-bottom:16px; padding:14px; background:#fff; border-radius:8px; border:1px solid #f2f2f2;">
+            <h3 style="margin:0 0 10px 0; color:#222; font-size:15px;">Change Password</h3>
+            <input type="password" id="currentPassword" placeholder="Current Password" style="width:100%; padding:10px; border:1px solid #f0f0f0; border-radius:8px; margin-bottom:8px;">
+            <input type="password" id="newPassword" placeholder="New Password (min 6 characters)" style="width:100%; padding:10px; border:1px solid #f0f0f0; border-radius:8px; margin-bottom:8px;">
+            <input type="password" id="confirmNewPassword" placeholder="Confirm New Password" style="width:100%; padding:10px; border:1px solid #f0f0f0; border-radius:8px; margin-bottom:10px;">
+            <button id="changePasswordBtn" style="width:100%; padding:10px; background:${UI.primaryPink}; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">Change Password</button>
+            <p id="passwordMessage" style="margin:10px 0 0 0; font-size:13px;"></p>
+          </div>
+
+          <div id="orderHistoryContainer" style="margin-bottom:16px; padding:14px; background:#fff; border-radius:8px; border:1px solid #f2f2f2;"></div>
+
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // handlers
+  const closeBtn = document.getElementById('closeProfileModal');
+  if (closeBtn) closeBtn.addEventListener('click', closeProfileModal);
+  const modalRoot = document.getElementById('userProfileModal');
+  if (modalRoot) modalRoot.addEventListener('click', (e) => { if (e.target.id === 'userProfileModal') closeProfileModal(); });
+
+  const updateBtn = document.getElementById('updatePhoneBtn');
+  if (updateBtn) updateBtn.addEventListener('click', handleUpdatePhone);
+
+  const changePwdBtn = document.getElementById('changePasswordBtn');
+  if (changePwdBtn) changePwdBtn.addEventListener('click', handleChangePassword);
+
+  const countrySelect = document.getElementById('countryCodeSelect');
+  if (countrySelect) countrySelect.value = '+250';
+}
+
+function openProfileModal() {
+  const modal = document.getElementById('userProfileModal');
+  if (!modal) return;
+  if (!currentUser) { alert('Please sign in.'); return; }
+  modal.style.display = 'flex';
+  loadUserProfile();
+  loadOrderHistory && typeof loadOrderHistory === 'function' && loadOrderHistory();
+}
+
+function closeProfileModal() {
+  const modal = document.getElementById('userProfileModal');
+  if (!modal) return;
+  modal.style.display = 'none';
+  const phoneMessage = document.getElementById('phoneMessage'); if (phoneMessage) phoneMessage.textContent = '';
+  const passwordMessage = document.getElementById('passwordMessage'); if (passwordMessage) passwordMessage.textContent = '';
+  const cp = document.getElementById('currentPassword'); if (cp) cp.value = '';
+  const np = document.getElementById('newPassword'); if (np) np.value = '';
+  const cf = document.getElementById('confirmNewPassword'); if (cf) cf.value = '';
+}
+
+async function loadUserProfile() {
+  if (!currentUser) return;
+  // ensure we have latest profile
+  currentUserProfile = await getUserProfile(currentUser.id);
+
+  const nameSource = currentUser.user_metadata?.full_name || currentUser.email || 'User';
+  const initial = nameSource.charAt(0).toUpperCase();
+  const avatar = document.getElementById('userAvatar'); if (avatar) avatar.textContent = initial;
+  const nameEl = document.getElementById('userName'); if (nameEl) nameEl.textContent = currentUserProfile?.full_name || currentUser.user_metadata?.full_name || (currentUser.email ? currentUser.email.split('@')[0] : 'User');
+  const emailEl = document.getElementById('userEmail'); if (emailEl) emailEl.textContent = currentUser.email || '';
+
+  // phone logic: prefer value from profiles table if present
+  const phoneField = currentUserProfile?.phone || currentUser.user_metadata?.phone || '';
+  const phoneInput = document.getElementById('phoneInput');
+  const countrySelect = document.getElementById('countryCodeSelect');
+
+  if (phoneField && phoneInput) {
+    const m = phoneField.match(/^\+(\d{1,3})(.*)$/);
+    if (m && countrySelect) {
+      const code = '+' + m[1];
+      const opt = Array.from(countrySelect.options).find(o => o.value === code);
+      if (opt) countrySelect.value = code;
+      phoneInput.value = m[2].replace(/^0+/, '');
+    } else {
+      if (countrySelect) countrySelect.value = '+250';
+      phoneInput.value = phoneField;
+    }
+  } else {
+    if (countrySelect) countrySelect.value = '+250';
+    if (phoneInput) phoneInput.value = '';
+  }
+}
+
+// ========== PHONE UPDATE ==========
+async function handleUpdatePhone() {
+  const countrySelect = document.getElementById('countryCodeSelect');
+  const phoneInput = document.getElementById('phoneInput');
+  const phoneRaw = phoneInput ? phoneInput.value.trim() : '';
+  const message = document.getElementById('phoneMessage');
+  const updateBtn = document.getElementById('updatePhoneBtn');
+
+  if (!phoneRaw) { showMessage(message, 'Please enter a phone number.', 'error'); return; }
+  if (!currentUser) { showMessage(message, 'Please sign in to update phone.', 'error'); return; }
+
+  // normalize
+  let normalized = phoneRaw.replace(/\s|-/g, '');
+  if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
+  const country = countrySelect ? countrySelect.value : '+250';
+  if (!/^\+/.test(normalized)) normalized = country + normalized;
+
+  if (country === '+250') {
+    if (!/^\+2507\d{8}$/.test(normalized)) { showMessage(message, 'Enter a valid Rwandan number (+2507xxxxxxxx)', 'error'); return; }
+  } else {
+    if (!/^\+\d{5,15}$/.test(normalized)) { showMessage(message, 'Enter a valid international phone number.', 'error'); return; }
+  }
+
+  // show loading
+  const originalText = updateBtn ? updateBtn.textContent : 'Save';
+  if (updateBtn) setButtonLoading(updateBtn, true);
+
+  try {
+    // Update profiles table (try auth_id then fallback)
+    const ok = await updateProfilePhoneByAuthOrId(currentUser.id, { phone: normalized, updated_at: new Date().toISOString() });
+    if (!ok) throw new Error('Failed to update profile phone (check table schema/permissions).');
+
+    // Also update user_metadata for consistency (no verification)
+    const { data, error } = await supabase.auth.updateUser({ data: { phone: normalized } });
+    if (error) console.warn('auth.updateUser phone warning:', error);
+
+    // refresh local profile
+    currentUserProfile = await getUserProfile(currentUser.id);
+    showMessage(message, '✅ Phone number updated successfully!', 'success');
+  } catch (err) {
+    console.error('Error updating phone:', err);
+    showMessage(message, err.message || 'Failed to update phone.', 'error');
+  } finally {
+    if (updateBtn) setButtonLoading(updateBtn, false, originalText);
+  }
+}
+
+// ========== PASSWORD CHANGE ==========
+async function handleChangePassword() {
+  const currentPassword = document.getElementById('currentPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const confirmPassword = document.getElementById('confirmNewPassword').value;
+  const message = document.getElementById('passwordMessage');
+  const changeBtn = document.getElementById('changePasswordBtn');
+
+  if (!currentPassword || !newPassword || !confirmPassword) { showMessage(message, 'Please fill all fields', 'error'); return; }
+  if (newPassword.length < 6) { showMessage(message, 'New password must be at least 6 characters', 'error'); return; }
+  if (newPassword !== confirmPassword) { showMessage(message, 'New passwords do not match', 'error'); return; }
+
+  const originalText = changeBtn ? changeBtn.textContent : 'Change';
+  if (changeBtn) setButtonLoading(changeBtn, true);
+
+  try {
+    showMessage(message, 'Changing password...', 'info');
+    const signInResult = await supabase.auth.signInWithPassword({ email: currentUser.email, password: currentPassword });
+    if (signInResult.error) throw new Error('Current password is incorrect');
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+
+    showMessage(message, '✅ Password changed successfully!', 'success');
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmNewPassword').value = '';
+  } catch (err) {
+    console.error('Change password error:', err);
+    showMessage(message, err.message || 'Password change failed', 'error');
+  } finally {
+    if (changeBtn) setButtonLoading(changeBtn, false, originalText);
+  }
+}
+
+// ========== UI: update logged in/out ==========
+function updateUIForLoggedInUser(user) {
+  const openModalBtn = document.getElementById('openModal');
+  if (!openModalBtn) return;
+
+  const displayName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'User');
+  const initial = displayName.charAt(0).toUpperCase();
+  const isAdmin = !!currentUserProfile?.is_admin;
+  const adminBadge = isAdmin ? '<span style="background:#ff9db1;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;margin-left:8px;">Admin</span>' : '';
+
+  openModalBtn.outerHTML = `
+    <div id="userMenuContainer" style="position:relative; display:flex; align-items:center; gap:12px;">
+      <button id="userAvatarBtn" aria-label="Open user menu" style="width:48px;height:48px;border-radius:50%;background:${UI.avatarPink};color:#fff;border:3px solid #fff;cursor:pointer;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(255,125,167,0.12);">${initial}</button>
+      <div id="userDropdown" style="display:none; position:absolute; top:64px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:260px; z-index:1000; overflow:visible;">
+        <div style="padding:14px 16px; border-radius:14px; background:linear-gradient(180deg, rgba(255,249,250,1), #fff);">
+          <div style="display:flex; align-items:center; flex-wrap:wrap;">
+            <p style="margin:0; font-weight:800; color:#221; font-size:15px; line-height:1.4;">${displayName}</p>
+            ${adminBadge}
+          </div>
+          <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b; word-break:break-all;">${user.email || ''}</p>
+        </div>
+
+        <div style="padding:12px; display:flex; flex-direction:column; gap:8px;">
+          ${isAdmin ? `
+            <button id="adminPanelBtn" style="padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; width:100%;">⚙️ Admin Panel</button>
+          ` : ''}
+          <button id="viewProfileBtn" style="padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; width:100%;">👤 View Profile</button>
+          <button id="logoutBtn" style="padding:10px 14px; border-radius:30px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; font-size:14px; color:${UI.danger}; width:100%;">🚪 Logout</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  attachUserMenuHandlers();
+}
+
+function attachUserMenuHandlers() {
+  const avatarBtn = document.getElementById('userAvatarBtn');
+  const dropdown = document.getElementById('userDropdown');
+  const viewProfileBtn = document.getElementById('viewProfileBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const adminPanelBtn = document.getElementById('adminPanelBtn');
+
+  if (avatarBtn && dropdown) {
+    avatarBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+        dropdown.style.display = 'block'; dropdown.style.opacity = '0'; dropdown.style.transform = 'translateY(-6px)';
+        setTimeout(() => { dropdown.style.transition = 'opacity 160ms ease, transform 160ms ease'; dropdown.style.opacity = '1'; dropdown.style.transform = 'translateY(0)'; }, 8);
+      } else {
+        dropdown.style.transition = 'opacity 120ms ease, transform 120ms ease'; dropdown.style.opacity = '0'; dropdown.style.transform = 'translateY(-6px)';
+        setTimeout(() => { dropdown.style.display = 'none'; }, 140);
+      }
+    });
+  }
+
+  if (viewProfileBtn) viewProfileBtn.addEventListener('click', () => { if (dropdown) dropdown.style.display = 'none'; openProfileModal(); });
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+  if (adminPanelBtn) adminPanelBtn.addEventListener('click', () => { if (dropdown) dropdown.style.display = 'none'; window.location.href = 'admin.html'; });
+
+  document.addEventListener('click', (event) => {
+    const dd = document.getElementById('userDropdown');
+    const av = document.getElementById('userAvatarBtn');
+    if (!dd) return;
+    if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av.contains(event.target)) {
+      if (dd.style.display === 'block') {
+        dd.style.transition = 'opacity 120ms ease, transform 120ms ease'; dd.style.opacity = '0'; dd.style.transform = 'translateY(-6px)';
+        setTimeout(() => { dd.style.display = 'none'; }, 140);
+      }
+    }
+  });
+}
+
+function updateUIForLoggedOutUser() {
+  const userMenu = document.getElementById('userMenuContainer');
+  if (!userMenu) return;
+  userMenu.outerHTML = '<button id="openModal" style="padding:8px 12px; border-radius:8px; background:transparent; border:1px solid #eee; cursor:pointer;">Sign in</button>';
+  const newOpenModalBtn = document.getElementById('openModal');
+  const modal = document.getElementById('modal');
+  if (newOpenModalBtn && modal) newOpenModalBtn.addEventListener('click', (e) => { e.preventDefault(); modal.style.display = 'flex'; });
+}
+
+// ========== MESSAGES & UTILITIES ==========
+function showMessage(element, text, type = 'info') {
+  if (!element) return;
+  element.textContent = text; element.style.display = 'block';
+  const colors = { error: { color: UI.danger }, success: { color: UI.success }, warning: { color: UI.warning }, info: { color: UI.primaryPink } };
+  const style = (colors[type] || colors.info); element.style.color = style.color;
+}
+
+function showModalMessage(text, type = 'info') {
+  const modal = document.getElementById('modal'); if (!modal) return;
+  let messageDiv = modal.querySelector('.auth-message');
+  if (!messageDiv) { messageDiv = document.createElement('div'); messageDiv.className = 'auth-message'; messageDiv.style.cssText = 'padding:12px;margin:10px 0;border-radius:8px;text-align:center;font-weight:700;'; const formTitle = modal.querySelector('#form-title'); if (formTitle) formTitle.insertAdjacentElement('afterend', messageDiv); else modal.insertAdjacentElement('afterbegin', messageDiv); }
+  messageDiv.textContent = text; messageDiv.style.display = 'block';
+  const colors = { error: { bg: '#ffecec', text: UI.danger, border: '#f2a1a1' }, success: { bg: '#e8f5e9', text: UI.success, border: '#a8e0b5' }, info: { bg: '#fff4f7', text: UI.primaryPink, border: '#ffd1dc' }, warning: { bg: '#fff4e5', text: UI.warning, border: '#ffcc80' } };
+  const color = colors[type] || colors.info; messageDiv.style.backgroundColor = color.bg; messageDiv.style.color = color.text; messageDiv.style.border = `1px solid ${color.border}`;
+}
+
+function clearModalMessage() { const modal = document.getElementById('modal'); if (!modal) return; const msg = modal.querySelector('.auth-message'); if (msg) msg.style.display = 'none'; }
+
+function showGlobalMessage(text, type = 'info') {
+  let messageContainer = document.getElementById('global-message');
+  if (!messageContainer) {
+    messageContainer = document.createElement('div'); messageContainer.id = 'global-message';
+    messageContainer.style.cssText = 'position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; font-weight:700; z-index:10001; max-width:400px; box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+    document.body.appendChild(messageContainer);
+  }
+  const colors = { error: { bg: '#ffecec', text: UI.danger, border: '#f2a1a1' }, success: { bg: '#e8f5e9', text: UI.success, border: '#a8e0b5' }, info: { bg: '#fff4f7', text: UI.primaryPink, border: '#ffd1dc' }, warning: { bg: '#fff4e5', text: UI.warning, border: '#ffcc80' } };
+  const color = colors[type] || colors.info;
+  messageContainer.style.backgroundColor = color.bg; messageContainer.style.color = color.text; messageContainer.style.border = `1px solid ${color.border}`; messageContainer.textContent = text; messageContainer.style.display = 'block';
+  setTimeout(() => { messageContainer.style.display = 'none'; }, 5000);
+}
+
+function setButtonLoading(button, isLoading, originalText = 'Submit') {
+  if (!button) return;
+  if (isLoading) { button.disabled = true; button.innerHTML = '<div class="loading-spinner"></div> Loading...'; button.style.opacity = '0.7'; }
+  else { button.disabled = false; button.textContent = originalText; button.style.opacity = '1'; }
+}
+
+function isValidEmail(email) { const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; return emailRegex.test(email); }
+
+// ========== END ==========
+
+
