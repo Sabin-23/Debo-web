@@ -256,11 +256,12 @@ async function checkAuthStatus() {
 
 async function getUserProfile(userId) {
   if (!supabase) {
+    console.error('Supabase client not initialized');
     throw new Error('Supabase client not initialized');
   }
 
   try {
-    console.log('🔍 Fetching profile for user:', userId);
+    console.log('Fetching profile for user:', userId);
     
     const { data, error } = await supabase
       .from('profiles')
@@ -268,20 +269,28 @@ async function getUserProfile(userId) {
       .eq('id', userId)
       .maybeSingle();
 
+    console.log('Profile query result - data:', data);
+    console.log('Profile query result - error:', error);
+
     if (error) {
-      console.error('❌ Profile fetch error:', error);
+      console.error('Profile fetch error:', error);
       if (error.code === 'PGRST116') {
-        console.log('📝 No existing profile found');
+        console.log('No existing profile found');
         return null;
       }
       throw error;
     }
 
-    console.log('✅ Profile fetched successfully:', data);
+    if (!data) {
+      console.log('Profile query returned null/undefined');
+      return null;
+    }
+
+    console.log('Profile fetched successfully:', data);
     return data;
     
   } catch (error) {
-    console.error('❌ Error fetching user profile:', error);
+    console.error('Exception in getUserProfile:', error);
     return null;
   }
 }
@@ -1635,6 +1644,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
