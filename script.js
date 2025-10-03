@@ -14,6 +14,7 @@ if (close){
         nav.classList.remove('active');
     })
 }
+
 // ==========================================
 // SUPABASE AUTHENTICATION SYSTEM - FIXED
 // Complete solution with profile management, order history, and cart
@@ -149,19 +150,24 @@ function setupAuthStateListener() {
       case 'SIGNED_IN':
         isProcessingAuth = true;
         currentUser = session.user;
+        console.log('👤 User signed in:', currentUser.email);
+        
         try {
-          // FIX: Properly handle profile creation without loops
+          // Load or create profile
           currentUserProfile = await getUserProfile(currentUser.id);
+          console.log('📋 Profile fetched:', currentUserProfile);
           
           if (!currentUserProfile) {
             console.log('📝 Creating new user profile...');
             currentUserProfile = await createUserProfile(currentUser.id);
+            console.log('✅ Profile created:', currentUserProfile);
             
             if (!currentUserProfile) {
               throw new Error('Failed to create user profile');
             }
           }
           
+          console.log('🎨 Updating UI...');
           updateUIForLoggedInUser(currentUser);
           showGlobalMessage('Successfully signed in!', 'success');
           
@@ -170,6 +176,7 @@ function setupAuthStateListener() {
           showGlobalMessage('Error loading profile: ' + error.message, 'error');
         } finally {
           isProcessingAuth = false;
+          console.log('✅ Auth processing complete');
         }
         break;
         
@@ -1274,6 +1281,15 @@ function initializeCart() {
   console.log('Cart initialized');
 }
 
+// ==========================================
+// 14. CART INITIALIZATION (STUB)
+// ==========================================
+
+function initializeCart() {
+  // Add your cart initialization logic here
+  console.log('Cart initialized');
+}
+
 
 // ==========================================
 // 14. CART INITIALIZATION (STUB)
@@ -1614,6 +1630,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
