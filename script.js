@@ -14,6 +14,7 @@ if (close){
         nav.classList.remove('active');
     })
 }
+
 // ==========================================
 // SUPABASE AUTHENTICATION SYSTEM - FIXED
 // Complete solution with profile management, order history, and cart
@@ -149,33 +150,43 @@ function setupAuthStateListener() {
       case 'SIGNED_IN':
         isProcessingAuth = true;
         currentUser = session.user;
-        console.log('👤 User signed in:', currentUser.email);
+        console.log('User signed in:', currentUser.email);
         
         try {
           // Load or create profile
           currentUserProfile = await getUserProfile(currentUser.id);
-          console.log('📋 Profile fetched:', currentUserProfile);
+          console.log('Profile fetched:', currentUserProfile);
           
           if (!currentUserProfile) {
-            console.log('📝 Creating new user profile...');
+            console.log('Creating new user profile...');
             currentUserProfile = await createUserProfile(currentUser.id);
-            console.log('✅ Profile created:', currentUserProfile);
+            console.log('Profile created:', currentUserProfile);
             
             if (!currentUserProfile) {
               throw new Error('Failed to create user profile');
             }
           }
           
-          console.log('🎨 Updating UI...');
+          // Check if user is admin and redirect
+          if (currentUserProfile.is_admin === true) {
+            console.log('Admin user detected, redirecting to admin panel...');
+            showGlobalMessage('Welcome Admin! Redirecting...', 'success');
+            setTimeout(() => {
+              window.location.href = 'admin.html';
+            }, 1000);
+            return; // Exit early, don't update UI
+          }
+          
+          console.log('Updating UI...');
           updateUIForLoggedInUser(currentUser);
           showGlobalMessage('Successfully signed in!', 'success');
           
         } catch (error) {
-          console.error('❌ Error during sign-in process:', error);
+          console.error('Error during sign-in process:', error);
           showGlobalMessage('Error loading profile: ' + error.message, 'error');
         } finally {
           isProcessingAuth = false;
-          console.log('✅ Auth processing complete');
+          console.log('Auth processing complete');
         }
         break;
         
@@ -1303,6 +1314,15 @@ function initializeCart() {
   console.log('Cart initialized');
 }
 
+// ==========================================
+// 14. CART INITIALIZATION (STUB)
+// ==========================================
+
+function initializeCart() {
+  // Add your cart initialization logic here
+  console.log('Cart initialized');
+}
+
 
 // ==========================================
 // 14. CART INITIALIZATION (STUB)
@@ -1643,6 +1663,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
