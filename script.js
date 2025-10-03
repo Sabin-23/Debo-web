@@ -148,19 +148,26 @@ function setupAuthStateListener() {
     
     switch (event) {
       case 'SIGNED_IN':
+        if (isProcessingAuth) {
+          console.log('⏸️ Already processing auth, skipping...');
+          return;
+        }
+        
         isProcessingAuth = true;
         currentUser = session.user;
-        console.log('User signed in:', currentUser.email);
+        console.log('👤 User signed in:', currentUser.email);
         
         try {
+          console.log('🔄 Starting profile load...');
+          
           // Load or create profile
           currentUserProfile = await getUserProfile(currentUser.id);
-          console.log('Profile fetched:', currentUserProfile);
+          console.log('📋 Profile result:', currentUserProfile);
           
           if (!currentUserProfile) {
-            console.log('Creating new user profile...');
+            console.log('📝 Creating new user profile...');
             currentUserProfile = await createUserProfile(currentUser.id);
-            console.log('Profile created:', currentUserProfile);
+            console.log('✅ Profile created:', currentUserProfile);
             
             if (!currentUserProfile) {
               throw new Error('Failed to create user profile');
@@ -169,7 +176,7 @@ function setupAuthStateListener() {
           
           // Check if user is admin and redirect
           if (currentUserProfile.is_admin === true) {
-            console.log('Admin user detected, redirecting to admin panel...');
+            console.log('🔑 Admin user detected, redirecting to admin panel...');
             showGlobalMessage('Welcome Admin! Redirecting...', 'success');
             setTimeout(() => {
               window.location.href = 'admin.html';
@@ -177,16 +184,17 @@ function setupAuthStateListener() {
             return; // Exit early, don't update UI
           }
           
-          console.log('Updating UI...');
+          console.log('🎨 Updating UI...');
           updateUIForLoggedInUser(currentUser);
           showGlobalMessage('Successfully signed in!', 'success');
           
         } catch (error) {
-          console.error('Error during sign-in process:', error);
+          console.error('❌ FULL ERROR during sign-in:', error);
+          console.error('❌ Error stack:', error.stack);
           showGlobalMessage('Error loading profile: ' + error.message, 'error');
         } finally {
           isProcessingAuth = false;
-          console.log('Auth processing complete');
+          console.log('✅ Auth processing complete');
         }
         break;
         
@@ -1267,42 +1275,6 @@ function showGlobalMessage(text, type = 'info') {
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-}
-
-// ==========================================
-// 14. CART INITIALIZATION (STUB)
-// ==========================================
-
-function initializeCart() {
-  // Add your cart initialization logic here
-  console.log('Cart initialized');
-}
-
-// ==========================================
-// 14. CART INITIALIZATION (STUB)
-// ==========================================
-
-function initializeCart() {
-  // Add your cart initialization logic here
-  console.log('Cart initialized');
-}
-
-// ==========================================
-// 14. CART INITIALIZATION (STUB)
-// ==========================================
-
-function initializeCart() {
-  // Add your cart initialization logic here
-  console.log('Cart initialized');
-}
-
-// ==========================================
-// 14. CART INITIALIZATION (STUB)
-// ==========================================
-
-function initializeCart() {
-  // Add your cart initialization logic here
-  console.log('Cart initialized');
 }
 
 // ==========================================
