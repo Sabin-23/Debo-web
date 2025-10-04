@@ -105,6 +105,7 @@
               <div style="font-weight:600;margin-bottom:6px">Client-side debug log (also open dev console)</div>
               <div id="clientLog" class="log">Ready\n</div>
             </div>
+            <div id="messageBox"></div>
           </div>
         </div>
       </form>
@@ -136,6 +137,12 @@
       }catch(e){ console.log('log error', e); }
       console.log(msg);
     }
+  function showMessage(msg, type) {
+    const msgBox = document.getElementById('msgBox');
+    msgBox.textContent = msg;
+    msgBox.style.color = (type === 'success') ? 'green' : 'red';
+}
+
 
     // attach tab handlers immediately so UI works even if errors occur later
     (function attachTabsImmediately(){
@@ -298,6 +305,48 @@
           const desc = document.createElement('div'); desc.style.fontSize='13px'; desc.style.color='#333'; desc.textContent = p.description||'';
           const price = document.createElement('div'); price.textContent = 'RWF ' + (p.price||0);
           const stock = document.createElement('div'); stock.textContent = 'Stock: ' + (p.stock||0);
+          // Inside your loop where you build each product row/card
+          const delBtn = document.createElement('button');
+            delBtn.textContent = "Delete Product";
+            delBtn.className = "delete-btn"; // style it in CSS (red button)
+            
+            // Attach delete handler
+            delBtn.onclick = async () => {
+              if (!confirm("Are you sure you want to delete this product?")) return;
+            
+              try {
+                // 1. Remove image from storage (if present)
+                if (p.image_url) {
+                  const path = extractPathFromPublicUrl(p.image_url);
+                  if (path) {
+                    const { error: storageErr } = await supabase.storage.from("product-images").remove([path]);
+                    if (storageErr) {
+                      showMessage("Failed to delete product image. Aborting.", "error");
+                      return;
+                    }
+                  }
+                }
+            
+                // 2. Delete row from database
+                const { error: dbErr } = await supabase.from("products").delete().eq("id", p.id);
+                if (dbErr) {
+                  showMessage("Failed to delete product from database.", "error");
+                  return;
+                }
+            
+                showMessage("Product deleted successfully!", "success");
+          
+              // Refresh product list
+              loadProducts();
+          
+            } catch (err) {
+              showMessage("Unexpected error while deleting product.", "error");
+            }
+          };
+          
+          // Add button to your product card
+          productDiv.appendChild(delBtn);
+
           card.appendChild(img); card.appendChild(title); card.appendChild(desc); card.appendChild(price); card.appendChild(stock);
           grid.appendChild(card);
         });
@@ -305,6 +354,7 @@
         console.error('loadProducts error', err);
         document.getElementById('productsGrid').innerHTML = '<div class="muted">Error loading products: ' + (err.message || JSON.stringify(err)) + '</div>';
       }
+      
     }
 
     // initial load
@@ -315,6 +365,17 @@
       try{ if(supabase) await supabase.auth.signOut(); }catch(e){ console.warn('signout', e); }
       location.reload();
     });
+    function extractPathFromPublicUrl(url) {
+      // Example: https://xyz.supabase.co/storage/v1/object/public/product-images/abc.png
+      const parts = url.split("/product-images/");
+      return parts[1] || null;
+    }
+    function showMessage(msg, type = "success") {
+    const box = document.getElementById("messageBox");
+    box.textContent = msg;
+    box.style.color = (type === "success") ? "green" : "red";
+    }
+
 
     // expose loaders for debugging
     window.loadProducts = loadProducts;
@@ -322,3 +383,4 @@
   </script>
 </body>
 </html>
+
