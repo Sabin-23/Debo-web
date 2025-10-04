@@ -905,89 +905,6 @@ function updateUIForLoggedOutUser() {
   console.log('[CHK] updateUIForLoggedOutUser done');
 }
 
-
-function attachUserMenuHandlers() {
-  chk('attachUserMenuHandlers - start');
-
-  // clone nodes to remove prior event listeners and avoid duplicates
-  function freshEl(id) {
-    const el = document.getElementById(id);
-    if (!el) return null;
-    const clone = el.cloneNode(true);
-    el.parentNode.replaceChild(clone, el);
-    return clone;
-  }
-
-  const avatarBtn = freshEl('userAvatarBtn') || document.getElementById('userAvatarBtn');
-  const dropdown = document.getElementById('userDropdown');
-  const viewProfileBtn = freshEl('viewProfileBtn') || document.getElementById('viewProfileBtn');
-  const logoutBtn = freshEl('logoutBtn') || document.getElementById('logoutBtn');
-  const adminPanelBtn = freshEl('adminPanelBtn') || document.getElementById('adminPanelBtn');
-
-  if (avatarBtn && dropdown) {
-    avatarBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      chk('avatarBtn clicked - toggling dropdown');
-      if (dropdown.style.display === 'block') {
-        dropdown.style.opacity = '0';
-        dropdown.style.transform = 'translateY(-6px)';
-        setTimeout(() => { dropdown.style.display = 'none'; }, 140);
-      } else {
-        dropdown.style.display = 'block';
-        dropdown.style.opacity = '0';
-        dropdown.style.transform = 'translateY(-6px)';
-        setTimeout(() => {
-          dropdown.style.transition = 'opacity 160ms ease, transform 160ms ease';
-          dropdown.style.opacity = '1';
-          dropdown.style.transform = 'translateY(0)';
-        }, 8);
-      }
-    });
-  } else {
-    chk('attachUserMenuHandlers - avatarBtn or dropdown missing', { avatarBtn: !!avatarBtn, dropdown: !!dropdown });
-  }
-
-  if (viewProfileBtn) {
-    viewProfileBtn.addEventListener('click', () => {
-      chk('viewProfileBtn clicked');
-      if (dropdown) dropdown.style.display = 'none';
-      openProfileModal();
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', (e) => {
-      chk('logoutBtn clicked');
-      handleLogout(e);
-    });
-  }
-
-  if (adminPanelBtn) {
-    adminPanelBtn.addEventListener('click', () => {
-      chk('adminPanelBtn clicked');
-      if (dropdown) dropdown.style.display = 'none';
-      window.location.href = 'admin.html';
-    });
-  }
-
-  // close dropdown on outside click (idempotent)
-  document.addEventListener('click', function(event) {
-    const dd = document.getElementById('userDropdown');
-    const av = document.getElementById('userAvatarBtn');
-    if (!dd) return;
-    if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av?.contains(event.target)) {
-      if (dd.style.display === 'block') {
-        dd.style.opacity = '0';
-        dd.style.transform = 'translateY(-6px)';
-        setTimeout(() => { dd.style.display = 'none'; }, 140);
-      }
-    }
-  });
-
-  chk('attachUserMenuHandlers - end');
-}
-
-
 /* --------------------
    MESSAGE UTILITIES
    -------------------- */
@@ -1414,6 +1331,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
