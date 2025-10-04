@@ -695,38 +695,45 @@ function closeProfileModal() {
 /* --------------------
    UI UPDATE FUNCTIONS (core area we debugged)
    -------------------- */
-/* ---------- NEW: Update UI for logged-in user (avatar alt color, 3-option dropdown) ---------- */
+
+/* -------------------------
+   updateUIForLoggedInUser
+   (replaces sign-in button in-place)
+   ------------------------- */
 async function updateUIForLoggedInUser(user) {
   console.log('[CHK] updateUIForLoggedInUser called for:', user?.email || null);
 
   const openModalBtn = document.getElementById('openModal');
 
-  // pick alternate avatar color (purple) via CSS variable --avatar-alt
   const displayName = (user?.user_metadata?.full_name) || (user?.email ? user.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
   const isAdmin = currentUserProfile?.is_admin === true;
   const adminBadge = isAdmin ? '<span class="user-admin-badge">Admin</span>' : '';
 
-  // Dropdown: Profile, Orders, Logout (logout opens settings modal)
   const wrapper = document.createElement('div');
   wrapper.innerHTML = `
     <ul id="userMenuContainer" class="user-menu-list" aria-hidden="false">
       <li class="user-menu-item" style="position:relative;">
-        <button id="userAvatarBtn" class="user-avatar-btn avatar-alt" aria-label="Open user menu">${initial}</button>
+        <button id="userAvatarBtn" class="user-avatar-btn avatar-lightpink" aria-label="Open user menu">${initial}</button>
 
         <div id="userDropdown" class="user-dropdown" style="display:none;">
           <div class="user-dropdown-header">
-            <div>
-              <p class="ud-name">${displayName}</p>
-              <p class="ud-email">${user?.email || ''}</p>
+            <div class="ud-left">
+              <div class="ud-avatar-mini avatar-lightpink">${initial}</div>
+              <div style="margin-left:10px;">
+                <p class="ud-name">${displayName}</p>
+                <p class="ud-email">${user?.email || ''}</p>
+              </div>
             </div>
-            ${adminBadge}
+            <div class="ud-right">
+              ${adminBadge}
+              <button id="openSettingsFromDropdown" class="ud-settings-btn" title="Settings">⚙️</button>
+            </div>
           </div>
 
           <div class="user-dropdown-actions">
-            <button id="profileShortBtn" class="ud-btn">Profile</button>
             <button id="ordersShortBtn" class="ud-btn">Orders</button>
-            <button id="logoutOpenSettingsBtn" class="ud-btn logout">Settings</button>
+            <button id="logoutBtn" class="ud-btn logout">Logout</button>
           </div>
         </div>
       </li>
@@ -734,7 +741,6 @@ async function updateUIForLoggedInUser(user) {
   `;
   const newNode = wrapper.firstElementChild;
 
-  // Replace the existing sign-in button in-place (best to preserve nav layout)
   if (openModalBtn && openModalBtn.parentNode) {
     openModalBtn.parentNode.replaceChild(newNode, openModalBtn);
     console.log('[CHK] Replaced openModal button in place with avatar');
@@ -748,11 +754,12 @@ async function updateUIForLoggedInUser(user) {
   console.log('[CHK] updateUIForLoggedInUser done');
 }
 
-/* ---------- NEW: attach handlers (Profile, Orders, Settings-popup) ---------- */
+/* -------------------------
+   attachUserMenuHandlers
+   ------------------------- */
 function attachUserMenuHandlers() {
   console.log('[CHK] attachUserMenuHandlers - start');
 
-  // safe cloning to avoid duplicate listeners
   function freshEl(id) {
     const el = document.getElementById(id);
     if (!el) return null;
@@ -763,9 +770,9 @@ function attachUserMenuHandlers() {
 
   const avatarBtn = freshEl('userAvatarBtn') || document.getElementById('userAvatarBtn');
   const dropdown = document.getElementById('userDropdown');
-  const profileShortBtn = freshEl('profileShortBtn') || document.getElementById('profileShortBtn');
-  const ordersShortBtn = freshEl('ordersShortBtn') || document.getElementById('ordersShortBtn');
-  const logoutOpenSettingsBtn = freshEl('logoutOpenSettingsBtn') || document.getElementById('logoutOpenSettingsBtn');
+  const ordersBtn = freshEl('ordersShortBtn') || document.getElementById('ordersShortBtn');
+  const logoutBtn = freshEl('logoutBtn') || document.getElementById('logoutBtn');
+  const openSettingsBtn = freshEl('openSettingsFromDropdown') || document.getElementById('openSettingsFromDropdown');
 
   if (avatarBtn && dropdown) {
     avatarBtn.addEventListener('click', (e) => {
@@ -789,29 +796,32 @@ function attachUserMenuHandlers() {
     console.warn('[CHK] attachUserMenuHandlers - avatarBtn or dropdown missing', { avatarBtn: !!avatarBtn, dropdown: !!dropdown });
   }
 
-  if (profileShortBtn) {
-    profileShortBtn.addEventListener('click', () => {
+  if (ordersBtn) {
+    ordersBtn.addEventListener('click', () => {
       if (dropdown) dropdown.style.display = 'none';
-      openProfileModal();
+      openOrdersModal();
     });
   }
 
-  if (ordersShortBtn) {
-    ordersShortBtn.addEventListener('click', () => {
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener('click', () => {
       if (dropdown) dropdown.style.display = 'none';
-      openProfileModal();
-      // ensure order section visible after modal opens
-      setTimeout(() => {
-        const ord = document.getElementById('orderHistoryContainer');
-        if (ord) ord.scrollIntoView({ behavior: 'smooth' });
-      }, 250);
+      openSettingsModal();
     });
   }
 
-  if (logoutOpenSettingsBtn) {
-    logoutOpenSettingsBtn.addEventListener('click', () => {
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       if (dropdown) dropdown.style.display = 'none';
-      openSettingsModal(); // opens the screen-wide settings popup (name/email edits + phone + change password)
+      // actual sign out
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        console.log('[CHK] Signed out successfully');
+      } catch (err) {
+        console.error('[CHK] signOut error', err);
+      }
     });
   }
 
@@ -832,13 +842,48 @@ function attachUserMenuHandlers() {
   console.log('[CHK] attachUserMenuHandlers - end');
 }
 
-/* ---------- NEW: Settings modal (screen-wide) ---------- */
+/* -------------------------
+   Orders modal (simple placeholder)
+   ------------------------- */
+function openOrdersModal() {
+  console.log('[CHK] openOrdersModal - start');
+  if (!document.getElementById('ordersModal')) {
+    const html = `
+      <div id="ordersModal" class="orders-modal" style="display:flex">
+        <div class="orders-panel">
+          <div class="orders-header">
+            <h2>Orders</h2>
+            <button id="closeOrdersModal" class="close-orders-btn">&times;</button>
+          </div>
+          <div class="orders-body">
+            <p style="color:#666">No orders yet — content will be added later.</p>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('closeOrdersModal').addEventListener('click', closeOrdersModal);
+  }
+  const modal = document.getElementById('ordersModal');
+  if (modal) modal.style.display = 'flex';
+  console.log('[CHK] openOrdersModal - end');
+}
+function closeOrdersModal() {
+  const m = document.getElementById('ordersModal');
+  if (m) m.style.display = 'none';
+}
+
+/* -------------------------
+   Settings Modal (overhauled UI)
+   - includes country code select for E. Africa
+   - inline edit for name & email (save updates both auth & profiles)
+   ------------------------- */
 function openSettingsModal() {
   console.log('[CHK] openSettingsModal - start');
-  // create modal if not exists
+
   if (!document.getElementById('settingsModal')) {
-    const modalHTML = `
-      <div id="settingsModal" class="settings-modal" style="display:flex;">
+    const html = `
+      <div id="settingsModal" class="settings-modal" style="display:flex">
         <div class="settings-panel">
           <div class="settings-header">
             <h2>Account Settings</h2>
@@ -846,199 +891,282 @@ function openSettingsModal() {
           </div>
 
           <div class="settings-body">
-            <section class="settings-section">
-              <h3>Profile</h3>
-              <div class="profile-field">
+            <div class="left-col">
+              <section class="settings-section">
+                <h3>Profile</h3>
+
                 <label>Full name</label>
-                <div class="inline-edit" id="nameInlineDisplay">
-                  <span id="currentFullName">Loading...</span>
-                  <button class="edit-ico" id="editNameBtn" title="Edit name">✏️</button>
+                <div class="inline-row">
+                  <div id="nameDisplayArea">
+                    <span id="displayFullName" class="display-text">Loading</span>
+                    <button id="editNameBtn" class="icon-btn">✏️</button>
+                  </div>
+                  <div id="nameEditArea" class="edit-row" style="display:none;">
+                    <input id="nameInput" type="text" />
+                    <button id="saveName" class="save-btn">Save</button>
+                    <button id="cancelName" class="cancel-btn">Cancel</button>
+                  </div>
+                  <p id="nameMsg" class="field-msg"></p>
                 </div>
-                <div class="inline-edit-input" id="nameInlineInput" style="display:none;">
-                  <input id="editNameInput" type="text" />
-                  <button id="saveNameBtn" class="save-btn">Save</button>
-                  <button id="cancelNameBtn" class="cancel-btn">Cancel</button>
-                </div>
-                <p id="nameMsg" class="field-msg"></p>
-              </div>
 
-              <div class="profile-field">
-                <label>Email</label>
-                <div class="inline-edit" id="emailInlineDisplay">
-                  <span id="currentEmail">Loading...</span>
-                  <button class="edit-ico" id="editEmailBtn" title="Edit email">✏️</button>
+                <label style="margin-top:10px;">Email</label>
+                <div class="inline-row">
+                  <div id="emailDisplayArea">
+                    <span id="displayEmail" class="display-text">Loading</span>
+                    <button id="editEmailBtn" class="icon-btn">✏️</button>
+                  </div>
+                  <div id="emailEditArea" class="edit-row" style="display:none;">
+                    <input id="emailInput" type="email" />
+                    <button id="saveEmail" class="save-btn">Save</button>
+                    <button id="cancelEmail" class="cancel-btn">Cancel</button>
+                  </div>
+                  <p id="emailMsg" class="field-msg"></p>
                 </div>
-                <div class="inline-edit-input" id="emailInlineInput" style="display:none;">
-                  <input id="editEmailInput" type="email" />
-                  <button id="saveEmailBtn" class="save-btn">Save</button>
-                  <button id="cancelEmailBtn" class="cancel-btn">Cancel</button>
-                </div>
-                <p id="emailMsg" class="field-msg"></p>
-              </div>
-            </section>
+              </section>
 
-            <section class="settings-section">
-              <h3>Phone</h3>
-              <div>
-                <input id="settingsPhoneInput" type="tel" placeholder="e.g. +2507XXXXXXXX" />
-                <button id="savePhoneBtn" class="save-btn">Save phone</button>
+              <section class="settings-section">
+                <h3>Phone</h3>
+                <div class="phone-row">
+                  <select id="settingsCountryCode" class="country-select">
+                    <option value="+250">RW +250</option>
+                    <option value="+254">KE +254</option>
+                    <option value="+256">UG +256</option>
+                    <option value="+255">TZ +255</option>
+                    <option value="+257">BI +257</option>
+                    <option value="+211">SS +211</option>
+                  </select>
+                  <input id="settingsPhone" type="tel" placeholder="7XXXXXXXX" />
+                  <button id="savePhone" class="save-btn">Save</button>
+                </div>
                 <p id="phoneMsg" class="field-msg"></p>
-              </div>
-            </section>
+              </section>
+            </div>
 
-            <section class="settings-section">
-              <h3>Change password</h3>
-              <div>
-                <input id="settingsCurrentPwd" type="password" placeholder="Current password" />
-                <input id="settingsNewPwd" type="password" placeholder="New password (min 6 chars)" />
-                <input id="settingsConfirmNewPwd" type="password" placeholder="Confirm new password" />
-                <button id="savePwdBtn" class="save-btn">Change password</button>
+            <div class="right-col">
+              <section class="settings-section">
+                <h3>Change password</h3>
+                <input id="currentPwd" type="password" placeholder="Current password" />
+                <input id="newPwd" type="password" placeholder="New password (min 6 chars)" />
+                <input id="confirmNewPwd" type="password" placeholder="Confirm new password" />
+                <button id="savePwd" class="save-btn">Change password</button>
                 <p id="pwdMsg" class="field-msg"></p>
-              </div>
-            </section>
+              </section>
 
-            <section style="margin-top:12px;">
-              <button id="confirmLogoutBtn" class="logout-full-btn">Sign out</button>
-            </section>
+              <section style="margin-top:20px;">
+                <button id="signOutNow" class="logout-full-btn">Sign out</button>
+              </section>
+            </div>
           </div>
         </div>
       </div>
     `;
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    document.body.insertAdjacentHTML('beforeend', html);
 
-    // style is provided in CSS block below
     // attach close handler
     document.getElementById('closeSettingsModal').addEventListener('click', closeSettingsModal);
+    // attach small UI behaviour
+    wireSettingsHandlers();
   }
 
-  // populate current values
-  const nameEl = document.getElementById('currentFullName');
-  const emailEl = document.getElementById('currentEmail');
-  const phoneInput = document.getElementById('settingsPhoneInput');
+  // populate values
+  const nameText = currentUser?.user_metadata?.full_name || (currentUser?.email ? currentUser.email.split('@')[0] : '');
+  const emailText = currentUser?.email || '';
+  const phoneText = currentUserProfile?.phone || '';
 
-  const nameVal = currentUser?.user_metadata?.full_name || (currentUser?.email ? currentUser.email.split('@')[0] : '');
-  const emailVal = currentUser?.email || '';
-  const phoneVal = currentUserProfile?.phone || '';
+  const displayFullName = document.getElementById('displayFullName');
+  const displayEmail = document.getElementById('displayEmail');
+  const settingsPhone = document.getElementById('settingsPhone');
+  const countrySel = document.getElementById('settingsCountryCode');
 
-  if (nameEl) nameEl.textContent = nameVal;
-  if (emailEl) emailEl.textContent = emailVal;
-  if (phoneInput) {
-    phoneInput.value = phoneVal;
-  }
-
-  // wire inline edit handlers for name/email
-  setupInlineEdits();
-
-  // wire phone save (reusing your handleUpdatePhone logic underneath)
-  const savePhoneBtn = document.getElementById('savePhoneBtn');
-  if (savePhoneBtn) {
-    savePhoneBtn.addEventListener('click', async () => {
-      const phoneRaw = document.getElementById('settingsPhoneInput').value.trim();
-      const phoneMsg = document.getElementById('phoneMsg');
-      phoneMsg.textContent = 'Saving...';
-      try {
-        // reuse logic: normalize and update profiles table directly
-        let normalized = phoneRaw.replace(/\s|-/g, '');
-        if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
-        if (!/^\+/.test(normalized)) {
-          // basic fallback assume country +250 if missing
-          normalized = '+250' + normalized;
-        }
-        // optional: add validation here (kept simple)
-        const { error } = await supabase
-          .from('profiles')
-          .update({ phone: normalized, updated_at: new Date().toISOString() })
-          .eq('id', currentUser.id);
-
-        if (error) {
-          phoneMsg.textContent = error.message || 'Failed to save phone';
-          phoneMsg.style.color = UI.danger;
-          console.error('[CHK] savePhone error', error);
-        } else {
-          phoneMsg.textContent = 'Phone saved';
-          phoneMsg.style.color = UI.success;
-          // refresh local profile
-          currentUserProfile = await getUserProfile(currentUser.id);
-          setTimeout(() => { phoneMsg.textContent = ''; }, 2000);
-        }
-      } catch (err) {
-        phoneMsg.textContent = err.message || 'Failed to save phone';
-        phoneMsg.style.color = UI.danger;
-        console.error('[CHK] savePhone exception', err);
+  if (displayFullName) displayFullName.textContent = nameText;
+  if (displayEmail) displayEmail.textContent = emailText;
+  if (settingsPhone) {
+    // try to split +code and number (if stored like +2507xxxx)
+    const m = (phoneText || '').match(/^\+(\d{1,3})(.*)$/);
+    if (m) {
+      const code = '+' + m[1];
+      if (countrySel) {
+        const opt = Array.from(countrySel.options).find(o => o.value === code);
+        if (opt) countrySel.value = code;
       }
-    });
-  }
-
-  // wire change password using existing handler but adapt to this modal fields
-  const savePwdBtn = document.getElementById('savePwdBtn');
-  if (savePwdBtn) {
-    savePwdBtn.addEventListener('click', async () => {
-      const msg = document.getElementById('pwdMsg');
-      msg.textContent = 'Changing password...';
-      const currentPwd = document.getElementById('settingsCurrentPwd').value;
-      const newPwd = document.getElementById('settingsNewPwd').value;
-      const confirmPwd = document.getElementById('settingsConfirmNewPwd').value;
-
-      // reuse your existing function handleChangePassword but it reads DOM elements with different IDs.
-      // We'll perform the same logic inline to avoid duplication issues:
-      try {
-        if (!currentPwd || !newPwd || !confirmPwd) {
-          msg.textContent = 'Please fill all password fields';
-          msg.style.color = UI.danger;
-          return;
-        }
-        if (newPwd.length < 6) {
-          msg.textContent = 'New password must be at least 6 characters';
-          msg.style.color = UI.danger;
-          return;
-        }
-        if (newPwd !== confirmPwd) {
-          msg.textContent = 'New passwords do not match';
-          msg.style.color = UI.danger;
-          return;
-        }
-
-        // Re-authenticate via signInWithPassword
-        const signinResult = await supabase.auth.signInWithPassword({
-          email: currentUser.email,
-          password: currentPwd
-        });
-        if (signinResult.error) {
-          throw new Error('Current password is incorrect');
-        }
-
-        const { error } = await supabase.auth.updateUser({ password: newPwd });
-        if (error) throw error;
-
-        msg.textContent = '✅ Password changed successfully';
-        msg.style.color = UI.success;
-        // clear fields
-        document.getElementById('settingsCurrentPwd').value = '';
-        document.getElementById('settingsNewPwd').value = '';
-        document.getElementById('settingsConfirmNewPwd').value = '';
-      } catch (err) {
-        msg.textContent = err.message || 'Password change failed';
-        msg.style.color = UI.danger;
-        console.error('[CHK] changePassword in settings modal error', err);
-      }
-    });
-  }
-
-  // final "Sign out" button in modal — performs actual sign out when clicked
-  const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
-  if (confirmLogoutBtn) {
-    confirmLogoutBtn.addEventListener('click', async () => {
-      // perform sign out using existing handleLogout function
-      await handleLogout();
-      closeSettingsModal();
-    });
+      settingsPhone.value = m[2].replace(/^0+/, '');
+    } else {
+      if (countrySel) countrySel.value = '+250';
+      settingsPhone.value = phoneText || '';
+    }
   }
 
   // show modal
-  const modal = document.getElementById('settingsModal');
-  if (modal) modal.style.display = 'flex';
+  document.getElementById('settingsModal').style.display = 'flex';
   console.log('[CHK] openSettingsModal - end');
 }
+
+/* -------------------------
+   wire handlers for settings popup
+   ------------------------- */
+function wireSettingsHandlers() {
+  // name
+  document.getElementById('editNameBtn').addEventListener('click', () => {
+    document.getElementById('nameDisplayArea').style.display = 'none';
+    document.getElementById('nameEditArea').style.display = 'flex';
+    document.getElementById('nameInput').value = currentUser?.user_metadata?.full_name || '';
+    document.getElementById('nameInput').focus();
+  });
+  document.getElementById('cancelName').addEventListener('click', () => {
+    document.getElementById('nameEditArea').style.display = 'none';
+    document.getElementById('nameDisplayArea').style.display = 'flex';
+  });
+  document.getElementById('saveName').addEventListener('click', async () => {
+    const nameMsg = document.getElementById('nameMsg');
+    const v = document.getElementById('nameInput').value.trim();
+    if (!v) { nameMsg.textContent = 'Name cannot be empty'; nameMsg.style.color = UI.danger; return; }
+    nameMsg.textContent = 'Saving...';
+    try {
+      const { error: authErr } = await supabase.auth.updateUser({ data: { full_name: v } });
+      if (authErr) throw authErr;
+      const { error: pErr } = await supabase.from('profiles').update({ full_name: v, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
+      if (pErr) throw pErr;
+      // refresh
+      const { data } = await supabase.auth.getSession();
+      currentUser = data?.session?.user || currentUser;
+      currentUserProfile = await getUserProfile(currentUser.id);
+      document.getElementById('displayFullName').textContent = v;
+      document.getElementById('nameEditArea').style.display = 'none';
+      document.getElementById('nameDisplayArea').style.display = 'flex';
+      nameMsg.textContent = 'Saved';
+      nameMsg.style.color = UI.success;
+      setTimeout(()=> nameMsg.textContent = '', 2000);
+    } catch (err) {
+      nameMsg.textContent = err.message || 'Failed to save name';
+      nameMsg.style.color = UI.danger;
+      console.error('[CHK] saveName error', err);
+    }
+  });
+
+  // email
+  document.getElementById('editEmailBtn').addEventListener('click', () => {
+    document.getElementById('emailDisplayArea').style.display = 'none';
+    document.getElementById('emailEditArea').style.display = 'flex';
+    document.getElementById('emailInput').value = currentUser?.email || '';
+    document.getElementById('emailInput').focus();
+  });
+  document.getElementById('cancelEmail').addEventListener('click', () => {
+    document.getElementById('emailEditArea').style.display = 'none';
+    document.getElementById('emailDisplayArea').style.display = 'flex';
+  });
+  document.getElementById('saveEmail').addEventListener('click', async () => {
+    const emailMsg = document.getElementById('emailMsg');
+    const newEmail = document.getElementById('emailInput').value.trim();
+    if (!isValidEmail(newEmail)) { emailMsg.textContent = 'Enter a valid email'; emailMsg.style.color = UI.danger; return; }
+    emailMsg.textContent = 'Saving...';
+    try {
+      const { error: authErr } = await supabase.auth.updateUser({ email: newEmail });
+      if (authErr) throw authErr;
+      const { error: pErr } = await supabase.from('profiles').update({ email: newEmail, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
+      if (pErr) throw pErr;
+      // refresh session (may not immediately update email until confirmed)
+      const { data } = await supabase.auth.getSession();
+      currentUser = data?.session?.user || currentUser;
+      currentUserProfile = await getUserProfile(currentUser.id);
+      document.getElementById('displayEmail').textContent = newEmail;
+      document.getElementById('emailEditArea').style.display = 'none';
+      document.getElementById('emailDisplayArea').style.display = 'flex';
+      emailMsg.textContent = 'Saved (may require confirmation)';
+      emailMsg.style.color = UI.success;
+      setTimeout(()=> emailMsg.textContent = '', 3000);
+    } catch (err) {
+      // handle re-auth requirement or other errors
+      emailMsg.textContent = err.message || 'Failed to update email';
+      emailMsg.style.color = UI.danger;
+      console.error('[CHK] saveEmail error', err);
+    }
+  });
+
+  // phone
+  document.getElementById('savePhone').addEventListener('click', async () => {
+    const phoneMsg = document.getElementById('phoneMsg');
+    phoneMsg.textContent = 'Saving...';
+    try {
+      const raw = document.getElementById('settingsPhone').value.trim();
+      let normalized = raw.replace(/\s|-/g, '');
+      if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
+      const code = document.getElementById('settingsCountryCode').value || '+250';
+      if (!/^\+/.test(normalized)) normalized = code + normalized;
+      // basic validation for E. Africa: ensure it looks like +country + digits
+      if (!/^\+\d{5,15}$/.test(normalized)) { throw new Error('Enter a valid phone number'); }
+
+      const { error } = await supabase.from('profiles').update({ phone: normalized, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
+      if (error) throw error;
+      currentUserProfile = await getUserProfile(currentUser.id);
+      phoneMsg.textContent = 'Saved';
+      phoneMsg.style.color = UI.success;
+      setTimeout(()=> phoneMsg.textContent = '', 2000);
+    } catch (err) {
+      phoneMsg.textContent = err.message || 'Failed to save phone';
+      phoneMsg.style.color = UI.danger;
+      console.error('[CHK] savePhone error', err);
+    }
+  });
+
+  // change password
+  document.getElementById('savePwd').addEventListener('click', async () => {
+    const msg = document.getElementById('pwdMsg');
+    const cur = document.getElementById('currentPwd').value;
+    const nw = document.getElementById('newPwd').value;
+    const conf = document.getElementById('confirmNewPwd').value;
+    msg.textContent = 'Processing...';
+    try {
+      if (!cur || !nw || !conf) { msg.textContent = 'Please fill all fields'; msg.style.color = UI.danger; return; }
+      if (nw.length < 6) { msg.textContent = 'New password must be at least 6 chars'; msg.style.color = UI.danger; return; }
+      if (nw !== conf) { msg.textContent = 'Passwords do not match'; msg.style.color = UI.danger; return; }
+
+      const signInRes = await supabase.auth.signInWithPassword({ email: currentUser.email, password: cur });
+      if (signInRes.error) throw new Error('Current password incorrect');
+
+      const { error } = await supabase.auth.updateUser({ password: nw });
+      if (error) throw error;
+
+      msg.textContent = 'Password changed';
+      msg.style.color = UI.success;
+      document.getElementById('currentPwd').value = '';
+      document.getElementById('newPwd').value = '';
+      document.getElementById('confirmNewPwd').value = '';
+      setTimeout(()=> msg.textContent = '', 2000);
+    } catch (err) {
+      msg.textContent = err.message || 'Failed to change password';
+      msg.style.color = UI.danger;
+      console.error('[CHK] changePwd error', err);
+    }
+  });
+
+  // sign out now button
+  document.getElementById('signOutNow').addEventListener('click', async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      closeSettingsModal();
+    } catch (err) {
+      console.error('[CHK] signOutNow error', err);
+    }
+  });
+}
+
+/* -------------------------
+   closeSettingsModal
+   ------------------------- */
+function closeSettingsModal() {
+  const m = document.getElementById('settingsModal');
+  if (m) m.style.display = 'none';
+}
+
+/* -------------------------
+   Helpers
+   ------------------------- */
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 
 /* ---------- helpers for inline edits (name & email) ---------- */
 function setupInlineEdits() {
@@ -1175,11 +1303,6 @@ function setupInlineEdits() {
   }
 }
 
-/* ---------- close settings modal ---------- */
-function closeSettingsModal() {
-  const modal = document.getElementById('settingsModal');
-  if (modal) modal.style.display = 'none';
-}
 
 
 // ===== REPLACE updateUIForLoggedOutUser =====
@@ -1652,6 +1775,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
