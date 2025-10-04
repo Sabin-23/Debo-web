@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin Dashboard</title>
+  <title>Admin Dashboard (Debuggable Upload)</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     /* Kept UI styling as you had it (pink theme) */
@@ -41,6 +41,7 @@
     .msg-content{flex:1}
     .product-card{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;background:#fff;border:1px solid #ffe6f0;width:220px}
     .products-grid{display:flex;flex-wrap:wrap;gap:12px}
+    .log{font-family:monospace;background:#fff6fb;padding:8px;border-radius:6px;border:1px solid #ffe6f0;font-size:13px;max-height:140px;overflow:auto}
     @media (max-width:900px){.sidebar{display:none}.main{padding:12px}}
   </style>
 </head>
@@ -65,15 +66,8 @@
       <div class="muted">Connected to your Supabase project</div>
     </div>
 
-    <!-- ORDERS -->
-    <section id="tab-orders" class="card tab-panel">
-      <h3>Orders</h3>
-      <div id="ordersGrid" class="orders-grid" style="margin-top:12px"></div>
-      <div id="ordersEmpty" class="muted" style="display:none;margin-top:12px">No orders yet.</div>
-    </section>
-
     <!-- UPLOAD -->
-    <section id="tab-upload" class="card tab-panel" style="display:none;margin-top:16px">
+    <section id="tab-upload" class="card tab-panel" style="display:block;margin-top:16px">
       <h3>Upload New Product</h3>
       <form id="productForm" style="margin-top:12px">
         <div style="display:flex;gap:12px;align-items:flex-start">
@@ -107,33 +101,13 @@
               <button type="button" id="clearForm" class="danger">Clear All</button>
             </div>
             <div id="uploadStatus" class="muted" style="margin-top:6px">Ready</div>
+            <div style="margin-top:8px">
+              <div style="font-weight:600;margin-bottom:6px">Client-side debug log (also open dev console)</div>
+              <div id="clientLog" class="log">Ready\n</div>
+            </div>
           </div>
         </div>
       </form>
-    </section>
-
-    <!-- ANALYSIS -->
-    <section id="tab-analysis" class="card tab-panel" style="display:none;margin-top:16px">
-      <h3>Analysis</h3>
-      <div style="margin-top:10px;overflow:auto">
-        <table id="analysisTable">
-          <thead>
-            <tr><th>User</th><th>Visits</th><th>Orders</th><th>Total Qty</th><th>Total Spent (RWF)</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- USERS -->
-    <section id="tab-users" class="card tab-panel" style="display:none;margin-top:16px">
-      <h3>Users (profiles)</h3>
-      <div style="margin-top:10px;overflow:auto">
-        <table id="usersTable">
-          <thead><tr><th>Full name</th><th>Email</th><th>Phone</th><th>Is Admin</th><th>Created at</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
     </section>
 
     <!-- PRODUCTS -->
@@ -144,15 +118,6 @@
       </div>
     </section>
 
-    <!-- MESSAGES -->
-    <section id="tab-messages" class="card tab-panel" style="display:none;margin-top:16px">
-      <h3>Messages</h3>
-      <div class="messages-wrap" style="margin-top:12px">
-        <div class="msg-list" id="messagesList"></div>
-        <div class="card" style="flex:1;min-height:400px;display:flex;align-items:center;justify-content:center;color:#8892a8">Select a message to read</div>
-      </div>
-    </section>
-
   </main>
 
   <script>
@@ -160,6 +125,17 @@
     const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
     const BUCKET = 'product-images';
+
+    // small helper to append readable logs to on-page log box
+    function clientLog(msg){
+      try{
+        const el = document.getElementById('clientLog');
+        const now = (new Date()).toLocaleTimeString();
+        el.textContent = el.textContent + `[${now}] ${msg}\n`;
+        el.scrollTop = el.scrollHeight;
+      }catch(e){ console.log('log error', e); }
+      console.log(msg);
+    }
 
     // attach tab handlers immediately so UI works even if errors occur later
     (function attachTabsImmediately(){
@@ -183,17 +159,18 @@
 
     // init supabase
     let supabase = null;
-    try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
-    catch(e){ console.error('Supabase init error', e); }
+    try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); clientLog('Supabase client initialized'); }
+    catch(e){ console.error('Supabase init error', e); clientLog('Supabase init error: ' + e.message); }
 
     // helpers
     function escapeHtml(str){ if(!str) return ''; return String(str).replace(/[&<>\"']/g, s=> ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":"&#39;"}[s])); }
     function getPublicUrlForPath(path){
       try {
         const res = supabase.storage.from(BUCKET).getPublicUrl(path);
+        clientLog('getPublicUrl returned: ' + JSON.stringify(res));
         if(res && res.data && res.data.publicUrl) return res.data.publicUrl;
         if(res && res.publicURL) return res.publicURL;
-      } catch(e){ console.warn('getPublicUrl error', e); }
+      } catch(e){ console.warn('getPublicUrl error', e); clientLog('getPublicUrl error: ' + e.message); }
       return null;
     }
     function extractPathFromPublicUrl(url){
@@ -204,57 +181,19 @@
       return url.slice(i + marker.length);
     }
 
-    // ---------- ORDERS ----------
-    async function loadOrders(){
-      const ordersGrid = document.getElementById('ordersGrid');
-      const empty = document.getElementById('ordersEmpty');
-      ordersGrid.innerHTML = '';
-      if(!supabase){ empty.style.display='block'; empty.textContent='Supabase not initialized'; return; }
-      try {
-        const { data: orders, error } = await supabase
-          .from('orders')
-          .select(`id, product_id, user_id, phone, location, quantity, amount, payment_status, created_at, products ( id, name, price, stock, image_url ), profiles ( id, full_name, phone )`)
-          .order('created_at', {ascending:false});
-        if(error) throw error;
-        if(!orders || orders.length === 0){ empty.style.display='block'; empty.textContent='No orders yet.'; return; }
-        empty.style.display='none';
-        orders.forEach(o=>{
-          const card = document.createElement('div'); card.className='order-card';
-          const img = document.createElement('img');
-          const prod = (o.products && o.products[0]) ? o.products[0] : null;
-          img.src = prod && prod.image_url ? prod.image_url : 'https://via.placeholder.com/86/ffe6f0/ff6fb5?text=No+Img';
-          const info = document.createElement('div'); info.className='order-info';
-          const title = document.createElement('div'); title.innerHTML = `<strong>${prod? escapeHtml(prod.name) : 'Product'}</strong>`;
-          const meta = document.createElement('div'); meta.className='order-meta';
-          const phone = document.createElement('div'); phone.className='pill'; phone.textContent = 'Phone: ' + (o.phone || (o.user_id ? (o.profiles && o.profiles[0] ? o.profiles[0].phone : 'from profile') : 'guest'));
-          const loc = document.createElement('div'); loc.className='pill'; loc.textContent = 'Location: ' + (o.location || '—');
-          const qty = document.createElement('div'); qty.className='pill'; qty.textContent = 'Qty: ' + (o.quantity||1);
-          const amt = document.createElement('div'); amt.className='pill'; amt.textContent = 'RWF ' + (o.amount||0);
-          const dot = document.createElement('div'); dot.className='status-dot'; dot.title = o.payment_status ? 'Paid' : 'Pending'; dot.style.background = o.payment_status ? 'green' : 'orange';
-          meta.append(phone, loc, qty, amt, dot);
-          info.append(title, meta);
-          card.append(img, info);
-          ordersGrid.appendChild(card);
-        });
-      } catch(err){
-        console.error('loadOrders error', err);
-        document.getElementById('ordersEmpty').style.display='block';
-        document.getElementById('ordersEmpty').textContent = 'Error loading orders: ' + (err.message || JSON.stringify(err));
-      }
-    }
-
-    // ---------- UPLOAD PRODUCT (fixed flow) ----------
+    // ---------- UPLOAD PRODUCT (debuggable flow) ----------
     const uploadFileInput = document.getElementById('fileInput');
     const uploadPreview = document.getElementById('previewImg');
     let uploadSelectedFile = null;
     uploadFileInput.addEventListener('change', e=>{
       const f = e.target.files[0]; uploadSelectedFile = f || null;
-      if(!f){ uploadPreview.src=''; return; }
+      if(!f){ uploadPreview.src=''; clientLog('No file selected'); return; }
       uploadPreview.src = URL.createObjectURL(f);
+      clientLog('File selected: ' + f.name + ' (' + f.type + ', ' + f.size + ' bytes)');
     });
 
     document.getElementById('clearForm').addEventListener('click', ()=>{
-      document.getElementById('prodName').value=''; document.getElementById('prodPrice').value=''; document.getElementById('prodQty').value=''; document.getElementById('prodDesc').value=''; uploadFileInput.value=''; uploadSelectedFile=null; uploadPreview.src=''; document.getElementById('uploadStatus').textContent='Cleared';
+      document.getElementById('prodName').value=''; document.getElementById('prodPrice').value=''; document.getElementById('prodQty').value=''; document.getElementById('prodDesc').value=''; uploadFileInput.value=''; uploadSelectedFile=null; uploadPreview.src=''; document.getElementById('uploadStatus').textContent='Cleared'; clientLog('Form cleared');
     });
 
     document.getElementById('productForm').addEventListener('submit', async (e)=>{
@@ -264,65 +203,87 @@
       const qty = parseInt(document.getElementById('prodQty').value||0,10);
       const desc = document.getElementById('prodDesc').value.trim();
       const statusEl = document.getElementById('uploadStatus');
+
       if(!name){ alert('Name required'); return; }
       if(!uploadSelectedFile){ alert('Please select an image'); return; }
-      statusEl.textContent = 'Checking product name...';
+      statusEl.textContent = 'Starting upload...';
+
       try {
         if(!supabase) throw new Error('Supabase not initialized');
 
-        // 1) check duplicate name (unique constraint)
-        const { data: existing, error: existErr } = await supabase.from('products').select('id').eq('name', name).maybeSingle();
-        if(existErr){ console.warn('check existing name error', existErr); }
-        if(existing && existing.id){
-          alert('A product with that name already exists. Choose a different name.');
-          statusEl.textContent = 'Duplicate name';
-          return;
-        }
+        clientLog('STEP 1 – Check current auth user');
+        statusEl.textContent = 'Checking authentication...';
+        const { data: userData, error: userErr } = await supabase.auth.getUser();
+        if(userErr) { console.warn('getUser error', userErr); clientLog('getUser error: ' + JSON.stringify(userErr)); statusEl.textContent = 'Auth check failed'; return; }
+        const user = userData && userData.user;
+        clientLog('Auth user: ' + (user ? user.id : 'null'));
+        if(!user){ alert('You must be signed in to add a product.'); statusEl.textContent = 'Sign-in required'; clientLog('No user signed in'); return; }
 
+        // check duplicate name (optional)
+        clientLog('STEP 2 – Checking duplicate product name');
+        statusEl.textContent = 'Checking product name...';
+        const { data: existing, error: existErr } = await supabase.from('products').select('id').eq('name', name).maybeSingle();
+        if(existErr){ console.warn('check existing name error', existErr); clientLog('check existing name error: ' + JSON.stringify(existErr)); }
+        if(existing && existing.id){ alert('A product with that name already exists. Choose a different name.'); statusEl.textContent = 'Duplicate name'; clientLog('Duplicate product name detected'); return; }
+
+        clientLog('STEP 3 – Uploading image to storage');
         statusEl.textContent = 'Uploading image...';
-        // 2) upload image to storage BUCKET
         const file = uploadSelectedFile;
         const ext = (file.name||'').split('.').pop();
         const safeFileName = `prod_${Date.now()}.${ext||'png'}`;
-        const storagePath = safeFileName; // path inside bucket
+        const storagePath = safeFileName;
+
+        // upload to storage
         const { data: uploadData, error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {contentType: file.type, upsert:false});
+        clientLog('Upload response: ' + JSON.stringify(uploadData) + ' / error: ' + JSON.stringify(uploadError));
         if(uploadError){
           console.error('storage upload error', uploadError);
           statusEl.textContent = 'Image upload failed: ' + (uploadError.message || JSON.stringify(uploadError));
+          clientLog('Storage upload failed: ' + JSON.stringify(uploadError));
           return;
         }
 
-        // 3) get public URL
+        clientLog('STEP 4 – Getting public URL');
+        statusEl.textContent = 'Getting public URL...';
         const pubRes = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+        clientLog('getPublicUrl raw: ' + JSON.stringify(pubRes));
         let publicUrl = null;
         if(pubRes && pubRes.data && pubRes.data.publicUrl) publicUrl = pubRes.data.publicUrl;
         else if(pubRes && pubRes.publicURL) publicUrl = pubRes.publicURL;
+        clientLog('Public URL: ' + publicUrl);
 
-        // 4) insert product row with image_url
-        const insertPayload = { name, price, stock: qty, description: desc, image_url: publicUrl };
-        const { data, error } = await supabase.from('products').insert([insertPayload]);
-        if(error){
-          console.error('insert product error', error);
-          statusEl.textContent = 'Insert failed: ' + (error.message || JSON.stringify(error));
-          // optionally cleanup uploaded file on failure:
-          try {
-            const pathToRemove = storagePath;
-            await supabase.storage.from(BUCKET).remove([pathToRemove]);
-          } catch(e){ console.warn('cleanup upload failed', e); }
+        // If your bucket is private, getPublicUrl might return null — handle that case in your app flows.
+        if(!publicUrl){ clientLog('No public URL — bucket might be private. You can use signed URLs server-side.'); }
+
+        clientLog('STEP 5 – Inserting product row into DB');
+        statusEl.textContent = 'Inserting product row...';
+        const insertPayload = { name, price, stock: qty, description: desc, image_url: publicUrl, owner: user.id };
+        clientLog('Insert payload: ' + JSON.stringify(insertPayload));
+
+        const { data: insertData, error: insertErr } = await supabase.from('products').insert([insertPayload]);
+        clientLog('Insert response: data=' + JSON.stringify(insertData) + ' error=' + JSON.stringify(insertErr));
+        if(insertErr){
+          // DB refused the insert (likely RLS). Clean up the storage file so it doesn't remain orphan.
+          statusEl.textContent = 'Insert failed: ' + (insertErr.message || JSON.stringify(insertErr));
+          clientLog('Insert failed. Attempting to remove uploaded file to avoid orphaned storage file.');
+          try { await supabase.storage.from(BUCKET).remove([storagePath]); clientLog('Removed uploaded file: ' + storagePath); } catch(removeErr){ console.warn('cleanup failed', removeErr); clientLog('Failed to remove uploaded file: ' + JSON.stringify(removeErr)); }
           return;
         }
 
         statusEl.textContent = 'Saved to products table.';
+        clientLog('Product saved successfully: ' + JSON.stringify(insertData));
         document.getElementById('clearForm').click();
-        // refresh products list if visible
+        // refresh products if visible
         if(document.getElementById('tab-products').style.display!=='none') loadProducts();
+
       } catch(err){
         console.error('product upload error', err);
-        statusEl.textContent = 'Error: ' + (err.message || JSON.stringify(err));
+        clientLog('Unexpected error: ' + (err.message || JSON.stringify(err)));
+        document.getElementById('uploadStatus').textContent = 'Error: ' + (err.message || JSON.stringify(err));
       }
     });
 
-    // ---------- PRODUCTS (list, change image, delete) ----------
+    // ---------- PRODUCTS (list) ----------
     async function loadProducts(){
       const grid = document.getElementById('productsGrid'); grid.innerHTML = '';
       if(!supabase){ grid.innerHTML = '<div class="muted">Supabase not initialized</div>'; return; }
@@ -337,54 +298,7 @@
           const desc = document.createElement('div'); desc.style.fontSize='13px'; desc.style.color='#333'; desc.textContent = p.description||'';
           const price = document.createElement('div'); price.textContent = 'RWF ' + (p.price||0);
           const stock = document.createElement('div'); stock.textContent = 'Stock: ' + (p.stock||0);
-          // change image input/button
-          const fileIn = document.createElement('input'); fileIn.type='file'; fileIn.accept='image/*'; fileIn.id = 'file-'+p.id; fileIn.style.marginTop='6px';
-          const changeBtn = document.createElement('button'); changeBtn.className='secondary'; changeBtn.textContent='Update Image'; changeBtn.style.marginTop='6px';
-          changeBtn.onclick = async ()=>{
-            if(!fileIn.files.length){ alert('Select an image first'); return; }
-            const f = fileIn.files[0];
-            const ext = (f.name||'').split('.').pop();
-            const fileName = `prod_${Date.now()}.${ext||'png'}`;
-            const path = fileName;
-            try {
-              const { data:up, error:upErr } = await supabase.storage.from(BUCKET).upload(path, f, {upsert:true, contentType: f.type});
-              if(upErr) throw upErr;
-              const pub = supabase.storage.from(BUCKET).getPublicUrl(path);
-              let newUrl = null;
-              if(pub && pub.data && pub.data.publicUrl) newUrl = pub.data.publicUrl;
-              else if(pub && pub.publicURL) newUrl = pub.publicURL;
-              // fetch old image to remove
-              const { data: prodRow, error: prodErr } = await supabase.from('products').select('image_url').eq('id', p.id).single();
-              if(prodErr) console.warn('could not read old image url', prodErr);
-              const oldUrl = prodRow && prodRow.image_url;
-              // update row
-              const { error: updErr } = await supabase.from('products').update({ image_url: newUrl }).eq('id', p.id);
-              if(updErr) throw updErr;
-              // delete old file if exists
-              if(oldUrl){
-                const oldPath = extractPathFromPublicUrl(oldUrl);
-                if(oldPath) await supabase.storage.from(BUCKET).remove([oldPath]).catch(e=>console.warn('remove old image error', e));
-              }
-              alert('Image updated');
-              loadProducts(); // refresh
-            } catch(err){ console.error('change image error', err); alert('Error: '+(err.message||JSON.stringify(err))); }
-          };
-          // delete product button
-          const delBtn = document.createElement('button'); delBtn.className='danger'; delBtn.textContent='Delete Product'; delBtn.style.marginTop='6px';
-          delBtn.onclick = async ()=>{
-            if(!confirm('Delete this product?')) return;
-            try {
-              const { error } = await supabase.from('products').delete().eq('id', p.id);
-              if(error) throw error;
-              if(p.image_url){
-                const oldPath = extractPathFromPublicUrl(p.image_url);
-                if(oldPath) await supabase.storage.from(BUCKET).remove([oldPath]).catch(e=>console.warn('remove image error', e));
-              }
-              loadProducts();
-            } catch(err){ console.error('delete product error', err); alert('Delete error: '+(err.message||JSON.stringify(err))); }
-          };
           card.appendChild(img); card.appendChild(title); card.appendChild(desc); card.appendChild(price); card.appendChild(stock);
-          card.appendChild(fileIn); card.appendChild(changeBtn); card.appendChild(delBtn);
           grid.appendChild(card);
         });
       } catch(err){
@@ -393,104 +307,17 @@
       }
     }
 
-    // ---------- MESSAGES ----------
-    async function loadMessages(){
-      const list = document.getElementById('messagesList'); list.innerHTML='';
-      if(!supabase){ list.innerHTML = '<div class="muted">Supabase not initialized</div>'; return; }
-      try {
-        const { data, error } = await supabase.from('messages').select('*').order('created_at', {ascending:false});
-        if(error) throw error;
-        if(!data || data.length===0){ list.innerHTML = '<div class="muted">No messages yet.</div>'; return; }
-        data.forEach(m=>{
-          const item = document.createElement('div'); item.className='msg-item';
-          item.innerHTML = `<div style="width:48px;height:48px;border-radius:50%;background:#fff0f6;display:flex;align-items:center;justify-content:center;font-weight:600">${escapeHtml((m.name||'G').slice(0,1).toUpperCase())}</div>
-            <div class="msg-content"><div style="font-weight:600">${escapeHtml(m.name||m.email||'Anonymous')}</div><div class="muted" style="font-size:13px">${escapeHtml((m.message||'').slice(0,80))}</div></div>`;
-          item.addEventListener('click', ()=>{
-            const modal = document.createElement('div'); modal.style.position='fixed'; modal.style.inset=0; modal.style.background='rgba(0,0,0,0.4)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
-            const box = document.createElement('div'); box.style.width='700px'; box.style.maxHeight='80vh'; box.style.overflow='auto'; box.className='card';
-            box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h3>Message from: ${escapeHtml(m.name||m.email)}</h3><button id='closeModal' class='secondary'>Close</button></div><div style='margin-top:8px'><strong>Email:</strong> ${escapeHtml(m.email||'—')}<br/><strong>Date:</strong> ${m.created_at? new Date(m.created_at).toLocaleString() : ''}<hr/><p>${escapeHtml(m.message||'')}</p></div>`;
-            box.querySelector('#closeModal').addEventListener('click', ()=>document.body.removeChild(modal));
-            modal.appendChild(box); document.body.appendChild(modal);
-          });
-          list.appendChild(item);
-        });
-      } catch(err){ console.error('loadMessages error', err); list.innerHTML = '<div class="muted">Could not load messages.</div>'; }
-    }
+    // initial load
+    setTimeout(()=>{ loadProducts(); }, 300);
 
-    // ---------- USERS ----------
-    async function loadUsers(){
-      const tbody = document.querySelector('#usersTable tbody'); if(!tbody) return;
-      tbody.innerHTML = '';
-      if(!supabase){ tbody.innerHTML = '<tr><td colspan="5">Supabase not initialized</td></tr>'; return; }
-      try {
-        const { data, error } = await supabase.from('profiles').select('id, full_name, email, phone, is_admin, created_at').order('created_at', {ascending:false});
-        if(error) throw error;
-        (data||[]).forEach(u=>{
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${escapeHtml(u.full_name||'')}</td><td>${escapeHtml(u.email||'')}</td><td>${escapeHtml(u.phone||'')}</td><td>${u.is_admin? 'Yes':'No'}</td><td>${u.created_at? new Date(u.created_at).toLocaleString() : ''}</td>`;
-          tbody.appendChild(tr);
-        });
-      } catch(err){ console.error('loadUsers error', err); tbody.innerHTML = `<tr><td colspan="5">Error: ${escapeHtml(err.message||String(err))}</td></tr>`; }
-    }
-
-    // ---------- ANALYSIS ----------
-    async function loadAnalysis(){
-      const tbody = document.querySelector('#analysisTable tbody'); tbody.innerHTML = '';
-      if(!supabase){ tbody.innerHTML = '<tr><td colspan="5">Supabase not initialized</td></tr>'; return; }
-      try {
-        const { data:profiles } = await supabase.from('profiles').select('id, full_name, email');
-        const { data:orders } = await supabase.from('orders').select('id, user_id, quantity, amount');
-        const { data:visits } = await supabase.from('visits').select('id, user_id');
-        const map = new Map(); let guest = {orders:0,total_qty:0,total_spent:0};
-        (orders||[]).forEach(o => {
-          const uid = o.user_id ? String(o.user_id) : 'guest';
-          if(uid === 'guest'){ guest.orders += 1; guest.total_qty += (o.quantity||0); guest.total_spent += (o.amount||0); }
-          else {
-            if(!map.has(uid)) map.set(uid, {orders:0,total_qty:0,total_spent:0});
-            const v = map.get(uid); v.orders += 1; v.total_qty += (o.quantity||0); v.total_spent += (o.amount||0);
-          }
-        });
-        const visitsCount = {}; (visits||[]).forEach(v => { const k = v.user_id ? String(v.user_id) : 'guest'; visitsCount[k] = (visitsCount[k]||0) + 1; });
-        (profiles||[]).forEach(p => {
-          const uid = String(p.id);
-          const stats = map.get(uid) || {orders:0,total_qty:0,total_spent:0};
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${escapeHtml(p.full_name || p.email || uid)}</td><td>${visitsCount[uid]||0}</td><td>${stats.orders}</td><td>${stats.total_qty}</td><td>${stats.total_spent}</td>`;
-          tbody.appendChild(tr);
-        });
-        const trg = document.createElement('tr'); trg.innerHTML = `<td>Guest</td><td>${visitsCount['guest']||0}</td><td>${guest.orders}</td><td>${guest.total_qty}</td><td>${guest.total_spent}</td>`; tbody.appendChild(trg);
-      } catch(err){ console.error('loadAnalysis error', err); tbody.innerHTML = `<tr><td colspan="5">Error: ${escapeHtml(err.message||String(err))}</td></tr>`; }
-    }
-
-    // ---------- Tab lazy loading ----------
-    (function lazyLoadOnTabClick(){
-      const tabs = document.querySelectorAll('.nav button[data-tab]');
-      tabs.forEach(btn=>{
-        btn.addEventListener('click', () => {
-          const tab = btn.getAttribute('data-tab');
-          if(tab === 'orders') loadOrders();
-          if(tab === 'products') loadProducts();
-          if(tab === 'users') loadUsers();
-          if(tab === 'analysis') loadAnalysis();
-          if(tab === 'messages') loadMessages();
-        });
-      });
-      // initial loads
-      setTimeout(()=>{ loadOrders(); loadProducts(); }, 200);
-    })();
-
-    // ---------- Logout ----------
+    // Logout
     document.getElementById('logoutBtn').addEventListener('click', async ()=>{
       try{ if(supabase) await supabase.auth.signOut(); }catch(e){ console.warn('signout', e); }
       location.reload();
     });
 
-    // Expose some loaders for debugging
+    // expose loaders for debugging
     window.loadProducts = loadProducts;
-    window.loadOrders = loadOrders;
-    window.loadUsers = loadUsers;
-    window.loadMessages = loadMessages;
-    window.loadAnalysis = loadAnalysis;
 
   </script>
 </body>
