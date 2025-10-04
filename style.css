@@ -1378,233 +1378,57 @@ body {
 
 
 /*Josh*/
-/* Avatar alternate color (purple) */
-.avatar-alt { background: #6B3FB0 !important; }
+/* User Menu Styles */
+.user-menu-list { list-style: none; margin: 0; padding: 0; }
+.user-avatar-btn { width: 48px; height: 48px; border-radius: 50%; border: 3px solid #fff; cursor: pointer; font-weight: 700; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 30px rgba(255,125,167,0.12); }
+.avatar-lightpink { background: #ff7da7; color: #fff; }
+.user-dropdown { position: absolute; top: 60px; right: 0; background: #fff; border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,0.12); width: 220px; z-index: 1000; }
+.user-dropdown-header { padding: 14px 16px; border-radius: 14px 14px 0 0; background: linear-gradient(180deg, rgba(255,249,250,1), #fff); display: flex; justify-content: space-between; align-items: center; }
+.ud-left { display: flex; align-items: center; }
+.ud-avatar-mini { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+.ud-name { margin: 0; font-weight: 800; color: #221; font-size: 14px; }
+.ud-email { margin: 4px 0 0 0; font-size: 12px; color: #6b6b6b; word-break: break-all; }
+.user-admin-badge { background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+.user-dropdown-actions { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ud-btn { display: flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 30px; background: #fff; border: 1px solid #f6f3f4; cursor: pointer; font-size: 14px; box-shadow: 0 6px 18px rgba(0,0,0,0.06); width: 100%; }
+.ud-btn.logout { color: #c62828; }
 
-/* User dropdown / avatar styles (kept from earlier but consolidated) */
-.user-menu-list { margin: 0; padding: 0; list-style: none; display: inline-flex; align-items: center; }
-.user-menu-item { list-style: none; margin: 0; padding: 0; position: relative; }
+/* Cart Styles */
+#cart-panel { position: fixed; right: 0; top: 0; width: 380px; max-width: 90vw; height: 100vh; background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,0.15); transform: translateX(100%); transition: transform 0.3s ease; z-index: 9999; display: flex; flex-direction: column; }
+#cart-panel.open { transform: translateX(0); }
+#cart-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9998; }
+#cart-close { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: #666; }
+.cart-item { display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid #eee; }
+.cart-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+.ci-meta { flex: 1; }
+.qty-controls { display: flex; align-items: center; gap: 8px; }
+.qty-controls button { padding: 4px 12px; border-radius: 6px; background: #ff9db1; color: #fff; border: none; cursor: pointer; font-size: 16px; }
+.empty { text-align: center; padding: 40px 20px; color: #666; }
 
-.user-avatar-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 3px solid #fff;
-  color: #fff;
-  font-weight: 700;
-  font-size: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  vertical-align: middle;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+/* Settings Modal */
+.settings-modal, .orders-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 10000; display: none; justify-content: center; align-items: center; }
+.settings-panel, .orders-panel { background: #fff; border-radius: 12px; width: 90%; max-width: 900px; max-height: 90vh; overflow: auto; }
+.settings-header, .orders-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+.close-settings-btn, .close-orders-btn { background: none; border: none; font-size: 28px; cursor: pointer; color: #666; }
+.settings-body { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.left-col, .right-col { display: flex; flex-direction: column; gap: 16px; }
+.settings-section { padding: 16px; background: #fff0f3; border-radius: 8px; }
+.settings-section h3 { margin: 0 0 12px 0; color: #222; font-size: 15px; }
+.inline-row { display: flex; flex-direction: column; gap: 8px; }
+.edit-row { display: flex; gap: 8px; align-items: center; }
+.display-text { font-size: 14px; color: #333; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 4px; }
+.save-btn, .cancel-btn { padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+.save-btn { background: #ff9db1; color: #fff; }
+.cancel-btn { background: #eee; color: #333; }
+.field-msg { font-size: 13px; margin: 4px 0 0 0; }
+.phone-row { display: flex; gap: 8px; }
+.country-select { padding: 10px; border-radius: 8px; border: 1px solid #f4d7df; background: #fff; min-width: 140px; }
+.logout-full-btn { width: 100%; padding: 10px; background: #c62828; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
+
+@media (max-width: 768px) {
+  .settings-body { grid-template-columns: 1fr; }
 }
-
-.user-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 240px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 18px 50px rgba(0,0,0,0.14);
-  z-index: 99999;
-  overflow: hidden;
-  border: 1px solid #f2e6ea;
-  padding: 0;
-}
-
-.user-dropdown-header { padding: 12px 14px; border-bottom: 1px solid #f6f2f3; display:flex; align-items:center; gap:12px; }
-.ud-name { margin:0; font-weight:800; font-size:14px; color:#221; }
-.ud-email { margin:4px 0 0 0; font-size:12px; color:#6b6b6b; word-break:break-all; }
-
-.user-dropdown-actions { padding: 12px; display:flex; flex-direction:column; gap:8px; background:#fff; }
-.ud-btn { padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid #f4f4f4; cursor:pointer; text-align:left; font-size:14px; }
-.ud-btn:hover { background:#fff7fb; }
-.ud-btn.logout { color: #c62828; border-color:#ffdede; background:#fff8f8; }
-
-.user-admin-badge { display:inline-block; padding:3px 8px; border-radius:12px; background:#ff9db1; color:#fff; font-size:11px; margin-left:6px; }
-
-/* Settings Modal Styles */
-.settings-modal {
-  position: fixed;
-  inset: 0;
-  display: none;
-  justify-content: center;
-  align-items: center;
-  background: rgba(14, 14, 16, 0.45);
-  z-index: 100000;
-  padding: 20px;
-}
-
-.settings-panel {
-  width: 100%;
-  max-width: 880px;
-  background: #fff;
-  border-radius: 12px;
-  overflow: auto;
-  max-height: 92vh;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.25);
-}
-
-.settings-header {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding: 18px;
-  border-bottom: 1px solid #f4f2f3;
-}
-
-.settings-body { padding: 16px; display:flex; flex-direction:column; gap:14px; }
-
-.settings-section h3 { margin:0 0 8px 0; font-size:15px; }
-.profile-field { margin-bottom:8px; display:flex; flex-direction:column; gap:8px; }
-.inline-edit { display:flex; align-items:center; gap:8px; }
-.inline-edit-input { display:flex; gap:8px; align-items:center; }
-.inline-edit input, .settings-body input[type="password"], .settings-body input[type="email"], .settings-body input[type="tel"] {
-  padding:8px 10px; border:1px solid #efe7ea; border-radius:8px; width:100%;
-}
-.edit-ico { background:none; border:none; cursor:pointer; font-size:14px; padding:6px; }
-.save-btn { padding:8px 12px; border-radius:8px; background: var(--avatar-pink, #ff7da7); color:#fff; border:none; cursor:pointer; }
-.cancel-btn { padding:8px 12px; border-radius:8px; background:#fff; border:1px solid #eee; cursor:pointer; }
-.field-msg { font-size:13px; margin:4px 0 0 0; color:#666; }
-
-/* big logout button in modal */
-.logout-full-btn { padding:10px 14px; width:100%; border-radius:10px; background:#c62828; color:#fff; border:none; cursor:pointer; }
-
-/* small responsive */
-@media (max-width:720px) {
-  .settings-panel { width: 100%; margin: 0 8px; }
-  .user-dropdown { right: 8px; left: auto; min-width: 200px; }
-}
-
-:root{
-  --light-pink: #ffdfe6;    /* light pink backgrounds */
-  --avatar-light: #ff5aa2;  /* avatar white bg */
-  --accent-pink: #ff7da7;
-  --text-dark: #222;
-  --muted: #6b6b6b;
-}
-
-/* avatar */
-.avatar-lightpink { background: var(--avatar-light) !important; color: #ffffff !important; }
-.user-avatar-btn.avatar-lightpink { background: var(--avatar-light) !important; color: #ffffff !important; }
-
-/* small avatar inside dropdown */
-.ud-avatar-mini { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; background:var(--avatar-light); }
-
-/* dropdown & avatar positioning */
-.user-menu-list { margin:0; padding:0; list-style:none; display:inline-flex; align-items:center; }
-.user-menu-item { list-style:none; margin:0; padding:0; position:relative; }
-.user-avatar-btn { width:42px; height:42px; border-radius:50%; border:3px solid #fff; font-weight:700; font-size:16px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.06); vertical-align:middle; }
-
-/* dropdown anchored to li */
-.user-dropdown { position:absolute; top:calc(100% + 8px); right:0; min-width:260px; background:#fff; border-radius:12px; box-shadow:0 18px 50px rgba(0,0,0,0.12); z-index:99999; overflow:hidden; border:1px solid #f2e6ea; }
-.user-dropdown-header { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid #f6f2f3; }
-.ud-left { display:flex; align-items:center; }
-.ud-name { margin:0; font-weight:800; color:var(--text-dark); font-size:14px; }
-.ud-email { margin:4px 0 0 0; color:var(--muted); font-size:12px; }
-.ud-right { display:flex; align-items:center; gap:8px; }
-.ud-settings-btn { background:none; border:none; cursor:pointer; font-size:16px; }
-
-/* actions */
-.user-dropdown-actions { display:flex; flex-direction:column; gap:8px; padding:12px; background:#fff; }
-.ud-btn { padding:10px 12px; border-radius:10px; background:#fff; border:1px solid #f4f4f4; text-align:left; cursor:pointer; font-size:14px; }
-.ud-btn:hover { background:#fff7fb; }
-.ud-btn.logout { color:#c62828; border-color:#ffdede; background:#fff8f8; }
-
-/* admin badge */
-.user-admin-badge { padding:4px 8px; background:#ff9db1; color:#fff; border-radius:10px; font-size:12px; }
-
-/* Orders modal */
-.orders-modal { position:fixed; inset:0; display:none; justify-content:center; align-items:center; background:rgba(0,0,0,0.45); z-index:100000; padding:20px; }
-.orders-panel { width:100%; max-width:760px; background:#fff; border-radius:12px; box-shadow:0 30px 80px rgba(0,0,0,0.25); overflow:auto; max-height:90vh; }
-.orders-header { display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #f4f2f3; }
-.orders-body { padding:18px; color:#666; }
-
-/* Settings modal */
-.settings-modal { position:fixed; inset:0; display:none; justify-content:center; align-items:center; background:rgba(14,14,16,0.45); z-index:100000; padding:20px; }
-.settings-panel { width:100%; max-width:980px; background:#fff; border-radius:12px; overflow:auto; max-height:94vh; box-shadow:0 30px 80px rgba(0,0,0,0.25); }
-.settings-header { display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid #f4f2f3; }
-.settings-body { display:flex; gap:20px; padding:18px; flex-wrap:wrap; }
-.left-col { flex:1 1 420px; min-width:280px; }
-.right-col { width:320px; min-width:260px; }
-
-/* sections */
-.settings-section { margin-bottom:14px; }
-.settings-section h3 { margin:0 0 8px 0; font-size:15px; color:var(--text-dark); }
-.inline-row { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
-.display-text { font-weight:600; color:var(--text-dark); }
-.icon-btn { background:none; border:none; cursor:pointer; font-size:16px; padding:6px; }
-.edit-row { display:flex; gap:8px; align-items:center; }
-.edit-row input { padding:8px 10px; border-radius:8px; border:1px solid #efe7ea; }
-.save-btn { padding:8px 12px; border-radius:8px; background:var(--accent-pink); color:#fff; border:none; cursor:pointer; }
-.cancel-btn { padding:8px 12px; border-radius:8px; background:#fff; border:1px solid #eee; cursor:pointer; }
-.field-msg { font-size:13px; color:#666; margin-top:6px; }
-
-/* phone row */
-.phone-row { display:flex; gap:10px; align-items:center; }
-.country-select { padding:8px 10px; border-radius:8px; border:1px solid #efe7ea; }
-
-/* signout button in settings modal */
-.logout-full-btn { width:100%; padding:10px 14px; border-radius:10px; background:#c62828; color:#fff; border:none; cursor:pointer; margin-top:14px; }
-
-/* responsive */
-@media (max-width:900px) {
-  .settings-body { flex-direction:column-reverse; }
-  .right-col { width:100%; }
-  .left-col { width:100%; }
-}
-/* Make password inputs and modal buttons match app style */
-.settings-panel input[type="password"],
-.settings-panel input[type="email"],
-.settings-panel input[type="tel"],
-.settings-panel input[type="text"] {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #efe7ea;
-  width:100%;
-  box-sizing: border-box;
-}
-.settings-panel .save-btn { background: var(--accent-pink, #ff7da7); color: #fff; border:none; }
-.settings-panel .logout-full-btn { background: #c62828; color:#fff; border:none; }
-.field-msg { min-height:18px; margin-top:6px; }
-
-
-/* tighten modal spacing and ensure phone & password stack with no large gap */
-.settings-body { padding: 12px; display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
-.left-col { flex:1 1 520px; }
-.right-col { width: 260px; }
-
-/* Make the "Phone" and "Change password" sections sit closer */
-.settings-section { margin-bottom:8px; }
-.phone-row { margin-bottom:6px; }
-
-/* reduce extra whitespace inside panel */
-.settings-panel { padding-bottom: 14px; }
-
-/* style for pwd message to be visible */
-#pwdMsg { min-height:20px; font-weight:600; }
-
-/* Ensure left column always appears before right column and keep them stable */
-.settings-body { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; padding:12px; }
-.left-col { order: 1; flex: 1 1 520px; min-width: 280px; }
-.right-col { order: 2; width: 260px; min-width: 220px; }
-
-/* Make phone & change-password stack tightly with no big spacer */
-.settings-section { margin-bottom: 8px; }
-.phone-row { margin-bottom: 6px; }
-.settings-section h3 { margin-bottom: 6px; }
-
-/* ensure pwdMsg is visible and has weight */
-#pwdMsg { min-height:20px; font-weight:600; margin-top:8px; }
-
-/* reduce excessive bottom padding on panel to avoid large whitespace */
-.settings-panel { padding-bottom: 12px; }
-
-
-
 
 
 
