@@ -695,79 +695,104 @@ function closeProfileModal() {
 /* --------------------
    UI UPDATE FUNCTIONS (core area we debugged)
    -------------------- */
-function updateUIForLoggedInUser(user) {
-    console.log('[CHK] updateUIForLoggedInUser called for:', user?.email || null);
-  chk('updateUIForLoggedInUser - start', user?.email || null);
-    
+// ===== REPLACE updateUIForLoggedInUser =====
+async function updateUIForLoggedInUser(user) {
+  console.log('[CHK] updateUIForLoggedInUser called for:', user?.email || null);
 
-  // ensure stable container
-  let authRoot = document.getElementById('auth-controls');
-  const existingOpenBtn = document.getElementById('openModal');
+  // find the actual sign-in button in the nav that we want to replace
+  const openModalBtn = document.getElementById('openModal');
 
-  if (!authRoot) {
-    chk('updateUIForLoggedInUser - auth-controls not found; creating');
-    authRoot = document.createElement('div');
-    authRoot.id = 'auth-controls';
-    if (existingOpenBtn && existingOpenBtn.parentNode) {
-      existingOpenBtn.parentNode.insertBefore(authRoot, existingOpenBtn);
-      authRoot.appendChild(existingOpenBtn);
-    } else {
-      // insert near top of body as fallback
-      document.body.insertBefore(authRoot, document.body.firstChild);
-    }
-  }
-
-  const u = user || currentUser;
-  if (!u) {
-    console.warn('updateUIForLoggedInUser called without a user');
-    chk('updateUIForLoggedInUser - aborted');
-    return;
-  }
-
-  const displayName = u.user_metadata?.full_name || (u.email ? u.email.split('@')[0] : 'User');
+  // create the user menu element from HTML string
+  const displayName = (user?.user_metadata?.full_name) || (user?.email ? user.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
   const isAdmin = currentUserProfile?.is_admin === true;
-  const adminBadge = isAdmin ? '<span style="background: #ff9db1; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Admin</span>' : '';
+  const adminBadge = isAdmin ? '<span class="user-admin-badge">Admin</span>' : '';
 
-  // Build user menu HTML (ul wrapper to avoid replacing unrelated nodes)
-  const userMenuHTML = `
-    <ul id="userMenuContainer" style="margin:0; padding:0; display:flex; align-items:center; gap:12px; list-style:none;">
-      <li style="list-style:none; position:relative;">
-        <button id="userAvatarBtn" aria-label="Open user menu"
-          style="width:48px; height:48px; border-radius:50%; background:${UI.avatarPink}; color:#fff; border:3px solid #fff; cursor:pointer; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center;">
-          ${initial}
-        </button>
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <ul id="userMenuContainer" class="user-menu-list" aria-hidden="false">
+      <li class="user-menu-item" style="position:relative;">
+        <button id="userAvatarBtn" class="user-avatar-btn" aria-label="Open user menu">${initial}</button>
 
-        <div id="userDropdown" style="display:none; position:absolute; top:60px; right:0; background:${UI.dropdownBg}; border-radius:14px; box-shadow:0 18px 50px rgba(0,0,0,0.12); width:220px; z-index:1000; overflow:visible;">
-          <div style="padding:14px 16px;">
-            <div style="display:flex; align-items:center; justify-content:space-between;">
-              <div style="flex:1;">
-                <p style="margin:0; font-weight:800; color:#221; font-size:15px;">${displayName}</p>
-                <p style="margin:6px 0 0 0; font-size:13px; color:#6b6b6b; word-break:break-all;">${u.email || ''}</p>
-              </div>
-              ${adminBadge}
+        <div id="userDropdown" class="user-dropdown" style="display:none;">
+          <div class="user-dropdown-header">
+            <div>
+              <p class="ud-name">${displayName}</p>
+              <p class="ud-email">${user?.email || ''}</p>
             </div>
+            ${adminBadge}
           </div>
-          <div style="padding:12px; display:flex; flex-direction:column; gap:8px;">
-            ${isAdmin ? `
-              <button id="adminPanelBtn" style="padding:10px; border-radius:12px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer;">Admin Panel</button>
-            ` : ''}
-            <button id="viewProfileBtn" style="padding:10px; border-radius:12px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer;">View Profile</button>
-            <button id="logoutBtn" style="padding:10px; border-radius:12px; background:#fff; border:1px solid ${UI.subtleGray}; cursor:pointer; color:${UI.danger};">Logout</button>
+          <div class="user-dropdown-actions">
+            ${isAdmin ? `<button id="adminPanelBtn" class="ud-btn">Admin Panel</button>` : ''}
+            <button id="viewProfileBtn" class="ud-btn">View Profile</button>
+            <button id="logoutBtn" class="ud-btn logout">Logout</button>
           </div>
         </div>
       </li>
     </ul>
   `;
+  const newNode = wrapper.firstElementChild;
 
-  // render into stable container (no outerHTML replacement)
-  authRoot.innerHTML = userMenuHTML;
+  // If the sign-in button exists, replace it in-place so position is preserved
+  if (openModalBtn && openModalBtn.parentNode) {
+    openModalBtn.parentNode.replaceChild(newNode, openModalBtn);
+    console.log('[CHK] Replaced openModal button in place');
+  } else {
+    // fallback: try to find a reasonable place in the nav (but prefer the in-place replace)
+    const nav = document.querySelector('nav') || document.querySelector('header') || document.body;
+    nav.appendChild(newNode);
+    console.warn('[CHK] openModal not found — appended user menu to', nav.tagName);
+  }
 
-  // attach handlers
+  // Attach handlers (use your existing function)
   attachUserMenuHandlers();
-
-  chk('updateUIForLoggedInUser - done');
+  console.log('[CHK] updateUIForLoggedInUser done');
 }
+
+// ===== REPLACE updateUIForLoggedOutUser =====
+function updateUIForLoggedOutUser() {
+  console.log('[CHK] updateUIForLoggedOutUser called');
+
+  // Create sign-in button markup (same ID used elsewhere so your modal hook finds it)
+  const signInHTML = `<button id="openModal" class="signin-btn">Sign-in/Register</button>`;
+
+  // If user menu exists, replace it with the sign-in button in place
+  const userMenu = document.getElementById('userMenuContainer');
+  if (userMenu && userMenu.parentNode) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = signInHTML;
+    const newBtn = wrapper.firstElementChild;
+    userMenu.parentNode.replaceChild(newBtn, userMenu);
+    console.log('[CHK] Replaced user menu with sign-in button in place');
+  } else {
+    // otherwise find auth-controls container or append to nav
+    const authRoot = document.getElementById('auth-controls');
+    if (authRoot) {
+      authRoot.innerHTML = signInHTML;
+    } else {
+      const nav = document.querySelector('nav') || document.querySelector('header') || document.body;
+      const div = document.createElement('div');
+      div.id = 'auth-controls';
+      div.innerHTML = signInHTML;
+      nav.appendChild(div);
+    }
+    console.log('[CHK] Inserted sign-in button fallback');
+  }
+
+  // re-attach click handler to the new openModal button so the modal opens correctly
+  const modal = document.getElementById('modal');
+  const newOpenModalBtn = document.getElementById('openModal');
+  if (newOpenModalBtn && modal) {
+    newOpenModalBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      modal.style.display = 'flex';
+      modal.classList.add('open');
+    });
+  }
+
+  console.log('[CHK] updateUIForLoggedOutUser done');
+}
+
 
 function attachUserMenuHandlers() {
   chk('attachUserMenuHandlers - start');
@@ -850,43 +875,6 @@ function attachUserMenuHandlers() {
   chk('attachUserMenuHandlers - end');
 }
 
-function updateUIForLoggedOutUser() {
-  chk('updateUIForLoggedOutUser - start');
-  const authRoot = document.getElementById('auth-controls');
-  const modal = document.getElementById('modal');
-
-  const signInHTML = `<button id="openModal" style="padding:8px 12px; border-radius:8px; background:transparent; border:1px solid #eee; cursor:pointer;">Sign in</button>`;
-
-  if (authRoot) {
-    authRoot.innerHTML = signInHTML;
-  } else {
-    // fallback: try to replace userMenuContainer or append
-    const userMenu = document.getElementById('userMenuContainer');
-    if (userMenu && userMenu.parentNode) {
-      const wrapper = document.createElement('div');
-      wrapper.id = 'auth-controls';
-      userMenu.parentNode.insertBefore(wrapper, userMenu);
-      wrapper.innerHTML = signInHTML;
-      userMenu.remove();
-    } else {
-      const btn = document.createElement('div');
-      btn.id = 'auth-controls';
-      btn.innerHTML = signInHTML;
-      document.body.insertBefore(btn, document.body.firstChild);
-    }
-  }
-
-  const newOpenModalBtn = document.getElementById('openModal');
-  if (newOpenModalBtn && modal) {
-    newOpenModalBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      chk('openModal (logged out) clicked');
-      modal.style.display = 'flex';
-      modal.classList.add('open');
-    });
-  }
-  chk('updateUIForLoggedOutUser - end');
-}
 
 /* --------------------
    MESSAGE UTILITIES
@@ -1314,6 +1302,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
