@@ -1481,7 +1481,7 @@ body {
 
 :root{
   --light-pink: #ffdfe6;    /* light pink backgrounds */
-  --avatar-light: #ffffff;  /* avatar white bg */
+  --avatar-light: #ff5aa2;  /* avatar white bg */
   --accent-pink: #ff7da7;
   --text-dark: #222;
   --muted: #6b6b6b;
@@ -1556,6 +1556,7 @@ body {
   .right-col { width:100%; }
   .left-col { width:100%; }
 }
+
 
 
 
