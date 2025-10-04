@@ -205,9 +205,9 @@
         // .select('*') means get all columns
         // .order() sorts by newest first
         const { data: products, error } = await window.supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
+            .from('products')
+            .select('*')
+            .order('created_at', { ascending: false });
         
         // Hide loading spinner
         loadingEl.style.display = 'none';
@@ -312,3 +312,4 @@
 </body>
 
 </html>
+
