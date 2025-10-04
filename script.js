@@ -1107,37 +1107,90 @@ function wireSettingsHandlers() {
     });
   }
 
-  // PASSWORD: attach a reliable password-change handler (shows messages) - replaces missing or non-attached handlers
+    // PASSWORD: attach a reliable password-change handler (shows messages) - replaces missing or non-attached handlers
   const savePwdBtn = document.getElementById('savePwdBtn');
   if (savePwdBtn) {
     // remove any duplicate listeners by replacing node
     const newBtn = savePwdBtn.cloneNode(true);
     savePwdBtn.parentNode.replaceChild(newBtn, savePwdBtn);
+
     newBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      const msg = document.getElementById('pwdMsg');
-      msg.textContent = 'Changing password...';
-      msg.style.color = UI.primaryPink || '#ff7da7';
+      const msgEl = document.getElementById('pwdMsg');
+      if (msgEl) {
+        msgEl.textContent = 'Changing password...';
+        msgEl.style.color = ''; // reset
+      }
       try {
         const currentPwd = document.getElementById('settingsCurrentPwd').value;
         const newPwd = document.getElementById('settingsNewPwd').value;
         const confirmPwd = document.getElementById('settingsConfirmNewPwd').value;
 
         if (!currentPwd || !newPwd || !confirmPwd) {
-          msg.textContent = 'Please fill all password fields';
-          msg.style.color = UI.danger;
+          if (msgEl) { msgEl.textContent = 'Please fill all password fields'; msgEl.style.color = UI.danger; }
           return;
         }
         if (newPwd.length < 6) {
-          msg.textContent = 'New password must be at least 6 characters';
-          msg.style.color = UI.danger;
+          if (msgEl) { msgEl.textContent = 'New password must be at least 6 characters'; msgEl.style.color = UI.danger; }
           return;
         }
         if (newPwd !== confirmPwd) {
-          msg.textContent = 'New passwords do not match';
-          msg.style.color = UI.danger;
+          if (msgEl) { msgEl.textContent = 'New passwords do not match'; msgEl.style.color = UI.danger; }
           return;
         }
+
+        // Re-authenticate
+        const signinResult = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password: currentPwd
+        });
+
+        // Supabase may return structured error or success object. Handle variants:
+        if (signinResult.error) {
+          // normalize message
+          const raw = signinResult.error?.message || String(signinResult.error);
+          const normal = raw.toLowerCase();
+          // common variants mapped to friendly message
+          if (normal.includes('invalid login') || normal.includes('invalid credentials') || normal.includes('invalid password') || normal.includes('invalid')) {
+            throw new Error('Current password is incorrect');
+          } else {
+            throw new Error(raw);
+          }
+        }
+
+        // update password
+        const { error: updateErr } = await supabase.auth.updateUser({ password: newPwd });
+        if (updateErr) {
+          throw updateErr;
+        }
+
+        if (msgEl) {
+          msgEl.textContent = '✅ Password changed successfully';
+          msgEl.style.color = UI.success;
+        }
+
+        // clear inputs
+        const curEl = document.getElementById('settingsCurrentPwd');
+        const newEl = document.getElementById('settingsNewPwd');
+        const confEl = document.getElementById('settingsConfirmNewPwd');
+        if (curEl) curEl.value = '';
+        if (newEl) newEl.value = '';
+        if (confEl) confEl.value = '';
+
+        console.log('[CHK] Password updated successfully');
+
+      } catch (err) {
+        console.error('[CHK] changePassword error', err);
+        const msg = document.getElementById('pwdMsg');
+        if (msg) {
+          // display friendly error if we created one above, otherwise show Supabase text
+          msg.textContent = err.message || 'Password change failed';
+          msg.style.color = UI.danger;
+        }
+      }
+    });
+  }
+
 
         // Re-authenticate
         const signinResult = await supabase.auth.signInWithPassword({
@@ -1860,6 +1913,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
