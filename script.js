@@ -847,16 +847,11 @@ function attachUserMenuHandlers() {
   console.log('[CHK] attachUserMenuHandlers - end');
 }
 
-/* ---------------------------
-  openSettingsModal
-  - contains: Name edit (old working flow),
-              Email edit (new working flow),
-              Phone (E. Africa code dropdown),
-              Password area: uses your team's savePwdBtn handler (we do NOT overwrite)
---------------------------- */
+// ----- Replace openSettingsModal + wireSettingsHandlers -----
 function openSettingsModal() {
   console.log('[CHK] openSettingsModal - start');
 
+  // create modal if missing
   if (!document.getElementById('settingsModal')) {
     const html = `
       <div id="settingsModal" class="settings-modal" style="display:flex">
@@ -916,21 +911,23 @@ function openSettingsModal() {
                 </div>
                 <p id="phoneMsg" class="field-msg"></p>
               </section>
-            </div>
 
-            <div class="right-col">
+              <!-- MOVED: change password into the left column directly under phone (removes the big gap) -->
               <section class="settings-section">
                 <h3>Change password</h3>
-                <!-- THESE IDs match your team's handler: leave them so your code finds them -->
                 <input id="settingsCurrentPwd" type="password" placeholder="Current password" />
                 <input id="settingsNewPwd" type="password" placeholder="New password (min 6 chars)" />
                 <input id="settingsConfirmNewPwd" type="password" placeholder="Confirm new password" />
-                <!-- Team's handler expects #savePwdBtn — we do NOT overwrite its listener -->
                 <button id="savePwdBtn" class="save-btn">Change password</button>
                 <p id="pwdMsg" class="field-msg"></p>
               </section>
+            </div>
 
-              <section style="margin-top:20px;">
+            <div class="right-col">
+              <!-- right column now contains actions like sign out and any future settings -->
+              <section class="settings-section">
+                <h3>Danger zone</h3>
+                <p style="color:#666; margin:6px 0 10px 0">Sign out from this device or manage connected sessions (coming soon).</p>
                 <button id="signOutNow" class="logout-full-btn">Sign out</button>
               </section>
             </div>
@@ -940,11 +937,11 @@ function openSettingsModal() {
     `;
     document.body.insertAdjacentHTML('beforeend', html);
 
-    // attach built-in UI close handler
+    // attach close handler
     document.getElementById('closeSettingsModal').addEventListener('click', closeSettingsModal);
   }
 
-  // populate values
+  // populate fields with current data
   const nameText = currentUser?.user_metadata?.full_name || (currentUser?.email ? currentUser.email.split('@')[0] : '');
   const emailText = currentUser?.email || '';
   const phoneText = currentUserProfile?.phone || '';
@@ -972,23 +969,17 @@ function openSettingsModal() {
     }
   }
 
-  // wire local UI handlers (name/email/phone/save) - but DO NOT touch your team's password handler
-  wireSettingsHandlers();
+  wireSettingsHandlers();    // attach handlers (below)
 
-  // show modal
   document.getElementById('settingsModal').style.display = 'flex';
   console.log('[CHK] openSettingsModal - end');
 }
 
-/* ---------------------------
-  wireSettingsHandlers
-  - restores old name update behaviour (auth metadata + profiles)
-  - keeps the new email update code (which you said works)
-  - phone save uses profiles update
-  - does NOT attach/change password listener if a handler already exists for #savePwdBtn
---------------------------- */
+
 function wireSettingsHandlers() {
-  // NAME handlers (old stable flow)
+  console.log('[CHK] wireSettingsHandlers - start');
+
+  // NAME handlers (old working flow)
   const editNameBtn = document.getElementById('editNameBtn');
   const nameDisplayArea = document.getElementById('nameDisplayArea');
   const nameEditArea = document.getElementById('nameEditArea');
@@ -1017,13 +1008,10 @@ function wireSettingsHandlers() {
       if (!v) { nameMsg.textContent = 'Name cannot be empty'; nameMsg.style.color = UI.danger; return; }
       nameMsg.textContent = 'Saving...';
       try {
-        // update auth metadata
         const { error: authErr } = await supabase.auth.updateUser({ data: { full_name: v } });
         if (authErr) throw authErr;
-        // update profiles table
         const { error: pErr } = await supabase.from('profiles').update({ full_name: v, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
         if (pErr) throw pErr;
-        // refresh local user/profile
         const { data } = await supabase.auth.getSession();
         currentUser = data?.session?.user || currentUser;
         currentUserProfile = await getUserProfile(currentUser.id);
@@ -1070,7 +1058,6 @@ function wireSettingsHandlers() {
       if (!isValidEmail(newEmail)) { emailMsg.textContent = 'Enter a valid email'; emailMsg.style.color = UI.danger; return; }
       emailMsg.textContent = 'Saving...';
       try {
-        // use the new working email update flow
         const { error: authErr } = await supabase.auth.updateUser({ email: newEmail });
         if (authErr) throw authErr;
         const { error: pErr } = await supabase.from('profiles').update({ email: newEmail, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
@@ -1092,7 +1079,7 @@ function wireSettingsHandlers() {
     });
   }
 
-  // PHONE handlers (E. Africa dropdown present)
+  // PHONE handlers
   const savePhone = document.getElementById('savePhone');
   if (savePhone) {
     savePhone.addEventListener('click', async () => {
@@ -1100,11 +1087,11 @@ function wireSettingsHandlers() {
       phoneMsg.textContent = 'Saving...';
       try {
         const raw = document.getElementById('settingsPhone').value.trim();
-        let normalized = raw.replace(/\s|-/g, '');
+        let normalized = raw.replace(/\\s|-/g, '');
         if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
         const code = document.getElementById('settingsCountryCode').value || '+250';
-        if (!/^\+/.test(normalized)) normalized = code + normalized;
-        if (!/^\+\d{5,15}$/.test(normalized)) throw new Error('Enter a valid phone number');
+        if (!/^\\+/.test(normalized)) normalized = code + normalized;
+        if (!/^\\+\\d{5,15}$/.test(normalized)) throw new Error('Enter a valid phone number');
         const { error } = await supabase.from('profiles').update({ phone: normalized, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
         if (error) throw error;
         currentUserProfile = await getUserProfile(currentUser.id);
@@ -1120,39 +1107,92 @@ function wireSettingsHandlers() {
     });
   }
 
-  // PASSWORD: do NOT attach a new listener if your team's code already attaches one to #savePwdBtn
-  // We check whether #savePwdBtn already has listeners by checking a flag on the element (safe non-intrusive approach)
+  // PASSWORD: attach a reliable password-change handler (shows messages) - replaces missing or non-attached handlers
   const savePwdBtn = document.getElementById('savePwdBtn');
   if (savePwdBtn) {
-    if (!savePwdBtn.dataset.handlerAttached) {
-      // do NOT override if your team already attached their handler elsewhere; only attach a light wrapper if none exists
-      // but per your instruction we avoid touching their code — so only attach a basic pass-through that triggers click
-      // If you already used the block you pasted earlier, it will be the actual handler and this won't overwrite it.
-      savePwdBtn.addEventListener('click', () => {
-        console.log('[CHK] savePwdBtn clicked (pass-through)');
-        // the real handler (your team's) should run; if not present, we fall back to a minimal handler:
-        // (we won't implement fallback here to avoid touching team logic)
-      });
-      savePwdBtn.dataset.handlerAttached = '1';
-    } else {
-      console.log('[CHK] savePwdBtn already had handler attached; leaving it as-is');
-    }
+    // remove any duplicate listeners by replacing node
+    const newBtn = savePwdBtn.cloneNode(true);
+    savePwdBtn.parentNode.replaceChild(newBtn, savePwdBtn);
+    newBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('pwdMsg');
+      msg.textContent = 'Changing password...';
+      msg.style.color = UI.primaryPink || '#ff7da7';
+      try {
+        const currentPwd = document.getElementById('settingsCurrentPwd').value;
+        const newPwd = document.getElementById('settingsNewPwd').value;
+        const confirmPwd = document.getElementById('settingsConfirmNewPwd').value;
+
+        if (!currentPwd || !newPwd || !confirmPwd) {
+          msg.textContent = 'Please fill all password fields';
+          msg.style.color = UI.danger;
+          return;
+        }
+        if (newPwd.length < 6) {
+          msg.textContent = 'New password must be at least 6 characters';
+          msg.style.color = UI.danger;
+          return;
+        }
+        if (newPwd !== confirmPwd) {
+          msg.textContent = 'New passwords do not match';
+          msg.style.color = UI.danger;
+          return;
+        }
+
+        // Re-authenticate
+        const signinResult = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password: currentPwd
+        });
+        if (signinResult.error) {
+          // show specific error
+          throw new Error(signinResult.error.message || 'Current password is incorrect');
+        }
+
+        const { error } = await supabase.auth.updateUser({ password: newPwd });
+        if (error) throw error;
+
+        msg.textContent = '✅ Password changed successfully';
+        msg.style.color = UI.success;
+        document.getElementById('settingsCurrentPwd').value = '';
+        document.getElementById('settingsNewPwd').value = '';
+        document.getElementById('settingsConfirmNewPwd').value = '';
+      } catch (err) {
+        console.error('[CHK] changePassword error', err);
+        const msg = document.getElementById('pwdMsg');
+        msg.textContent = err.message || 'Password change failed';
+        msg.style.color = UI.danger;
+      }
+    });
   }
 
-  // Sign out button inside settings modal (also performs actual sign out)
+  // signOutNow (in modal) - ensure it signs out and closes the modal
   const signOutNow = document.getElementById('signOutNow');
   if (signOutNow) {
     signOutNow.addEventListener('click', async () => {
       try {
         const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        if (error) {
+          console.error('[CHK] signOutNow error', error);
+          showGlobalMessage('Sign out failed: ' + error.message, 'error');
+          return;
+        }
         closeSettingsModal();
+        showGlobalMessage('Signed out', 'info');
       } catch (err) {
-        console.error('[CHK] signOutNow error', err);
+        console.error('[CHK] signOutNow exception', err);
       }
     });
   }
+
+  console.log('[CHK] wireSettingsHandlers - end');
 }
+
+function closeSettingsModal() {
+  const m = document.getElementById('settingsModal');
+  if (m) m.style.display = 'none';
+}
+
 
 /* ---------------------------
   closeSettingsModal
@@ -1820,6 +1860,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
