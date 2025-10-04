@@ -695,14 +695,12 @@ function closeProfileModal() {
 /* --------------------
    UI UPDATE FUNCTIONS (core area we debugged)
    -------------------- */
-// ===== REPLACE updateUIForLoggedInUser =====
+// ===== Replace updateUIForLoggedInUser =====
 async function updateUIForLoggedInUser(user) {
   console.log('[CHK] updateUIForLoggedInUser called for:', user?.email || null);
 
-  // find the actual sign-in button in the nav that we want to replace
   const openModalBtn = document.getElementById('openModal');
 
-  // create the user menu element from HTML string
   const displayName = (user?.user_metadata?.full_name) || (user?.email ? user.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
   const isAdmin = currentUserProfile?.is_admin === true;
@@ -722,9 +720,13 @@ async function updateUIForLoggedInUser(user) {
             </div>
             ${adminBadge}
           </div>
+
           <div class="user-dropdown-actions">
+            <button id="viewProfileBtn" class="ud-btn">Account Settings</button>
+            <button id="managePhoneBtn" class="ud-btn">Update Phone</button>
+            <button id="changePasswordShortBtn" class="ud-btn">Change Password</button>
+            <button id="viewOrdersBtn" class="ud-btn">Order History</button>
             ${isAdmin ? `<button id="adminPanelBtn" class="ud-btn">Admin Panel</button>` : ''}
-            <button id="viewProfileBtn" class="ud-btn">View Profile</button>
             <button id="logoutBtn" class="ud-btn logout">Logout</button>
           </div>
         </div>
@@ -733,20 +735,130 @@ async function updateUIForLoggedInUser(user) {
   `;
   const newNode = wrapper.firstElementChild;
 
-  // If the sign-in button exists, replace it in-place so position is preserved
+  // Replace sign-in button in-place, preserving nav structure & styling
   if (openModalBtn && openModalBtn.parentNode) {
     openModalBtn.parentNode.replaceChild(newNode, openModalBtn);
     console.log('[CHK] Replaced openModal button in place');
   } else {
-    // fallback: try to find a reasonable place in the nav (but prefer the in-place replace)
+    // fallback: append to header/nav as last resort
     const nav = document.querySelector('nav') || document.querySelector('header') || document.body;
     nav.appendChild(newNode);
     console.warn('[CHK] openModal not found — appended user menu to', nav.tagName);
   }
 
-  // Attach handlers (use your existing function)
+  // Attach handlers
   attachUserMenuHandlers();
   console.log('[CHK] updateUIForLoggedInUser done');
+}
+
+// ===== Replace attachUserMenuHandlers =====
+function attachUserMenuHandlers() {
+  console.log('[CHK] attachUserMenuHandlers - start');
+
+  function freshEl(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+    return clone;
+  }
+
+  const avatarBtn = freshEl('userAvatarBtn') || document.getElementById('userAvatarBtn');
+  const dropdown = document.getElementById('userDropdown');
+  const viewProfileBtn = freshEl('viewProfileBtn') || document.getElementById('viewProfileBtn');
+  const managePhoneBtn = freshEl('managePhoneBtn') || document.getElementById('managePhoneBtn');
+  const changePasswordShortBtn = freshEl('changePasswordShortBtn') || document.getElementById('changePasswordShortBtn');
+  const viewOrdersBtn = freshEl('viewOrdersBtn') || document.getElementById('viewOrdersBtn');
+  const logoutBtn = freshEl('logoutBtn') || document.getElementById('logoutBtn');
+  const adminPanelBtn = freshEl('adminPanelBtn') || document.getElementById('adminPanelBtn');
+
+  if (avatarBtn && dropdown) {
+    avatarBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (dropdown.style.display === 'block') {
+        dropdown.style.opacity = '0';
+        dropdown.style.transform = 'translateY(-6px)';
+        setTimeout(() => { dropdown.style.display = 'none'; }, 140);
+      } else {
+        dropdown.style.display = 'block';
+        dropdown.style.opacity = '0';
+        dropdown.style.transform = 'translateY(-6px)';
+        setTimeout(() => {
+          dropdown.style.transition = 'opacity 160ms ease, transform 160ms ease';
+          dropdown.style.opacity = '1';
+          dropdown.style.transform = 'translateY(0)';
+        }, 8);
+      }
+    });
+  } else {
+    console.warn('[CHK] avatarBtn or dropdown missing', { avatarBtn: !!avatarBtn, dropdown: !!dropdown });
+  }
+
+  // Buttons open profile modal (so phone / change password / orders are handled there)
+  if (viewProfileBtn) {
+    viewProfileBtn.addEventListener('click', () => {
+      if (dropdown) dropdown.style.display = 'none';
+      openProfileModal();
+    });
+  }
+  if (managePhoneBtn) {
+    managePhoneBtn.addEventListener('click', () => {
+      if (dropdown) dropdown.style.display = 'none';
+      openProfileModal();
+      // Optionally focus phone input after opening modal:
+      setTimeout(() => {
+        const phoneInput = document.getElementById('phoneInput');
+        if (phoneInput) phoneInput.focus();
+      }, 250);
+    });
+  }
+  if (changePasswordShortBtn) {
+    changePasswordShortBtn.addEventListener('click', () => {
+      if (dropdown) dropdown.style.display = 'none';
+      openProfileModal();
+      setTimeout(() => {
+        const newPwd = document.getElementById('newPassword');
+        if (newPwd) newPwd.focus();
+      }, 250);
+    });
+  }
+  if (viewOrdersBtn) {
+    viewOrdersBtn.addEventListener('click', () => {
+      if (dropdown) dropdown.style.display = 'none';
+      openProfileModal();
+      // order history is loaded in modal by your existing loadOrderHistory()
+    });
+  }
+
+  if (adminPanelBtn) {
+    adminPanelBtn.addEventListener('click', () => {
+      if (dropdown) dropdown.style.display = 'none';
+      window.location.href = 'admin.html';
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      if (dropdown) dropdown.style.display = 'none';
+      handleLogout(e);
+    });
+  }
+
+  // Close dropdown on outside click
+  document.addEventListener('click', function(event) {
+    const dd = document.getElementById('userDropdown');
+    const av = document.getElementById('userAvatarBtn');
+    if (!dd) return;
+    if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av?.contains(event.target)) {
+      if (dd.style.display === 'block') {
+        dd.style.opacity = '0';
+        dd.style.transform = 'translateY(-6px)';
+        setTimeout(() => { dd.style.display = 'none'; }, 140);
+      }
+    }
+  });
+
+  console.log('[CHK] attachUserMenuHandlers - end');
 }
 
 // ===== REPLACE updateUIForLoggedOutUser =====
@@ -1302,6 +1414,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
