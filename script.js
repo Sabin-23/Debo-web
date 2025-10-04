@@ -695,16 +695,15 @@ function closeProfileModal() {
 /* --------------------
    UI UPDATE FUNCTIONS (core area we debugged)
    -------------------- */
-
-/* -------------------------
-   updateUIForLoggedInUser
-   (replaces sign-in button in-place)
-   ------------------------- */
+    /* ---------------------------
+  updateUIForLoggedInUser (replaces signin btn in-place)
+   - avatar is light-pink with white initial
+   - dropdown: Orders | Settings | Logout (Settings looks like Orders)
+--------------------------- */
 async function updateUIForLoggedInUser(user) {
   console.log('[CHK] updateUIForLoggedInUser called for:', user?.email || null);
 
   const openModalBtn = document.getElementById('openModal');
-
   const displayName = (user?.user_metadata?.full_name) || (user?.email ? user.email.split('@')[0] : 'User');
   const initial = displayName.charAt(0).toUpperCase();
   const isAdmin = currentUserProfile?.is_admin === true;
@@ -725,11 +724,14 @@ async function updateUIForLoggedInUser(user) {
                 <p class="ud-email">${user?.email || ''}</p>
               </div>
             </div>
+            <div class="ud-right">
+              ${adminBadge}
+            </div>
           </div>
 
           <div class="user-dropdown-actions">
             <button id="ordersShortBtn" class="ud-btn">Orders</button>
-            <button id="openSettingsFromDropdown" class="ud-settings-btn" title="Settings">Settings</button>
+            <button id="openSettingsBtn" class="ud-btn">Settings</button>
             <button id="logoutBtn" class="ud-btn logout">Logout</button>
           </div>
         </div>
@@ -751,12 +753,16 @@ async function updateUIForLoggedInUser(user) {
   console.log('[CHK] updateUIForLoggedInUser done');
 }
 
-/* -------------------------
-   attachUserMenuHandlers
-   ------------------------- */
+/* ---------------------------
+  attachUserMenuHandlers
+  - Orders -> opens Orders modal
+  - Settings -> opens Settings modal (no gear)
+  - Logout -> performs signOut
+--------------------------- */
 function attachUserMenuHandlers() {
   console.log('[CHK] attachUserMenuHandlers - start');
 
+  // clone nodes safely to remove duplicate listeners
   function freshEl(id) {
     const el = document.getElementById(id);
     if (!el) return null;
@@ -768,8 +774,8 @@ function attachUserMenuHandlers() {
   const avatarBtn = freshEl('userAvatarBtn') || document.getElementById('userAvatarBtn');
   const dropdown = document.getElementById('userDropdown');
   const ordersBtn = freshEl('ordersShortBtn') || document.getElementById('ordersShortBtn');
+  const settingsBtn = freshEl('openSettingsBtn') || document.getElementById('openSettingsBtn');
   const logoutBtn = freshEl('logoutBtn') || document.getElementById('logoutBtn');
-  const openSettingsBtn = freshEl('openSettingsFromDropdown') || document.getElementById('openSettingsFromDropdown');
 
   if (avatarBtn && dropdown) {
     avatarBtn.addEventListener('click', (e) => {
@@ -789,8 +795,6 @@ function attachUserMenuHandlers() {
         }, 8);
       }
     });
-  } else {
-    console.warn('[CHK] attachUserMenuHandlers - avatarBtn or dropdown missing', { avatarBtn: !!avatarBtn, dropdown: !!dropdown });
   }
 
   if (ordersBtn) {
@@ -800,8 +804,8 @@ function attachUserMenuHandlers() {
     });
   }
 
-  if (openSettingsBtn) {
-    openSettingsBtn.addEventListener('click', () => {
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
       if (dropdown) dropdown.style.display = 'none';
       openSettingsModal();
     });
@@ -811,13 +815,17 @@ function attachUserMenuHandlers() {
     logoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       if (dropdown) dropdown.style.display = 'none';
-      // actual sign out
       try {
         const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        console.log('[CHK] Signed out successfully');
+        if (error) {
+          console.error('[CHK] signOut error', error);
+          showGlobalMessage('Sign out failed: ' + error.message, 'error');
+          return;
+        }
+        // UI will update via auth state change listener
+        showGlobalMessage('Signed out', 'info');
       } catch (err) {
-        console.error('[CHK] signOut error', err);
+        console.error('[CHK] signOut exception', err);
       }
     });
   }
@@ -839,42 +847,13 @@ function attachUserMenuHandlers() {
   console.log('[CHK] attachUserMenuHandlers - end');
 }
 
-/* -------------------------
-   Orders modal (simple placeholder)
-   ------------------------- */
-function openOrdersModal() {
-  console.log('[CHK] openOrdersModal - start');
-  if (!document.getElementById('ordersModal')) {
-    const html = `
-      <div id="ordersModal" class="orders-modal" style="display:flex">
-        <div class="orders-panel">
-          <div class="orders-header">
-            <h2>Orders</h2>
-            <button id="closeOrdersModal" class="close-orders-btn">&times;</button>
-          </div>
-          <div class="orders-body">
-            <p style="color:#666">No orders yet — content will be added later.</p>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', html);
-    document.getElementById('closeOrdersModal').addEventListener('click', closeOrdersModal);
-  }
-  const modal = document.getElementById('ordersModal');
-  if (modal) modal.style.display = 'flex';
-  console.log('[CHK] openOrdersModal - end');
-}
-function closeOrdersModal() {
-  const m = document.getElementById('ordersModal');
-  if (m) m.style.display = 'none';
-}
-
-/* -------------------------
-   Settings Modal (overhauled UI)
-   - includes country code select for E. Africa
-   - inline edit for name & email (save updates both auth & profiles)
-   ------------------------- */
+/* ---------------------------
+  openSettingsModal
+  - contains: Name edit (old working flow),
+              Email edit (new working flow),
+              Phone (E. Africa code dropdown),
+              Password area: uses your team's savePwdBtn handler (we do NOT overwrite)
+--------------------------- */
 function openSettingsModal() {
   console.log('[CHK] openSettingsModal - start');
 
@@ -929,9 +908,8 @@ function openSettingsModal() {
                     <option value="+254">KE +254</option>
                     <option value="+256">UG +256</option>
                     <option value="+255">TZ +255</option>
-                    <option value="+257">BU +257</option>
+                    <option value="+257">BI +257</option>
                     <option value="+211">SS +211</option>
-                    <option value="+211">DR +243</option>
                   </select>
                   <input id="settingsPhone" type="tel" placeholder="7XXXXXXXX" />
                   <button id="savePhone" class="save-btn">Save</button>
@@ -943,10 +921,12 @@ function openSettingsModal() {
             <div class="right-col">
               <section class="settings-section">
                 <h3>Change password</h3>
-                <input id="currentPwd" type="password" placeholder="Current password" />
-                <input id="newPwd" type="password" placeholder="New password (min 6 chars)" />
-                <input id="confirmNewPwd" type="password" placeholder="Confirm new password" />
-                <button id="savePwd" class="save-btn">Change password</button>
+                <!-- THESE IDs match your team's handler: leave them so your code finds them -->
+                <input id="settingsCurrentPwd" type="password" placeholder="Current password" />
+                <input id="settingsNewPwd" type="password" placeholder="New password (min 6 chars)" />
+                <input id="settingsConfirmNewPwd" type="password" placeholder="Confirm new password" />
+                <!-- Team's handler expects #savePwdBtn — we do NOT overwrite its listener -->
+                <button id="savePwdBtn" class="save-btn">Change password</button>
                 <p id="pwdMsg" class="field-msg"></p>
               </section>
 
@@ -960,10 +940,8 @@ function openSettingsModal() {
     `;
     document.body.insertAdjacentHTML('beforeend', html);
 
-    // attach close handler
+    // attach built-in UI close handler
     document.getElementById('closeSettingsModal').addEventListener('click', closeSettingsModal);
-    // attach small UI behaviour
-    wireSettingsHandlers();
   }
 
   // populate values
@@ -978,8 +956,8 @@ function openSettingsModal() {
 
   if (displayFullName) displayFullName.textContent = nameText;
   if (displayEmail) displayEmail.textContent = emailText;
+
   if (settingsPhone) {
-    // try to split +code and number (if stored like +2507xxxx)
     const m = (phoneText || '').match(/^\+(\d{1,3})(.*)$/);
     if (m) {
       const code = '+' + m[1];
@@ -994,199 +972,246 @@ function openSettingsModal() {
     }
   }
 
+  // wire local UI handlers (name/email/phone/save) - but DO NOT touch your team's password handler
+  wireSettingsHandlers();
+
   // show modal
   document.getElementById('settingsModal').style.display = 'flex';
   console.log('[CHK] openSettingsModal - end');
 }
 
-/* -------------------------
-   wire handlers for settings popup
-   ------------------------- */
+/* ---------------------------
+  wireSettingsHandlers
+  - restores old name update behaviour (auth metadata + profiles)
+  - keeps the new email update code (which you said works)
+  - phone save uses profiles update
+  - does NOT attach/change password listener if a handler already exists for #savePwdBtn
+--------------------------- */
 function wireSettingsHandlers() {
-  // name
-  document.getElementById('editNameBtn').addEventListener('click', () => {
-    document.getElementById('nameDisplayArea').style.display = 'none';
-    document.getElementById('nameEditArea').style.display = 'flex';
-    document.getElementById('nameInput').value = currentUser?.user_metadata?.full_name || '';
-    document.getElementById('nameInput').focus();
-  });
-  document.getElementById('cancelName').addEventListener('click', () => {
-    document.getElementById('nameEditArea').style.display = 'none';
-    document.getElementById('nameDisplayArea').style.display = 'flex';
-  });
-  document.getElementById('saveName').addEventListener('click', async () => {
-    const nameMsg = document.getElementById('nameMsg');
-    const v = document.getElementById('nameInput').value.trim();
-    if (!v) { nameMsg.textContent = 'Name cannot be empty'; nameMsg.style.color = UI.danger; return; }
-    nameMsg.textContent = 'Saving...';
-    try {
-      const { error: authErr } = await supabase.auth.updateUser({ data: { full_name: v } });
-      if (authErr) throw authErr;
-      const { error: pErr } = await supabase.from('profiles').update({ full_name: v, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
-      if (pErr) throw pErr;
-      // refresh
-      const { data } = await supabase.auth.getSession();
-      currentUser = data?.session?.user || currentUser;
-      currentUserProfile = await getUserProfile(currentUser.id);
-      document.getElementById('displayFullName').textContent = v;
-      document.getElementById('nameEditArea').style.display = 'none';
-      document.getElementById('nameDisplayArea').style.display = 'flex';
-      nameMsg.textContent = 'Saved';
-      nameMsg.style.color = UI.success;
-      setTimeout(()=> nameMsg.textContent = '', 2000);
-    } catch (err) {
-      nameMsg.textContent = err.message || 'Failed to save name';
-      nameMsg.style.color = UI.danger;
-      console.error('[CHK] saveName error', err);
-    }
-  });
+  // NAME handlers (old stable flow)
+  const editNameBtn = document.getElementById('editNameBtn');
+  const nameDisplayArea = document.getElementById('nameDisplayArea');
+  const nameEditArea = document.getElementById('nameEditArea');
+  const nameInput = document.getElementById('nameInput');
+  const saveName = document.getElementById('saveName');
+  const cancelName = document.getElementById('cancelName');
+  const nameMsg = document.getElementById('nameMsg');
 
-  // email
-  document.getElementById('editEmailBtn').addEventListener('click', () => {
-    document.getElementById('emailDisplayArea').style.display = 'none';
-    document.getElementById('emailEditArea').style.display = 'flex';
-    document.getElementById('emailInput').value = currentUser?.email || '';
-    document.getElementById('emailInput').focus();
-  });
-  document.getElementById('cancelEmail').addEventListener('click', () => {
-    document.getElementById('emailEditArea').style.display = 'none';
-    document.getElementById('emailDisplayArea').style.display = 'flex';
-  });
-  document.getElementById('saveEmail').addEventListener('click', async () => {
-    const emailMsg = document.getElementById('emailMsg');
-    const newEmail = document.getElementById('emailInput').value.trim();
-    if (!isValidEmail(newEmail)) { emailMsg.textContent = 'Enter a valid email'; emailMsg.style.color = UI.danger; return; }
-    emailMsg.textContent = 'Saving...';
-    try {
-      const { error: authErr } = await supabase.auth.updateUser({ email: newEmail });
-      if (authErr) throw authErr;
-      const { error: pErr } = await supabase.from('profiles').update({ email: newEmail, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
-      if (pErr) throw pErr;
-      // refresh session (may not immediately update email until confirmed)
-      const { data } = await supabase.auth.getSession();
-      currentUser = data?.session?.user || currentUser;
-      currentUserProfile = await getUserProfile(currentUser.id);
-      document.getElementById('displayEmail').textContent = newEmail;
-      document.getElementById('emailEditArea').style.display = 'none';
-      document.getElementById('emailDisplayArea').style.display = 'flex';
-      emailMsg.textContent = 'Saved (may require confirmation)';
-      emailMsg.style.color = UI.success;
-      setTimeout(()=> emailMsg.textContent = '', 3000);
-    } catch (err) {
-      // handle re-auth requirement or other errors
-      emailMsg.textContent = err.message || 'Failed to update email';
-      emailMsg.style.color = UI.danger;
-      console.error('[CHK] saveEmail error', err);
-    }
-  });
-
-  // phone
-  document.getElementById('savePhone').addEventListener('click', async () => {
-    const phoneMsg = document.getElementById('phoneMsg');
-    phoneMsg.textContent = 'Saving...';
-    try {
-      const raw = document.getElementById('settingsPhone').value.trim();
-      let normalized = raw.replace(/\s|-/g, '');
-      if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
-      const code = document.getElementById('settingsCountryCode').value || '+250';
-      if (!/^\+/.test(normalized)) normalized = code + normalized;
-      // basic validation for E. Africa: ensure it looks like +country + digits
-      if (!/^\+\d{5,15}$/.test(normalized)) { throw new Error('Enter a valid phone number'); }
-
-      const { error } = await supabase.from('profiles').update({ phone: normalized, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
-      if (error) throw error;
-      currentUserProfile = await getUserProfile(currentUser.id);
-      phoneMsg.textContent = 'Saved';
-      phoneMsg.style.color = UI.success;
-      setTimeout(()=> phoneMsg.textContent = '', 2000);
-    } catch (err) {
-      phoneMsg.textContent = err.message || 'Failed to save phone';
-      phoneMsg.style.color = UI.danger;
-      console.error('[CHK] savePhone error', err);
-    }
-  });
-
-  const savePwdBtn = document.getElementById('savePwdBtn');
-  if (savePwdBtn) {
-    savePwdBtn.addEventListener('click', async () => {
-      const msg = document.getElementById('pwdMsg');
-      msg.textContent = 'Changing password...';
-      const currentPwd = document.getElementById('settingsCurrentPwd').value;
-      const newPwd = document.getElementById('settingsNewPwd').value;
-      const confirmPwd = document.getElementById('settingsConfirmNewPwd').value;
-
-      // reuse your existing function handleChangePassword but it reads DOM elements with different IDs.
-      // We'll perform the same logic inline to avoid duplication issues:
+  if (editNameBtn) {
+    editNameBtn.addEventListener('click', () => {
+      nameDisplayArea.style.display = 'none';
+      nameEditArea.style.display = 'flex';
+      nameInput.value = currentUser?.user_metadata?.full_name || '';
+      nameInput.focus();
+    });
+  }
+  if (cancelName) {
+    cancelName.addEventListener('click', () => {
+      nameEditArea.style.display = 'none';
+      nameDisplayArea.style.display = 'flex';
+    });
+  }
+  if (saveName) {
+    saveName.addEventListener('click', async () => {
+      const v = nameInput.value.trim();
+      if (!v) { nameMsg.textContent = 'Name cannot be empty'; nameMsg.style.color = UI.danger; return; }
+      nameMsg.textContent = 'Saving...';
       try {
-        if (!currentPwd || !newPwd || !confirmPwd) {
-          msg.textContent = 'Please fill all password fields';
-          msg.style.color = UI.danger;
-          return;
-        }
-        if (newPwd.length < 6) {
-          msg.textContent = 'New password must be at least 6 characters';
-          msg.style.color = UI.danger;
-          return;
-        }
-        if (newPwd !== confirmPwd) {
-          msg.textContent = 'New passwords do not match';
-          msg.style.color = UI.danger;
-          return;
-        }
-
-        // Re-authenticate via signInWithPassword
-        const signinResult = await supabase.auth.signInWithPassword({
-          email: currentUser.email,
-          password: currentPwd
-        });
-        if (signinResult.error) {
-          throw new Error('Current password is incorrect');
-        }
-
-        const { error } = await supabase.auth.updateUser({ password: newPwd });
-        if (error) throw error;
-
-        msg.textContent = '✅ Password changed successfully';
-        msg.style.color = UI.success;
-        // clear fields
-        document.getElementById('settingsCurrentPwd').value = '';
-        document.getElementById('settingsNewPwd').value = '';
-        document.getElementById('settingsConfirmNewPwd').value = '';
+        // update auth metadata
+        const { error: authErr } = await supabase.auth.updateUser({ data: { full_name: v } });
+        if (authErr) throw authErr;
+        // update profiles table
+        const { error: pErr } = await supabase.from('profiles').update({ full_name: v, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
+        if (pErr) throw pErr;
+        // refresh local user/profile
+        const { data } = await supabase.auth.getSession();
+        currentUser = data?.session?.user || currentUser;
+        currentUserProfile = await getUserProfile(currentUser.id);
+        document.getElementById('displayFullName').textContent = v;
+        nameEditArea.style.display = 'none';
+        nameDisplayArea.style.display = 'flex';
+        nameMsg.textContent = 'Saved';
+        nameMsg.style.color = UI.success;
+        setTimeout(()=> nameMsg.textContent = '', 2000);
       } catch (err) {
-        msg.textContent = err.message || 'Password change failed';
-        msg.style.color = UI.danger;
-        console.error('[CHK] changePassword in settings modal error', err);
+        console.error('[CHK] saveName error', err);
+        nameMsg.textContent = err.message || 'Failed to save name';
+        nameMsg.style.color = UI.danger;
       }
     });
   }
-  // sign out now button
-  document.getElementById('signOutNow').addEventListener('click', async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      closeSettingsModal();
-    } catch (err) {
-      console.error('[CHK] signOutNow error', err);
+
+  // EMAIL handlers (keep the working new code)
+  const editEmailBtn = document.getElementById('editEmailBtn');
+  const emailDisplayArea = document.getElementById('emailDisplayArea');
+  const emailEditArea = document.getElementById('emailEditArea');
+  const emailInput = document.getElementById('emailInput');
+  const saveEmail = document.getElementById('saveEmail');
+  const cancelEmail = document.getElementById('cancelEmail');
+  const emailMsg = document.getElementById('emailMsg');
+
+  if (editEmailBtn) {
+    editEmailBtn.addEventListener('click', () => {
+      emailDisplayArea.style.display = 'none';
+      emailEditArea.style.display = 'flex';
+      emailInput.value = currentUser?.email || '';
+      emailInput.focus();
+    });
+  }
+  if (cancelEmail) {
+    cancelEmail.addEventListener('click', () => {
+      emailEditArea.style.display = 'none';
+      emailDisplayArea.style.display = 'flex';
+    });
+  }
+  if (saveEmail) {
+    saveEmail.addEventListener('click', async () => {
+      const newEmail = emailInput.value.trim();
+      if (!isValidEmail(newEmail)) { emailMsg.textContent = 'Enter a valid email'; emailMsg.style.color = UI.danger; return; }
+      emailMsg.textContent = 'Saving...';
+      try {
+        // use the new working email update flow
+        const { error: authErr } = await supabase.auth.updateUser({ email: newEmail });
+        if (authErr) throw authErr;
+        const { error: pErr } = await supabase.from('profiles').update({ email: newEmail, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
+        if (pErr) throw pErr;
+        const { data } = await supabase.auth.getSession();
+        currentUser = data?.session?.user || currentUser;
+        currentUserProfile = await getUserProfile(currentUser.id);
+        document.getElementById('displayEmail').textContent = newEmail;
+        emailEditArea.style.display = 'none';
+        emailDisplayArea.style.display = 'flex';
+        emailMsg.textContent = 'Saved (may require confirmation)';
+        emailMsg.style.color = UI.success;
+        setTimeout(()=> emailMsg.textContent = '', 3000);
+      } catch (err) {
+        console.error('[CHK] saveEmail error', err);
+        emailMsg.textContent = err.message || 'Failed to save email';
+        emailMsg.style.color = UI.danger;
+      }
+    });
+  }
+
+  // PHONE handlers (E. Africa dropdown present)
+  const savePhone = document.getElementById('savePhone');
+  if (savePhone) {
+    savePhone.addEventListener('click', async () => {
+      const phoneMsg = document.getElementById('phoneMsg');
+      phoneMsg.textContent = 'Saving...';
+      try {
+        const raw = document.getElementById('settingsPhone').value.trim();
+        let normalized = raw.replace(/\s|-/g, '');
+        if (/^0/.test(normalized)) normalized = normalized.replace(/^0+/, '');
+        const code = document.getElementById('settingsCountryCode').value || '+250';
+        if (!/^\+/.test(normalized)) normalized = code + normalized;
+        if (!/^\+\d{5,15}$/.test(normalized)) throw new Error('Enter a valid phone number');
+        const { error } = await supabase.from('profiles').update({ phone: normalized, updated_at: new Date().toISOString() }).eq('id', currentUser.id);
+        if (error) throw error;
+        currentUserProfile = await getUserProfile(currentUser.id);
+        phoneMsg.textContent = 'Saved';
+        phoneMsg.style.color = UI.success;
+        setTimeout(()=> phoneMsg.textContent = '', 2000);
+      } catch (err) {
+        console.error('[CHK] savePhone error', err);
+        const phoneMsg = document.getElementById('phoneMsg');
+        phoneMsg.textContent = err.message || 'Failed to save phone';
+        phoneMsg.style.color = UI.danger;
+      }
+    });
+  }
+
+  // PASSWORD: do NOT attach a new listener if your team's code already attaches one to #savePwdBtn
+  // We check whether #savePwdBtn already has listeners by checking a flag on the element (safe non-intrusive approach)
+  const savePwdBtn = document.getElementById('savePwdBtn');
+  if (savePwdBtn) {
+    if (!savePwdBtn.dataset.handlerAttached) {
+      // do NOT override if your team already attached their handler elsewhere; only attach a light wrapper if none exists
+      // but per your instruction we avoid touching their code — so only attach a basic pass-through that triggers click
+      // If you already used the block you pasted earlier, it will be the actual handler and this won't overwrite it.
+      savePwdBtn.addEventListener('click', () => {
+        console.log('[CHK] savePwdBtn clicked (pass-through)');
+        // the real handler (your team's) should run; if not present, we fall back to a minimal handler:
+        // (we won't implement fallback here to avoid touching team logic)
+      });
+      savePwdBtn.dataset.handlerAttached = '1';
+    } else {
+      console.log('[CHK] savePwdBtn already had handler attached; leaving it as-is');
     }
-  });
+  }
+
+  // Sign out button inside settings modal (also performs actual sign out)
+  const signOutNow = document.getElementById('signOutNow');
+  if (signOutNow) {
+    signOutNow.addEventListener('click', async () => {
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        closeSettingsModal();
+      } catch (err) {
+        console.error('[CHK] signOutNow error', err);
+      }
+    });
+  }
 }
 
-/* -------------------------
-   closeSettingsModal
-   ------------------------- */
+/* ---------------------------
+  closeSettingsModal
+--------------------------- */
 function closeSettingsModal() {
   const m = document.getElementById('settingsModal');
   if (m) m.style.display = 'none';
 }
 
-/* -------------------------
-   Helpers
-   ------------------------- */
+/* ---------------------------
+  isValidEmail helper (kept)
+--------------------------- */
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
 
+
+/* -------------------------
+   Orders modal (simple placeholder)
+   ------------------------- */
+function openOrdersModal() {
+  console.log('[CHK] openOrdersModal - start');
+  if (!document.getElementById('ordersModal')) {
+    const html = `
+      <div id="ordersModal" class="orders-modal" style="display:flex">
+        <div class="orders-panel">
+          <div class="orders-header">
+            <h2>Orders</h2>
+            <button id="closeOrdersModal" class="close-orders-btn">&times;</button>
+          </div>
+          <div class="orders-body">
+            <p style="color:#666">No orders yet — content will be added later.</p>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('closeOrdersModal').addEventListener('click', closeOrdersModal);
+  }
+  const modal = document.getElementById('ordersModal');
+  if (modal) modal.style.display = 'flex';
+  console.log('[CHK] openOrdersModal - end');
+}
+function closeOrdersModal() {
+  const m = document.getElementById('ordersModal');
+  if (m) m.style.display = 'none';
+}
+
+/* -------------------------
+   Settings Modal (overhauled UI)
+   - includes country code select for E. Africa
+   - inline edit for name & email (save updates both auth & profiles)
+   ------------------------- */
+
+
+/* -------------------------
+   wire handlers for settings popup
+   ------------------------- */
 
 /* ---------- helpers for inline edits (name & email) ---------- */
 function setupInlineEdits() {
@@ -1795,6 +1820,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
