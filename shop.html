@@ -180,136 +180,160 @@
     
     <!-- Then load shop-specific functionality -->
     <script>
-    // ==========================================
-    // SHOP PAGE - SUPABASE PRODUCT LOADING
-    // This runs after script.js loads
-    // ==========================================
-    
-    // Wait for supabase to be initialized from script.js
-    function waitForSupabase(callback) {
-      if (window.supabase) {
-        callback();
-      } else {
-        setTimeout(() => waitForSupabase(callback), 100);
-      }
-    }
-    
-    // Main function to load and display products
-    async function loadShopProducts() {
-      const loadingEl = document.getElementById('products-loading');
-      const containerEl = document.getElementById('products-container');
-      const emptyEl = document.getElementById('products-empty');
-      
-      try {
-        // Get products from Supabase
-        // .select('*') means get all columns
-        // .order() sorts by newest first
-        const { data: products, error } = await window.supabase
-            .from('products')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        // Hide loading spinner
-        loadingEl.style.display = 'none';
-        
-        // Check for errors
-        if (error) {
-          console.error('Error loading products:', error);
-          emptyEl.querySelector('p').textContent = 'Error loading products. Please refresh.';
-          emptyEl.style.display = 'block';
-          return;
+/* DEBUGGED shop loader — paste this to replace your current shop script */
+(function () {
+  const MAX_WAIT_MS = 10000;
+
+  function waitForSupabase() {
+    return new Promise((resolve, reject) => {
+      if (window.supabase) return resolve(window.supabase);
+      let waited = 0;
+      const t = setInterval(() => {
+        if (window.supabase) {
+          clearInterval(t);
+          return resolve(window.supabase);
         }
-        
-        // Check if no products
-        if (!products || products.length === 0) {
-          emptyEl.style.display = 'block';
-          return;
+        waited += 100;
+        if (waited >= MAX_WAIT_MS) {
+          clearInterval(t);
+          return reject(new Error('window.supabase not found after ' + (MAX_WAIT_MS/1000) + 's'));
         }
-        
-        // Show container and render products
-        containerEl.style.display = 'flex';
-        renderProducts(products);
-        
-      } catch (err) {
-        console.error('Unexpected error:', err);
+      }, 100);
+    });
+  }
+
+  async function loadShopProducts() {
+    const loadingEl = document.getElementById('products-loading');
+    const containerEl = document.getElementById('products-container');
+    const emptyEl = document.getElementById('products-empty');
+
+    try {
+      console.log('> loadShopProducts: starting');
+      // try to fetch; don't crash — capture response object
+      const result = await window.supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      console.log('> Supabase response:', result);
+
+      // If PostgREST returned an error object
+      if (result?.error) {
+        console.error('Supabase returned error:', result.error);
         loadingEl.style.display = 'none';
-        emptyEl.querySelector('p').textContent = 'Something went wrong.';
+        emptyEl.querySelector('p').textContent = 'Error loading products: ' + (result.error.message || result.error);
         emptyEl.style.display = 'block';
+        return;
+      }
+
+      const products = result?.data ?? null;
+
+      loadingEl.style.display = 'none';
+
+      if (!products || products.length === 0) {
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      containerEl.style.display = 'flex';
+      renderProducts(products);
+    } catch (err) {
+      // Very explicit logging so you can copy/paste console output
+      console.error('Unexpected error in loadShopProducts():', err);
+      loadingEl.style.display = 'none';
+      // show the error message to the user but keep it short
+      emptyEl.querySelector('p').textContent = 'Something went wrong. Check console for details.';
+      emptyEl.style.display = 'block';
+    }
+  }
+
+  async function resolveImageUrl(product) {
+    // If product.image_url is already a public URL, use it.
+    if (product.image_url && typeof product.image_url === 'string' && product.image_url.startsWith('http')) {
+      return product.image_url;
+    }
+    // If you store a storage path (e.g. "images/123.jpg") in product.image_path or image_url,
+    // get a public url from the storage bucket named 'product-images' — adjust bucket name to yours.
+    const path = product.image_path || product.image_url;
+    if (path) {
+      try {
+        const { data, error } = await window.supabase.storage.from('product-images').getPublicUrl(path);
+        if (error) {
+          console.warn('storage.getPublicUrl error for', path, error);
+          return 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
+        }
+        return data?.publicUrl || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
+      } catch (e) {
+        console.warn('Error while resolving storage url', e);
+        return 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
       }
     }
-    
-    // Render products into HTML
-    function renderProducts(products) {
-      const container = document.getElementById('products-container');
-      container.innerHTML = ''; // Clear existing
-      
-      // Loop through each product and create HTML
-      products.forEach(product => {
-        // Create product card div
+    // fallback placeholder
+    return 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+  }
+
+  async function renderProducts(products) {
+    const container = document.getElementById('products-container');
+    container.innerHTML = '';
+
+    for (const product of products) {
+      try {
         const productCard = document.createElement('div');
         productCard.className = 'pro';
-        productCard.setAttribute('data-product-id', product.id);
-        
-        // Build the HTML content
-        // Note: Using your existing CSS classes (.pro, .des, etc.)
+        productCard.setAttribute('data-product-id', product.id ?? '');
+
+        const imgUrl = await resolveImageUrl(product);
+
         productCard.innerHTML = `
-          <img src="${product.image_url || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image'}" 
+          <img src="${imgUrl}"
                alt="${escapeHtml(product.name)}"
                onclick="viewProduct('${product.id}')">
           <div class="des">
             <span>${escapeHtml(product.description || 'Product')}</span>
             <h5>${escapeHtml(product.name)}</h5>
             <div class="star">
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
-              <i class="fas fa-star"></i>
+              <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
             </div>
-            <h4>RWF ${product.price || 0}</h4>
-            <p style="font-size:12px;color:#666;margin-top:4px;">Stock: ${product.stock || 0}</p>
+            <h4>RWF ${product.price ?? 0}</h4>
+            <p style="font-size:12px;color:#666;margin-top:4px;">Stock: ${product.stock ?? 0}</p>
           </div>
           <a href="#" onclick="addProductToCart(event, '${product.id}')">
             <i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i>
           </a>
         `;
-        
         container.appendChild(productCard);
-      });
-    }
-    
-    // Helper function to escape HTML (prevent XSS)
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-    
-    // Navigate to single product page
-    function viewProduct(productId) {
-      window.location.href = `sproduct.html?id=${productId}`;
-    }
-    
-    // Add product to cart
-    function addProductToCart(event, productId) {
-      event.preventDefault();
-      event.stopPropagation();
-      
-      // Call the addToCartFromSupabase function from script.js
-      if (typeof window.addToCartFromSupabase === 'function') {
-        window.addToCartFromSupabase(productId);
-      } else {
-        console.error('Cart function not available');
-        alert('Please wait for page to fully load');
+      } catch (renderErr) {
+        console.error('Error rendering product', product, renderErr);
       }
     }
-    
-    // Initialize when page loads
-    window.addEventListener('DOMContentLoaded', function() {
-      waitForSupabase(loadShopProducts);
-    });
-    </script>
+  }
+
+  // Kick off after DOM is ready
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      await waitForSupabase();
+      console.log('window.supabase is present:', !!window.supabase);
+      loadShopProducts();
+    } catch (e) {
+      console.error('Supabase client not found:', e);
+      document.getElementById('products-loading').style.display = 'none';
+      const emptyEl = document.getElementById('products-empty');
+      emptyEl.querySelector('p').textContent = 'Supabase client not found. Make sure you initialize it in script.js';
+      emptyEl.style.display = 'block';
+    }
+  });
+
+})();
+</script>
+
 </body>
 
 </html>
+
 
