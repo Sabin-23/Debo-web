@@ -725,14 +725,11 @@ async function updateUIForLoggedInUser(user) {
                 <p class="ud-email">${user?.email || ''}</p>
               </div>
             </div>
-            <div class="ud-right">
-              ${adminBadge}
-              <button id="openSettingsFromDropdown" class="ud-settings-btn" title="Settings">⚙️</button>
-            </div>
           </div>
 
           <div class="user-dropdown-actions">
             <button id="ordersShortBtn" class="ud-btn">Orders</button>
+            <button id="openSettingsFromDropdown" class="ud-settings-btn" title="Settings">Settings</button>
             <button id="logoutBtn" class="ud-btn logout">Logout</button>
           </div>
         </div>
@@ -932,8 +929,9 @@ function openSettingsModal() {
                     <option value="+254">KE +254</option>
                     <option value="+256">UG +256</option>
                     <option value="+255">TZ +255</option>
-                    <option value="+257">BI +257</option>
+                    <option value="+257">BU +257</option>
                     <option value="+211">SS +211</option>
+                    <option value="+211">DR +243</option>
                   </select>
                   <input id="settingsPhone" type="tel" placeholder="7XXXXXXXX" />
                   <button id="savePhone" class="save-btn">Save</button>
@@ -1108,37 +1106,59 @@ function wireSettingsHandlers() {
     }
   });
 
-  // change password
-  document.getElementById('savePwd').addEventListener('click', async () => {
-    const msg = document.getElementById('pwdMsg');
-    const cur = document.getElementById('currentPwd').value;
-    const nw = document.getElementById('newPwd').value;
-    const conf = document.getElementById('confirmNewPwd').value;
-    msg.textContent = 'Processing...';
-    try {
-      if (!cur || !nw || !conf) { msg.textContent = 'Please fill all fields'; msg.style.color = UI.danger; return; }
-      if (nw.length < 6) { msg.textContent = 'New password must be at least 6 chars'; msg.style.color = UI.danger; return; }
-      if (nw !== conf) { msg.textContent = 'Passwords do not match'; msg.style.color = UI.danger; return; }
+  const savePwdBtn = document.getElementById('savePwdBtn');
+  if (savePwdBtn) {
+    savePwdBtn.addEventListener('click', async () => {
+      const msg = document.getElementById('pwdMsg');
+      msg.textContent = 'Changing password...';
+      const currentPwd = document.getElementById('settingsCurrentPwd').value;
+      const newPwd = document.getElementById('settingsNewPwd').value;
+      const confirmPwd = document.getElementById('settingsConfirmNewPwd').value;
 
-      const signInRes = await supabase.auth.signInWithPassword({ email: currentUser.email, password: cur });
-      if (signInRes.error) throw new Error('Current password incorrect');
+      // reuse your existing function handleChangePassword but it reads DOM elements with different IDs.
+      // We'll perform the same logic inline to avoid duplication issues:
+      try {
+        if (!currentPwd || !newPwd || !confirmPwd) {
+          msg.textContent = 'Please fill all password fields';
+          msg.style.color = UI.danger;
+          return;
+        }
+        if (newPwd.length < 6) {
+          msg.textContent = 'New password must be at least 6 characters';
+          msg.style.color = UI.danger;
+          return;
+        }
+        if (newPwd !== confirmPwd) {
+          msg.textContent = 'New passwords do not match';
+          msg.style.color = UI.danger;
+          return;
+        }
 
-      const { error } = await supabase.auth.updateUser({ password: nw });
-      if (error) throw error;
+        // Re-authenticate via signInWithPassword
+        const signinResult = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password: currentPwd
+        });
+        if (signinResult.error) {
+          throw new Error('Current password is incorrect');
+        }
 
-      msg.textContent = 'Password changed';
-      msg.style.color = UI.success;
-      document.getElementById('currentPwd').value = '';
-      document.getElementById('newPwd').value = '';
-      document.getElementById('confirmNewPwd').value = '';
-      setTimeout(()=> msg.textContent = '', 2000);
-    } catch (err) {
-      msg.textContent = err.message || 'Failed to change password';
-      msg.style.color = UI.danger;
-      console.error('[CHK] changePwd error', err);
-    }
-  });
+        const { error } = await supabase.auth.updateUser({ password: newPwd });
+        if (error) throw error;
 
+        msg.textContent = '✅ Password changed successfully';
+        msg.style.color = UI.success;
+        // clear fields
+        document.getElementById('settingsCurrentPwd').value = '';
+        document.getElementById('settingsNewPwd').value = '';
+        document.getElementById('settingsConfirmNewPwd').value = '';
+      } catch (err) {
+        msg.textContent = err.message || 'Password change failed';
+        msg.style.color = UI.danger;
+        console.error('[CHK] changePassword in settings modal error', err);
+      }
+    });
+  }
   // sign out now button
   document.getElementById('signOutNow').addEventListener('click', async () => {
     try {
@@ -1170,7 +1190,7 @@ function isValidEmail(email) {
 
 /* ---------- helpers for inline edits (name & email) ---------- */
 function setupInlineEdits() {
-  // name edit
+    // name edit
   const editNameBtn = document.getElementById('editNameBtn');
   const nameDisplay = document.getElementById('nameInlineDisplay');
   const nameInputWrap = document.getElementById('nameInlineInput');
@@ -1236,7 +1256,7 @@ function setupInlineEdits() {
       }
     });
   }
-
+    
   // email edit
   const editEmailBtn = document.getElementById('editEmailBtn');
   const emailDisplay = document.getElementById('emailInlineDisplay');
@@ -1775,6 +1795,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
