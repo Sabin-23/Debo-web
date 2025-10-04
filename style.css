@@ -1572,6 +1572,21 @@ body {
 .field-msg { min-height:18px; margin-top:6px; }
 
 
+/* tighten modal spacing and ensure phone & password stack with no large gap */
+.settings-body { padding: 12px; display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+.left-col { flex:1 1 520px; }
+.right-col { width: 260px; }
+
+/* Make the "Phone" and "Change password" sections sit closer */
+.settings-section { margin-bottom:8px; }
+.phone-row { margin-bottom:6px; }
+
+/* reduce extra whitespace inside panel */
+.settings-panel { padding-bottom: 14px; }
+
+/* style for pwd message to be visible */
+#pwdMsg { min-height:20px; font-weight:600; }
+
 
 
 
