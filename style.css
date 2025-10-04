@@ -1378,62 +1378,19 @@ body {
 
 
 /*Josh*/
-/* basic nav avatar styles — tweak sizes to match your nav */
+/* Avatar alternate color (purple) */
+.avatar-alt { background: #6B3FB0 !important; }
+
+/* User dropdown / avatar styles (kept from earlier but consolidated) */
 .user-menu-list { margin: 0; padding: 0; list-style: none; display: inline-flex; align-items: center; }
 .user-menu-item { list-style: none; margin: 0; padding: 0; position: relative; }
 
-
-/* dropdown anchored to the li; top is just below the avatar */
-.user-dropdown {
-  position: absolute;         /* anchored to .user-menu-item which is relative */
-  top: calc(100% + 8px);      /* sit under the avatar */
-  right: 0;
-  min-width: 220px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 18px 50px rgba(0,0,0,0.12);
-  z-index: 9999;
-  overflow: hidden;
-}
-
-/* small internal styles */
-.user-dropdown-header { padding: 12px 14px; border-bottom: 1px solid #f2f2f2; display:flex; align-items:center; gap:8px; }
-.ud-name { margin:0; font-weight:800; font-size:14px; color:#221; }
-.ud-email { margin:4px 0 0 0; font-size:12px; color:#6b6b6b; word-break:break-all; }
-.user-dropdown-actions { padding: 12px; display:flex; flex-direction:column; gap:8px; }
-.ud-btn { padding: 8px 12px; border-radius: 999px; background: #fff; border: 1px solid #f4f4f4; cursor:pointer; text-align:left; }
-.ud-btn.logout { color: #c62828; background: #fff8f8; border-color: #ffdede; }
-
-/* admin badge */
-.user-admin-badge { display:inline-block; padding:2px 8px; border-radius:12px; background:#ff9db1; color:#fff; font-size:11px; margin-left:6px; }
-
-/* ensure the sign-in button uses the same vertical alignment as nav items */
-.signin-btn, #openModal { vertical-align: middle; }
-
-/* --- Global message - solid background and visible --- */
-#global-message {
-  background: #fff4f7; /* light pink info bg (or change to var) */
-  color: #ff7da7;      /* accent text color */
-  border: 1px solid #ffd1dc;
-  opacity: 1 !important;
-  padding: 12px 18px;
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
-  transition: transform 160ms ease, opacity 160ms ease;
-}
-
-/* --- Avatar & Dropdown layout --- */
-.user-menu-list { margin: 0; padding: 0; list-style: none; display: inline-flex; align-items: center; }
-.user-menu-item { list-style: none; margin: 0; padding: 0; position: relative; }
-
-/* avatar button inline with nav items */
 .user-avatar-btn {
   width: 42px;
   height: 42px;
   border-radius: 50%;
   border: 3px solid #fff;
-  background: var(--avatar-pink, #ff7da7);
-  color: #ffffff;
+  color: #fff;
   font-weight: 700;
   font-size: 16px;
   display: inline-flex;
@@ -1444,13 +1401,12 @@ body {
   box-shadow: 0 6px 18px rgba(0,0,0,0.06);
 }
 
-/* dropdown must be positioned absolutely relative to the li (so it doesn't alter nav height) */
 .user-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 260px;
-  background: #ffffff;           /* solid white background */
+  min-width: 240px;
+  background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 18px 50px rgba(0,0,0,0.14);
   z-index: 99999;
@@ -1459,7 +1415,6 @@ body {
   padding: 0;
 }
 
-/* dropdown header & actions */
 .user-dropdown-header { padding: 12px 14px; border-bottom: 1px solid #f6f2f3; display:flex; align-items:center; gap:12px; }
 .ud-name { margin:0; font-weight:800; font-size:14px; color:#221; }
 .ud-email { margin:4px 0 0 0; font-size:12px; color:#6b6b6b; word-break:break-all; }
@@ -1469,15 +1424,59 @@ body {
 .ud-btn:hover { background:#fff7fb; }
 .ud-btn.logout { color: #c62828; border-color:#ffdede; background:#fff8f8; }
 
-/* Admin badge */
 .user-admin-badge { display:inline-block; padding:3px 8px; border-radius:12px; background:#ff9db1; color:#fff; font-size:11px; margin-left:6px; }
 
-/* ensure sign-in button vertical alignment */
-.signin-btn, #openModal { vertical-align: middle; }
+/* Settings Modal Styles */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  background: rgba(14, 14, 16, 0.45);
+  z-index: 100000;
+  padding: 20px;
+}
 
-/* Small responsive tweak: dropdown anchored left on small screens */
-@media (max-width:640px) {
-  .user-dropdown { right: auto; left: 0; min-width: 220px; }
+.settings-panel {
+  width: 100%;
+  max-width: 880px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: auto;
+  max-height: 92vh;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+}
+
+.settings-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 18px;
+  border-bottom: 1px solid #f4f2f3;
+}
+
+.settings-body { padding: 16px; display:flex; flex-direction:column; gap:14px; }
+
+.settings-section h3 { margin:0 0 8px 0; font-size:15px; }
+.profile-field { margin-bottom:8px; display:flex; flex-direction:column; gap:8px; }
+.inline-edit { display:flex; align-items:center; gap:8px; }
+.inline-edit-input { display:flex; gap:8px; align-items:center; }
+.inline-edit input, .settings-body input[type="password"], .settings-body input[type="email"], .settings-body input[type="tel"] {
+  padding:8px 10px; border:1px solid #efe7ea; border-radius:8px; width:100%;
+}
+.edit-ico { background:none; border:none; cursor:pointer; font-size:14px; padding:6px; }
+.save-btn { padding:8px 12px; border-radius:8px; background: var(--avatar-pink, #ff7da7); color:#fff; border:none; cursor:pointer; }
+.cancel-btn { padding:8px 12px; border-radius:8px; background:#fff; border:1px solid #eee; cursor:pointer; }
+.field-msg { font-size:13px; margin:4px 0 0 0; color:#666; }
+
+/* big logout button in modal */
+.logout-full-btn { padding:10px 14px; width:100%; border-radius:10px; background:#c62828; color:#fff; border:none; cursor:pointer; }
+
+/* small responsive */
+@media (max-width:720px) {
+  .settings-panel { width: 100%; margin: 0 8px; }
+  .user-dropdown { right: 8px; left: auto; min-width: 200px; }
 }
 
 
