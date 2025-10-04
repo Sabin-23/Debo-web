@@ -1556,7 +1556,20 @@ body {
   .right-col { width:100%; }
   .left-col { width:100%; }
 }
-
+/* Make password inputs and modal buttons match app style */
+.settings-panel input[type="password"],
+.settings-panel input[type="email"],
+.settings-panel input[type="tel"],
+.settings-panel input[type="text"] {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #efe7ea;
+  width:100%;
+  box-sizing: border-box;
+}
+.settings-panel .save-btn { background: var(--accent-pink, #ff7da7); color: #fff; border:none; }
+.settings-panel .logout-full-btn { background: #c62828; color:#fff; border:none; }
+.field-msg { min-height:18px; margin-top:6px; }
 
 
 
