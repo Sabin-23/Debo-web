@@ -28,6 +28,8 @@ let supabase = null;
 let currentUser = null;
 let currentUserProfile = null;
 let isProcessingAuth = false;
+let authSubscription = null; // store the supabase auth subscription so we can unsubscribe before re-subscribing
+
 
 /* UI constants used for inline styles (kept from your original) */
 const UI = {
@@ -99,81 +101,121 @@ function initializeSupabaseAuth() {
 
 /* AUTH STATE LISTENER */
 function setupAuthStateListener() {
-  chk('setupAuthStateListener - start');
-
   if (!supabase || !supabase.auth || typeof supabase.auth.onAuthStateChange !== 'function') {
-    console.warn('[WARN] supabase.auth.onAuthStateChange not available. Skipping listener setup.');
-    chk('setupAuthStateListener - skipped');
+    console.warn('❌ Supabase auth listener cannot be set (missing API).');
     return;
   }
 
-  // Attach listener
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    chk('onAuthStateChange fired', event);
-    try {
-      if (event === 'SIGNED_IN') {
+  console.log('[CHK] setupAuthStateListener - start');
+
+  // If there is an existing subscription, unsubscribe it first to avoid duplicate handlers
+  try {
+    if (authSubscription && typeof authSubscription.unsubscribe === 'function') {
+      console.log('[CHK] Unsubscribing previous auth subscription');
+      authSubscription.unsubscribe();
+    }
+  } catch (err) {
+    console.warn('[CHK] error while unsubscribing previous auth subscription', err);
+  }
+  authSubscription = null;
+
+  // Create a new listener and save the subscription reference
+  const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('[CHK] onAuthStateChange fired:', event);
+    // quick sanity: ensure session.user exists for SIGNED_IN
+    if (event === 'SIGNED_IN' && !session?.user) {
+      console.warn('[CHK] SIGNED_IN event but no session.user — ignoring');
+      return;
+    }
+
+    // Avoid overlapping processing, but still allow short re-entrancy
+    if (event === 'SIGNED_IN') {
+      if (isProcessingAuth) {
+        console.log('[CHK] SIGNED_IN received but isProcessingAuth true — delaying briefly then retrying');
+        // small debounce: wait and re-check once
+        await new Promise(r => setTimeout(r, 250));
         if (isProcessingAuth) {
-          chk('onAuthStateChange - already processing SIGNED_IN; skipping');
+          console.log('[CHK] Still processing after delay — skipping this SIGNED_IN event');
           return;
-        }
-        isProcessingAuth = true;
-        chk('onAuthStateChange - SIGNED_IN processing start');
-
-        currentUser = session?.user || null;
-        chk('onAuthStateChange - currentUser', currentUser?.email || null);
-
-        // small debounce to let session settle
-        await new Promise(r => setTimeout(r, 200));
-
-        // load or create profile
-        const profile = await getUserProfile(currentUser?.id);
-        chk('onAuthStateChange - getUserProfile result', profile);
-        if (!profile) {
-          chk('onAuthStateChange - profile missing; creating');
-          currentUserProfile = await createUserProfile(currentUser?.id);
-          chk('onAuthStateChange - profile created', currentUserProfile);
-        } else {
-          currentUserProfile = profile;
-        }
-
-        // admin redirect check
-        if (currentUserProfile?.is_admin === true) {
-          showGlobalMessage('Welcome Admin — redirecting...', 'success');
-          chk('onAuthStateChange - admin detected, redirecting');
-          setTimeout(() => (window.location.href = 'admin.html'), 800);
-          isProcessingAuth = false;
-          return;
-        }
-
-        // update UI
-        updateUIForLoggedInUser(currentUser);
-        showGlobalMessage('Signed in successfully', 'success');
-        isProcessingAuth = false;
-        chk('onAuthStateChange - SIGNED_IN processing end');
-      } else if (event === 'SIGNED_OUT') {
-        chk('onAuthStateChange - SIGNED_OUT start');
-        isProcessingAuth = false;
-        currentUser = null;
-        currentUserProfile = null;
-        updateUIForLoggedOutUser();
-        showGlobalMessage('Signed out', 'info');
-        chk('onAuthStateChange - SIGNED_OUT end');
-      } else {
-        chk('onAuthStateChange - other event', event);
-        // for USER_UPDATED and TOKEN_REFRESHED, we don't force UI updates to avoid loops
-        if (event === 'USER_UPDATED' && session?.user) {
-          currentUser = session.user;
-          chk('onAuthStateChange - USER_UPDATED updated currentUser');
         }
       }
+      isProcessingAuth = true;
+    }
+
+    try {
+      switch (event) {
+        case 'SIGNED_IN':
+          currentUser = session.user;
+          console.log('[CHK] SIGNED_IN - currentUser set:', currentUser?.email);
+          // allow session to settle a moment
+          await new Promise(r => setTimeout(r, 250));
+
+          // load or create profile
+          console.log('[CHK] SIGNED_IN - loading profile for user:', currentUser.id);
+          currentUserProfile = await getUserProfile(currentUser.id);
+          console.log('[CHK] Profile load result:', !!currentUserProfile);
+
+          if (!currentUserProfile) {
+            console.log('[CHK] Profile missing — creating now');
+            currentUserProfile = await createUserProfile(currentUser.id);
+            console.log('[CHK] Profile created result:', !!currentUserProfile);
+          }
+
+          // admin redirect if needed
+          if (currentUserProfile?.is_admin === true) {
+            console.log('[CHK] Admin detected - redirecting to admin.html');
+            showGlobalMessage('Welcome Admin! Redirecting...', 'success');
+            setTimeout(() => window.location.href = 'admin.html', 800);
+            isProcessingAuth = false;
+            return;
+          }
+
+          // update UI (always call after successful profile load)
+          console.log('[CHK] Calling updateUIForLoggedInUser now');
+          updateUIForLoggedInUser(currentUser);
+          showGlobalMessage('Successfully signed in!', 'success');
+          break;
+
+        case 'SIGNED_OUT':
+          console.log('[CHK] SIGNED_OUT - clearing state and updating UI');
+          isProcessingAuth = false;
+          currentUser = null;
+          currentUserProfile = null;
+          updateUIForLoggedOutUser();
+          showGlobalMessage('Successfully signed out.', 'info');
+          break;
+
+        case 'USER_UPDATED':
+          console.log('[CHK] USER_UPDATED event');
+          if (session?.user) currentUser = session.user;
+          break;
+
+        case 'TOKEN_REFRESHED':
+          console.log('[CHK] TOKEN_REFRESHED event');
+          break;
+
+        default:
+          console.log('[CHK] unhandled auth event:', event);
+      }
     } catch (err) {
-      console.error('onAuthStateChange handler error', err);
-      isProcessingAuth = false;
+      console.error('[CHK] Error in auth state handler:', err);
+    } finally {
+      // ensure flag cleared for SIGNED_IN processing
+      if (event === 'SIGNED_IN') isProcessingAuth = false;
+      console.log('[CHK] onAuthStateChange handler finished for', event);
     }
   });
 
-  chk('setupAuthStateListener - end');
+  // listener may be returned in different shapes depending on Supabase client version
+  if (listener && listener.subscription) {
+    authSubscription = listener.subscription;
+  } else {
+    authSubscription = listener; // fallback
+  }
+
+  console.log('[CHK] setupAuthStateListener - done, subscription saved');
 }
+
 
 /* Check existing session on load */
 async function checkAuthStatus() {
@@ -654,7 +696,9 @@ function closeProfileModal() {
    UI UPDATE FUNCTIONS (core area we debugged)
    -------------------- */
 function updateUIForLoggedInUser(user) {
+    console.log('[CHK] updateUIForLoggedInUser called for:', user?.email || null);
   chk('updateUIForLoggedInUser - start', user?.email || null);
+    
 
   // ensure stable container
   let authRoot = document.getElementById('auth-controls');
@@ -1270,6 +1314,7 @@ function renderShopProducts() {
 window.addEventListener('load', function() {
   renderShopProducts();
 });
+
 
 
 
