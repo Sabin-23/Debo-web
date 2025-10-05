@@ -53,7 +53,7 @@
     </div>
 
     <!-- ORDERS TAB -->
-    <section id="tab-orders" class="card tab-panel" style="display:none;">
+    <section id="tab-orders" class="card tab-panel active" style="display:none;">
       <h3>All Orders</h3>
       <div style="margin-top:10px;overflow:auto">
         <div id="ordersList" class="orders-list"></div>
@@ -162,13 +162,14 @@
         if (panel) panel.classList.add('active');
         if (name === 'users') loadProfiles();
         if (name === 'products') loadProducts();
+        if (name === 'orders') loadOrders();
       }
       
       tabButtons.forEach(btn => {
         btn.addEventListener('click', () => showTab(btn.getAttribute('data-tab')));
       });
       
-      showTab('users');
+      showTab('orders');
     })();
     
     // Init
@@ -618,4 +619,5 @@
   </script>
 </body>
 </html>
+
 
