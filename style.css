@@ -1218,7 +1218,7 @@ button.normal{
 
 .cart-header h3 {
     margin: 0;
-    color: #e5e7eb;
+    color: #000;
 }
 
 .cart-header button {
@@ -1429,6 +1429,7 @@ body {
 @media (max-width: 768px) {
   .settings-body { grid-template-columns: 1fr; }
 }
+
 
 
 
