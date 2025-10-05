@@ -39,6 +39,19 @@ const UI = {
   success: '#2e7d32'
 };
 
+const COUNTRY_LIST = [
+  { iso: 'RW', code: '+250', label: 'Rwanda' },
+  { iso: 'KE', code: '+254', label: 'Kenya' },
+  { iso: 'UG', code: '+256', label: 'Uganda' },
+  { iso: 'TZ', code: '+255', label: 'Tanzania' },
+  { iso: 'BI', code: '+257', label: 'Burundi' },
+  { iso: 'SS', code: '+211', label: 'South Sudan' },
+  { iso: 'ET', code: '+251', label: 'Ethiopia' },
+  { iso: 'SO', code: '+252', label: 'Somalia' },
+  { iso: 'DJ', code: '+253', label: 'Djibouti' },
+  { iso: 'ER', code: '+291', label: 'Eritrea' }
+];
+
 // ==============================================
 // INITIALIZATION
 // ==============================================
@@ -1271,6 +1284,7 @@ function closeCart() {
 const style = document.createElement('style');
 style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
 document.head.appendChild(style);
+
 
 
 
