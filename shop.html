@@ -1,161 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shop - ECHAD</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop - God's only Store</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    
-    <section id="header">
-        <h4>God's Only Store</h4>
-        <div>
-            <ul id="navbar">
-                <li><a href="index.html">Home</a></li>
-                <li><a class="active" href="shop.html">Shop</a></li>
-                <li><a href="About.html">About</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li>
-                    <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart">
-                        <i class="fa-solid fa-bag-shopping"></i>
-                        <span id="cart-badge" class="badge">0</span>
-                    </a>
-                </li>
-                <button id="openModal">Sign-in/Register</button>
-                <div class="modal" id="modal">
-                    <div class="auth-container">
-                        <h2 id="form-title">Sign In</h2>
-                        <form id="signin-form" class="active">
-                            <input type="email" placeholder="Email" required />
-                            <input type="password" placeholder="Password" required />
-                            <button type="submit">Sign In</button>
-                            <a href="#" id="forgotPasswordLink" style="font-size:13px;color:#ff9db1;text-decoration:none;">Forgot password?</a>
-                        </form>
-                        <form id="register-form">
-                            <input type="text" placeholder="Full Name" required />
-                            <input type="email" placeholder="Email" required />
-                            <input type="password" placeholder="Password" required />
-                            <input type="password" placeholder="Confirm Password" required />
-                            <button type="submit">Register</button>
-                        </form>
-                        <p class="toggle-text">
-                            Don't have an account? <span id="toggle">Register</span>
-                        </p>
-                        <button id="closeModal">Close</button>
-                    </div>
-                </div>
-                <a href="#" id="close"><i class="far fa-times-circle"></i></a>
-            </ul>
-            <div id="mobile">
-                <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
-                    <i class="fa-solid fa-bag-shopping"></i>
-                    <span id="cart-badge" class="badge">0</span>
-                </a>
-                <i id="bar" class="fas fa-outdent"></i>
-            </div>
+  <!-- Header Section -->
+  <section id="header">
+    <h4>God's Only Store</h4>
+    <div>
+      <ul id="navbar">
+        <li><a href="index.html">Home</a></li>
+        <li><a class="active" href="shop.html">Shop</a></li>
+        <li><a href="About.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li>
+          <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart">
+            <i class="fa-solid fa-bag-shopping"></i>
+            <span id="cart-badge" class="badge">0</span>
+          </a>
+        </li>
+        <button id="openModal">Sign-in/Register</button>
+        <div class="modal" id="modal">
+          <div class="auth-container">
+            <h2 id="form-title">Sign In</h2>
+            <form id="signin-form" class="active">
+              <input type="email" placeholder="Email" required />
+              <input type="password" placeholder="Password" required />
+              <button type="submit">Sign In</button>
+              <a href="#" id="forgotPasswordLink" style="font-size:13px;color:#ff9db1;text-decoration:none;">Forgot password?</a>
+            </form>
+            <form id="register-form">
+              <input type="text" placeholder="Full Name" required />
+              <input type="email" placeholder="Email" required />
+              <input type="password" placeholder="Password" required />
+              <input type="password" placeholder="Confirm Password" required />
+              <button type="submit">Register</button>
+            </form>
+            <p class="toggle-text">Don't have an account? <span id="toggle">Register</span></p>
+            <button id="closeModal">Close</button>
+          </div>
         </div>
-    </section>
+        <a href="#" id="close"><i class="far fa-times-circle"></i></a>
+      </ul>
+      <div id="mobile">
+        <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
+          <i class="fa-solid fa-bag-shopping"></i>
+          <span id="cart-badge" class="badge">0</span>
+        </a>
+        <i id="bar" class="fas fa-outdent"></i>
+      </div>
+    </div>
+  </section>
 
-    <section id="page-header">
-        <img src="download2.jpg" alt="">
-    </section>
+  <!-- Page Header -->
+  <section id="page-header">
+    <img src="download2.jpg" alt="">
+  </section>
 
-    <section id="product1" class="section-p1">
-        <div id="products-loading" style="text-align:center;padding:40px;">
-            <i class="fas fa-spinner fa-spin" style="font-size:32px;color:#ff9db1;"></i>
-            <p style="margin-top:16px;font-size:18px;color:#666;">Loading products...</p>
-        </div>
-        
-        <div class="pro-container" id="products-container" style="display:none;"></div>
-        
-        <div id="products-empty" style="display:none;text-align:center;padding:60px 20px;">
-            <i class="fas fa-box-open" style="font-size:64px;color:#ddd;"></i>
-            <p style="font-size:18px;color:#666;margin-top:20px;">No products available yet.</p>
-        </div>
-    </section>
+  <!-- Product Section -->
+  <section id="product1" class="section-p1">
+    <div id="products-loading" style="text-align:center;padding:40px;">
+      <i class="fas fa-spinner fa-spin" style="font-size:32px;color:#ff9db1;"></i>
+      <p style="margin-top:16px;font-size:18px;color:#666;">Loading products...</p>
+    </div>
+    <div class="pro-container" id="products-container" style="display:none;"></div>
+    <div id="products-empty" style="display:none;text-align:center;padding:60px 20px;">
+      <i class="fas fa-box-open" style="font-size:64px;color:#ddd;"></i>
+      <p style="font-size:18px;color:#666;margin-top:20px;">No products available yet.</p>
+    </div>
+  </section>
 
-    <section id="pagination" class="section-p1">
-        <a href="#">1</a>
-        <a href="#">2</a>
-        <a href="#"><i class="fas fa-arrow-right"></i></a>
-    </section>
+  <!-- Pagination -->
+  <section id="pagination" class="section-p1">
+    <a href="#">1</a>
+    <a href="#">2</a>
+    <a href="#"><i class="fas fa-arrow-right"></i></a>
+  </section>
 
-    <section id="newsletter" class="section-p1 section-m1">
-        <div class="newstext">
-            <h4>Sign Up For Newsletter</h4>
-            <p>Get E-mail updates about our latest shop and <span>special offers.</span></p>
-        </div>
-        <div class="form">
-            <input type="text" placeholder="Your email address">
-            <button class="normal">Sign Up</button>
-        </div>
-    </section>
+  <!-- Newsletter -->
+  <section id="newsletter" class="section-p1 section-m1">
+    <div class="newstext">
+      <h4>Sign Up For Newsletter</h4>
+      <p>Get E-mail updates about our latest shop and <span>special offers.</span></p>
+    </div>
+    <div class="form">
+      <input type="text" placeholder="Your email address">
+      <button class="normal">Sign Up</button>
+    </div>
+  </section>
 
-    <footer class="footer">
-        <div class="footer-container">
-            <div class="footer-section">
-                <h3>God's Only</h3>
-                <p>Your one-stop shop for fashion, beauty, and lifestyle essentials.</p>
-            </div>
-            <div class="footer-section">
-                <h4>Quick Links</h4>
-                <ul>
-                    <li><a href="#">Home</a></li>
-                    <li><a href="#">Shop</a></li>
-                    <li><a href="#">About</a></li>
-                    <li><a href="#">Contact</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h4>Customer Service</h4>
-                <ul> 
-                    <li><a href="#">FAQ</a></li>
-                    <li><a href="#">Returns</a></li>
-                    <li><a href="#">Shipping</a></li>
-                    <li><a href="#">Privacy Policy</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h4>Follow Us</h4>
-                <div class="socials">
-                    <a href="#"><i class="fab fa-facebook"></i></a>
-                    <a href="#"><i class="fab fa-instagram"></i></a>
-                    <a href="#"><i class="fab fa-twitter"></i></a>
-                    <a href="#"><i class="fab fa-youtube"></i></a>
-                </div>
-            </div>
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-section">
+        <h3>God's Only</h3>
+        <p>Your one-stop shop for fashion, beauty, and lifestyle essentials.</p>
+      </div>
+      <div class="footer-section">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="#">Home</a></li>
+          <li><a href="#">Shop</a></li>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Customer Service</h4>
+        <ul>
+          <li><a href="#">FAQ</a></li>
+          <li><a href="#">Returns</a></li>
+          <li><a href="#">Shipping</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Follow Us</h4>
+        <div class="socials">
+          <a href="#"><i class="fab fa-facebook"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
         </div>
-        <div class="footer-bottom">
-            <p>&copy; 2025 God's only Store. All Rights Reserved.</p>
-            <p>@whatis50</p>
-        </div>
-    </footer>
-    
-    <aside id="cart-panel" class="cart-panel" aria-hidden="true">
-        <div class="cart-header">
-            <h3>Your Cart</h3>
-            <button id="cart-close" aria-label="Close cart">✕</button>
-        </div>
-        <div id="cart-items" class="cart-items"></div>
-        <div class="cart-footer">
-            <div class="cart-totals">
-                <div>Subtotal</div>
-                <div id="cart-subtotal">—</div>
-            </div>
-            <div class="cart-actions">
-                <button id="checkout" class="accent">Checkout</button>
-                <button id="clear-cart" class="secondary">Clear Cart</button>
-            </div>
-        </div>
-    </aside>
-    <div id="cart-backdrop" class="cart-backdrop" hidden></div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 God's only Store. All Rights Reserved.</p>
+      <p>@whatis50</p>
+    </div>
+  </footer>
 
-    <script src="script.js"></script>
-    
+  <!-- Cart Panel -->
+  <aside id="cart-panel" class="cart-panel" aria-hidden="true">
+    <div class="cart-header">
+      <h3>Your Cart</h3>
+      <button id="cart-close" aria-label="Close cart">✕</button>
+    </div>
+    <div id="cart-items" class="cart-items"></div>
+    <div class="cart-footer">
+      <div class="cart-totals">
+        <div>Subtotal</div>
+        <div id="cart-subtotal">—</div>
+      </div>
+      <div class="cart-actions">
+        <button id="checkout" class="accent">Checkout</button>
+        <button id="clear-cart" class="secondary">Clear Cart</button>
+      </div>
+    </div>
+  </aside>
+  <div id="cart-backdrop" class="cart-backdrop" hidden></div>
+
     <script>
         /*
           Safe shop loader:
@@ -175,38 +175,38 @@
           const PROJECT_ANON = (typeof window.SUPABASE_ANON_KEY !== 'undefined') ? window.SUPABASE_ANON_KEY : FALLBACK_ANON;
         
           // returns a Supabase client to use for requests (but avoids touching window.supabase)
-          function getShopClient() {
-              // 1) If a proper client already exists globally, use it
-              if (window.supabase && typeof window.supabase.from === 'function') {
-                console.log('[shop] using existing window.supabase client');
-                return window.supabase;
-              }
-            
-              // 2) If the library is available as `supabase` and createClient exists, create a local client
-              if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
-                try {
-                  const localClient = supabase.createClient(PROJECT_URL, PROJECT_ANON);
-                  console.log('[shop] created local supabase client (did not overwrite globals)');
-                  return localClient;
-                } catch (e) {
-                  console.error('[shop] failed to create local client from library:', e);
-                }
-              }
-            
-              // 3) If window.supabase is non-null and is the library (has createClient), create local client *safely*
-              if (typeof window.supabase !== 'undefined' && window.supabase !== null && typeof window.supabase.createClient === 'function') {
-                try {
-                  const localClient = window.supabase.createClient(PROJECT_URL, PROJECT_ANON);
-                  console.log('[shop] created local client from window.supabase.createClient (no global overwrite)');
-                  return localClient;
-                } catch (e) {
-                  console.error('[shop] failed to create local client from window.supabase.createClient:', e);
-                }
-              }
-            
-              // Nothing available
-              return null;
+        function getShopClient() {
+          // 1) If a proper client already exists globally, use it
+          if (window.supabase && typeof window.supabase.from === 'function') {
+            console.log('[shop] using existing window.supabase client');
+            return window.supabase;
+          }
+        
+          // 2) If the library is available as `supabase` and createClient exists, create a local client
+          if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
+            try {
+              const localClient = supabase.createClient(PROJECT_URL, PROJECT_ANON);
+              console.log('[shop] created local supabase client (did not overwrite globals)');
+              return localClient;
+            } catch (e) {
+              console.error('[shop] failed to create local client from library:', e);
             }
+          }
+        
+          // 3) If window.supabase is non-null and is the library (has createClient), create local client *safely*
+          if (typeof window.supabase !== 'undefined' && window.supabase !== null && typeof window.supabase.createClient === 'function') {
+            try {
+              const localClient = window.supabase.createClient(PROJECT_URL, PROJECT_ANON);
+              console.log('[shop] created local client from window.supabase.createClient (no global overwrite)');
+              return localClient;
+            } catch (e) {
+              console.error('[shop] failed to create local client from window.supabase.createClient:', e);
+            }
+          }
+        
+          // Nothing available
+          return null;
+        }
 
         
           // small helper escapeHtml from your code
@@ -311,9 +311,7 @@
         
           waitForDOMAndRun();
         })();
-        </script>
+    </script>
 
 </body>
 </html>
-
-
