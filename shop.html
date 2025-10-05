@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -8,16 +7,12 @@
     <title>Shop - God's only Store</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    
-    <!-- Load Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body>
     
     <section id="header">
         <h4>God's Only Store</h4>
-
         <div>
             <ul id="navbar">
                 <li><a href="index.html">Home</a></li>
@@ -34,16 +29,12 @@
                 <div class="modal" id="modal">
                     <div class="auth-container">
                         <h2 id="form-title">Sign In</h2>
-
-                        <!-- Sign In Form -->
                         <form id="signin-form" class="active">
                             <input type="email" placeholder="Email" required />
                             <input type="password" placeholder="Password" required />
                             <button type="submit">Sign In</button>
                             <a href="#" id="forgotPasswordLink" style="font-size:13px;color:#ff9db1;text-decoration:none;">Forgot password?</a>
                         </form>
-
-                        <!-- Register Form -->
                         <form id="register-form">
                             <input type="text" placeholder="Full Name" required />
                             <input type="email" placeholder="Email" required />
@@ -51,7 +42,6 @@
                             <input type="password" placeholder="Confirm Password" required />
                             <button type="submit">Register</button>
                         </form>
-
                         <p class="toggle-text">
                             Don't have an account? <span id="toggle">Register</span>
                         </p>
@@ -74,23 +64,17 @@
         <img src="download2.jpg" alt="">
     </section>
 
-    <!-- PRODUCTS SECTION - Now loads from Supabase -->
     <section id="product1" class="section-p1">
-        <!-- Loading indicator -->
-        <div id="products-loading" style="text-align:center;padding:40px;color:#666;">
+        <div id="products-loading" style="text-align:center;padding:40px;">
             <i class="fas fa-spinner fa-spin" style="font-size:32px;color:#ff9db1;"></i>
-            <p style="margin-top:16px;font-size:18px;">Loading products...</p>
+            <p style="margin-top:16px;font-size:18px;color:#666;">Loading products...</p>
         </div>
         
-        <!-- Products will be inserted here -->
-        <div class="pro-container" id="products-container" style="display:none;">
-            <!-- Products loaded dynamically from Supabase -->
-        </div>
+        <div class="pro-container" id="products-container" style="display:none;"></div>
         
-        <!-- Empty state -->
         <div id="products-empty" style="display:none;text-align:center;padding:60px 20px;">
-            <i class="fas fa-box-open" style="font-size:64px;color:#ddd;margin-bottom:20px;"></i>
-            <p style="font-size:18px;color:#666;">No products available yet.</p>
+            <i class="fas fa-box-open" style="font-size:64px;color:#ddd;"></i>
+            <p style="font-size:18px;color:#666;margin-top:20px;">No products available yet.</p>
         </div>
     </section>
 
@@ -115,10 +99,8 @@
         <div class="footer-container">
             <div class="footer-section">
                 <h3>God's Only</h3>
-                <p>Your one-stop shop for fashion, beauty, and lifestyle essentials. 
-                Quality products, affordable prices.</p>
+                <p>Your one-stop shop for fashion, beauty, and lifestyle essentials.</p>
             </div>
-
             <div class="footer-section">
                 <h4>Quick Links</h4>
                 <ul>
@@ -128,7 +110,6 @@
                     <li><a href="#">Contact</a></li>
                 </ul>
             </div>
-
             <div class="footer-section">
                 <h4>Customer Service</h4>
                 <ul> 
@@ -138,7 +119,6 @@
                     <li><a href="#">Privacy Policy</a></li>
                 </ul>
             </div>
-
             <div class="footer-section">
                 <h4>Follow Us</h4>
                 <div class="socials">
@@ -172,227 +152,99 @@
             </div>
         </div>
     </aside>
-                
     <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
-    <!-- Load main script.js first (has auth and cart) -->
     <script src="script.js"></script>
-    
-    <!-- Then load shop-specific functionality -->
     <script>
-    /*
-      Shop page compatibility shim + product loader.
-      Replaces window.supabase with a client if it currently points to the library.
-      Safe: will NOT overwrite a working client that already has .from().
-    */
-    
-    // Replace these with your real values (you already provided them earlier)
-    const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
-    
-    function ensureSupabaseClient() {
-      // If window.supabase already a client with .from(), do nothing.
-      if (window.supabase && typeof window.supabase.from === 'function') {
-        console.log('Supabase client already present on window.');
-        return;
-      }
-    
-      // If window.supabase is the library (has createClient) or not defined, create a client
-      if (window.supabase && typeof window.supabase.createClient === 'function') {
-        try {
-          const client = window.supabase.createClient
-            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-            : null;
-          if (client) {
-            window.supabase = client;
-            console.log('Supabase client created from library and attached to window.supabase');
-            return;
-          }
-        } catch (e) {
-          console.error('Failed to create supabase client from library on window.supabase:', e);
-        }
-      }
-    
-      // If window.supabase missing (library not loaded) try to access global supabase (if CDN created it as `supabase`)
-      if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
-        try {
-          window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          console.log('Supabase client created from global supabase and attached to window.supabase');
-          return;
-        } catch (e) {
-          console.error('Failed to create supabase client from global "supabase":', e);
-        }
-      }
-    
-      console.warn('Could not auto-create Supabase client. Ensure library is loaded before this script.');
+    // Wait for supabase from script.js
+    function waitForSupabase(callback) {
+      if (window.supabase) callback();
+      else setTimeout(() => waitForSupabase(callback), 100);
     }
     
-    // Wait until library is available, then ensure client
-    function waitForLibraryAndInit(maxWait = 5000) {
-      return new Promise((resolve, reject) => {
-        const start = Date.now();
-        (function check() {
-          // if library object present as 'supabase' (CDN exposes that) or window.supabase exists
-          if ((typeof supabase !== 'undefined') || window.supabase) {
-            ensureSupabaseClient();
-            return resolve();
-          }
-          if (Date.now() - start > maxWait) return reject(new Error('Supabase library not found within wait time'));
-          setTimeout(check, 100);
-        })();
-      });
-    }
-    
-    // ========== Shop product loading logic (same as before but uses ensured window.supabase) ==========
     async function loadShopProducts() {
-      const loadingEl = document.getElementById('products-loading');
-      const containerEl = document.getElementById('products-container');
-      const emptyEl = document.getElementById('products-empty');
-    
+      const loading = document.getElementById('products-loading');
+      const container = document.getElementById('products-container');
+      const empty = document.getElementById('products-empty');
+      
       try {
-        console.log('> loadShopProducts: starting');
-    
-        // Guard: confirm window.supabase is a client
-        if (!window.supabase || typeof window.supabase.from !== 'function') {
-          throw new Error('Supabase client not initialized correctly on window.supabase.');
-        }
-    
-        // Fetch products (adjust table name/columns as needed)
-        const res = await window.supabase
+        const { data: products, error } = await window.supabase
           .from('products')
           .select('*')
           .order('created_at', { ascending: false });
-    
-        console.log('> Supabase response:', res);
-    
-        if (res.error) {
-          console.error('Supabase returned error:', res.error);
-          loadingEl.style.display = 'none';
-          emptyEl.querySelector('p').textContent = 'Error loading products: ' + (res.error.message || res.error);
-          emptyEl.style.display = 'block';
-          return;
-        }
-    
-        const products = res.data ?? null;
-        loadingEl.style.display = 'none';
-    
+        
+        loading.style.display = 'none';
+        
+        if (error) throw error;
+        
         if (!products || products.length === 0) {
-          emptyEl.style.display = 'block';
+          empty.style.display = 'block';
           return;
         }
-    
-        containerEl.style.display = 'flex';
-        await renderProducts(products);
-      } catch (err) {
-        console.error('Unexpected error in loadShopProducts():', err);
-        if (document.getElementById('products-loading')) document.getElementById('products-loading').style.display = 'none';
-        const emptyEl = document.getElementById('products-empty');
-        if (emptyEl) {
-          emptyEl.querySelector('p').textContent = err.message.includes('Row level security') ? 
-            'Permission denied (RLS). Check Supabase policies.' :
-            'Something went wrong. Check console for details.';
-          emptyEl.style.display = 'block';
-        }
-      }
-    }
-    
-    // Resolve image URLs — if you store storage paths, this tries to get public URL from bucket.
-    // Change 'product-images' to your actual bucket name if needed.
-    async function resolveImageUrl(product) {
-      if (!product) return 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-      const urlField = product.image_url || product.image_path || product.image;
-      if (!urlField) return 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-    
-      // Already a full URL
-      if (typeof urlField === 'string' && (urlField.startsWith('http') || urlField.startsWith('data:'))) {
-        return urlField;
-      }
-    
-      // Try storage public url (assumes bucket name 'product-images')
-      try {
-        const bucket = 'product-images';
-        const { data, error } = window.supabase.storage.from(bucket).getPublicUrl(urlField);
-        if (error) {
-          console.warn('storage.getPublicUrl error for', urlField, error);
-          return 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-        }
-        return data?.publicUrl || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-      } catch (e) {
-        console.warn('Error resolving storage url', e);
-        return 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-      }
-    }
-    
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text ?? '';
-      return div.innerHTML;
-    }
-    
-    async function renderProducts(products) {
-      const container = document.getElementById('products-container');
-      container.innerHTML = '';
-    
-      for (const product of products) {
-        try {
-          const productCard = document.createElement('div');
-          productCard.className = 'pro';
-          productCard.setAttribute('data-product-id', product.id ?? '');
-    
-          const imgUrl = await resolveImageUrl(product);
-    
-          productCard.innerHTML = `
-            <img src="${imgUrl}"
+        
+        container.style.display = 'flex';
+        container.innerHTML = '';
+        
+        products.forEach(product => {
+          const card = document.createElement('div');
+          card.className = 'pro';
+          card.setAttribute('data-product-id', product.id);
+          
+          card.innerHTML = `
+            <img src="${product.image_url || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image'}" 
                  alt="${escapeHtml(product.name)}"
-                 onclick="viewProduct('${product.id}')">
+                 onclick="viewProduct('${product.id}')"
+                 style="cursor:pointer;">
             <div class="des">
               <span>${escapeHtml(product.description || 'Product')}</span>
               <h5>${escapeHtml(product.name)}</h5>
               <div class="star">
-                <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
               </div>
-              <h4>RWF ${product.price ?? 0}</h4>
-              <p style="font-size:12px;color:#666;margin-top:4px;">Stock: ${product.stock ?? 0}</p>
+              <h4>RWF ${product.price || 0}</h4>
+              <p style="font-size:12px;color:#666;">Stock: ${product.stock || 0}</p>
             </div>
             <a href="#" onclick="addProductToCart(event, '${product.id}')">
               <i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i>
             </a>
           `;
-          container.appendChild(productCard);
-        } catch (renderErr) {
-          console.error('Error rendering product', product, renderErr);
-        }
+          
+          container.appendChild(card);
+        });
+        
+      } catch (err) {
+        console.error('Error:', err);
+        loading.style.display = 'none';
+        empty.querySelector('p').textContent = 'Error loading products';
+        empty.style.display = 'block';
       }
     }
     
-    // Start up: wait for library, ensure client, then load products
-    window.addEventListener('DOMContentLoaded', async () => {
-      try {
-        await waitForLibraryAndInit(6000);
-        // Confirm
-        console.log('After init: typeof window.supabase.from ->', typeof window.supabase?.from);
-        if (!window.supabase || typeof window.supabase.from !== 'function') {
-          throw new Error('Supabase client not ready on window.supabase - aborting product load.');
-        }
-        loadShopProducts();
-      } catch (e) {
-        console.error('Failed to initialize Supabase in shop page:', e);
-        // show friendly message
-        const loadingEl = document.getElementById('products-loading');
-        const emptyEl = document.getElementById('products-empty');
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (emptyEl) {
-          emptyEl.querySelector('p').textContent = 'Supabase not available. Check console.';
-          emptyEl.style.display = 'block';
-        }
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function viewProduct(productId) {
+      window.location.href = `sproduct.html?id=${productId}`;
+    }
+    
+    function addProductToCart(event, productId) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof window.addToCartFromSupabase === 'function') {
+        window.addToCartFromSupabase(productId);
       }
+    }
+    
+    window.addEventListener('DOMContentLoaded', function() {
+      waitForSupabase(loadShopProducts);
     });
     </script>
-    
-
 </body>
-
 </html>
-
-
-
