@@ -1315,7 +1315,7 @@ button.normal{
 
 .cart-actions .accent {
     background: #ff69b4;
-    color: #08130a;
+    color: #e5e7eb;
 }
 
 .cart-actions .secondary {
@@ -1429,6 +1429,7 @@ body {
 @media (max-width: 768px) {
   .settings-body { grid-template-columns: 1fr; }
 }
+
 
 
 
