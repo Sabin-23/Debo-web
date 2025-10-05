@@ -1291,7 +1291,7 @@ button.normal{
     align-items: center;
     font-weight: 700;
     font-size: 16px;
-    color: #e5e7eb;
+    color: #000;
 }
 
 .cart-actions {
@@ -1429,6 +1429,7 @@ body {
 @media (max-width: 768px) {
   .settings-body { grid-template-columns: 1fr; }
 }
+
 
 
 
