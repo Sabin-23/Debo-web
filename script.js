@@ -1285,7 +1285,10 @@ const style = document.createElement('style');
 style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
 document.head.appendChild(style);
 
-
+function viewProduct(productId) {
+  // Example: redirect to product details page
+  window.location.href = `product.html?id=${productId}`;
+}
 
 
 
