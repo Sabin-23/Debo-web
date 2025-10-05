@@ -1,20 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> God's only Store</title>
-     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <title>Product Details - God's only Store</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .product-detail-container {
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .product-detail {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .product-image-large {
+            width: 100%;
+            border-radius: 12px;
+            object-fit: cover;
+        }
+        .product-info h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .product-price-large {
+            font-size: 36px;
+            color: #ff9db1;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .product-description {
+            color: #666;
+            line-height: 1.8;
+            margin: 20px 0;
+        }
+        .product-stock {
+            padding: 8px 16px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .add-to-cart-large {
+            padding: 15px 30px;
+            background-color: #ff9db1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            font-weight: 600;
+        }
+        .add-to-cart-large:hover {
+            background-color: #ff7da7;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #ff9db1;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 768px) {
+            .product-detail {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
-
 <body>
     
     <section id="header">
         <h4>God's Only Store</h4>
-
         <div>
             <ul id="navbar">
                 <li><a href="index.html">Home</a></li>
@@ -31,16 +104,12 @@
                 <div class="modal" id="modal">
                     <div class="auth-container">
                         <h2 id="form-title">Sign In</h2>
-
-                        <!-- Sign In Form -->
                         <form id="signin-form" class="active">
                             <input type="email" placeholder="Email" required />
                             <input type="password" placeholder="Password" required />
                             <button type="submit">Sign In</button>
                             <a href="#" id="forgotPasswordLink" style="font-size:13px;color:#ff9db1;text-decoration:none;">Forgot password?</a>
                         </form>
-
-                        <!-- Register Form -->
                         <form id="register-form">
                             <input type="text" placeholder="Full Name" required />
                             <input type="email" placeholder="Email" required />
@@ -48,9 +117,8 @@
                             <input type="password" placeholder="Confirm Password" required />
                             <button type="submit">Register</button>
                         </form>
-
                         <p class="toggle-text">
-                            Don’t have an account? <span id="toggle">Register</span>
+                            Don't have an account? <span id="toggle">Register</span>
                         </p>
                         <button id="closeModal">Close</button>
                     </div>
@@ -67,152 +135,36 @@
         </div>
     </section>
 
-    <section id="prodetails" class="section-p1">
-        <div class="single-pro-image">
-            <img src="Products/f1.jpg" width="100%" id="MainImage" alt="">
-
-            <div class="small-img-group">
-                <div class="small-img-col">
-                    <img src="Products/f1.jpg" width="100%" class="small-img" alt="">
-                </div>
-                <div class="small-img-col">
-                    <img src="Products/f2.jpg" width="100%" class="small-img" alt="">
-                </div>
-                <div class="small-img-col">
-                    <img src="Products/f1.jpg" width="100%" class="small-img" alt="">
-                </div>
-                <div class="small-img-col">
-                    <img src="Products/f2.jpg" width="100%" class="small-img" alt="">
-                </div>
-            </div>
+    <div class="product-detail-container">
+        <div id="product-loading" style="text-align:center;padding:60px;">
+            <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#ff9db1;"></i>
+            <p style="margin-top:20px;font-size:18px;color:#666;">Loading product...</p>
         </div>
         
-        <div class="single-pro-details">
-            <h6>Home / Dress</h6>
-            <h4>Women's Dress</h4>
-            <h2>$139.00</h2>
-            <select> 
-                <option>Select Size</option>
-                <option>XL</option>
-                <option>XXL</option>
-                <option>Small</option>
-                <option>Large</option>
-            </select>
-            <input type="number" value="1">
-            <button class="normal">Add To Cart</button>
-            <h4>Product Details</h4>
-            <span>
-                Make a spectacular entrance with this stunning royal blue gown, crafted for unforgettable moments. The bodice features intricate blue bead embellishments that cascade 
-                gracefully into a full tulle skirt, creating a truly ethereal and elegant silhouette. A deep V-neckline adds a touch of sophistication, while the long, sheer sleeves also 
-                showcase beautiful beaded details. 
-            </span>
+        <div id="product-detail" style="display:none;"></div>
+        
+        <div id="product-error" style="display:none;text-align:center;padding:60px;">
+            <i class="fas fa-exclamation-circle" style="font-size:48px;color:#ff9db1;"></i>
+            <p style="margin-top:20px;font-size:18px;color:#666;">Product not found</p>
+            <a href="shop.html" class="back-link">← Back to Shop</a>
         </div>
-    </section>
-
-    <section id="product1"class="section-p1">
-        <h2>Featured Products</h2>
-        <p>Summer Collection New Mordern Designs</p>
-        <div class="pro-container">
-            <div class="pro">
-                <img src="Products/f1.jpg" alt="">
-                <div class="des">
-                    <span>adidas</span>
-                    <h5>Blue Dress</h5>
-                    <div class="star">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <h4>$78</h4>
-                </div>
-                <a href="#"><i class="fa-solid fa-cart-shopping cart cart" style="color: #fdadcf;"></i></a>
-            </div>
-            <div class="pro">
-                <img src="Products/f2.jpg" alt="">
-                <div class="des">
-                    <span>adidas</span>
-                    <h5>Blue Dress</h5>
-                    <div class="star">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <h4>$78</h4>
-                </div>
-                <a href="#"><i class="fa-solid fa-cart-shopping cart cart" style="color: #fdadcf;"></i></a>
-            </div>
-            <div class="pro">
-                <img src="Products/f3.jpg" alt="">
-                <div class="des">
-                    <span>adidas</span>
-                    <h5>Blue Dress</h5>
-                    <div class="star">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <h4>$78</h4>
-                </div>
-                <a href="#"><i class="fa-solid fa-cart-shopping cart cart" style="color: #fdadcf;"></i></a>
-            </div>
-            <div class="pro">
-                <img src="Products/f4.jpg" alt="">
-                <div class="des">
-                    <span>adidas</span>
-                    <h5>Blue Dress</h5>
-                    <div class="star">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <h4>$78</h4>
-                </div>
-                <a href="#"><i class="fa-solid fa-cart-shopping cart cart" style="color: #fdadcf;"></i></a>
-            </div>
-        </div>
-
-    </section>
-
-    <section id="newsletter" class="section-p1 section-m1">
-        <div class="newstext">
-            <h4>Sign Up For Newsletter</h4>
-            <p>Get E-mail updates about our latest shop and <span>special offers.</span></p>
-
-        </div>
-        <div class="form">
-            <input type="text" placeholder="Your email address">
-            <button class="normal">Sign Up</button>
-        </div>
-    </section>
+    </div>
 
     <footer class="footer">
-        
         <div class="footer-container">
-        
             <div class="footer-section">
                 <h3>God's Only</h3>
-                <p>Your one-stop shop for fashion, beauty, and lifestyle essentials. 
-                Quality products, affordable prices.</p>
+                <p>Your one-stop shop for fashion, beauty, and lifestyle essentials.</p>
             </div>
-
             <div class="footer-section">
                 <h4>Quick Links</h4>
                 <ul>
-                    <li><a href="#">Home</a></li>
-                    <li><a href="#">Shop</a></li>
-                    <li><a href="#">About</a></li>
-                    <li><a href="#">Contact</a></li>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="shop.html">Shop</a></li>
+                    <li><a href="About.html">About</a></li>
+                    <li><a href="contact.html">Contact</a></li>
                 </ul>
             </div>
-
             <div class="footer-section">
                 <h4>Customer Service</h4>
                 <ul> 
@@ -222,7 +174,6 @@
                     <li><a href="#">Privacy Policy</a></li>
                 </ul>
             </div>
-
             <div class="footer-section">
                 <h4>Follow Us</h4>
                 <div class="socials">
@@ -232,13 +183,13 @@
                     <a href="#"><i class="fab fa-youtube"></i></a>
                 </div>
             </div>
-
         </div>
         <div class="footer-bottom">
             <p>&copy; 2025 God's only Store. All Rights Reserved.</p>
             <p>@whatis50</p>
         </div>
     </footer>
+    
     <aside id="cart-panel" class="cart-panel" aria-hidden="true">
         <div class="cart-header">
             <h3>Your Cart</h3>
@@ -256,29 +207,98 @@
             </div>
         </div>
     </aside>
-                
     <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
+    <script src="script.js"></script>
     <script>
-        var MainImge = document.getElementById("MainImage");
-        var smallimg = document.getElementsByClassName("small-img");
-
-        smallimg[0].onclick = function(){
-            MainImge.src = smallimg[0].src;
-        }
-        smallimg[1].onclick = function(){
-            MainImge.src = smallimg[1].src;
-        }
-        smallimg[2].onclick = function(){
-            MainImge.src = smallimg[2].src;
-        }
-        smallimg[3].onclick = function(){
-            MainImge.src = smallimg[3].src;
-        }
-    </script>
+    function waitForSupabase(callback) {
+      if (window.supabase) callback();
+      else setTimeout(() => waitForSupabase(callback), 100);
+    }
     
-  <script src="script.js"></script>
+    function getProductIdFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('id');
+    }
+    
+    async function loadProductDetail() {
+      const loading = document.getElementById('product-loading');
+      const container = document.getElementById('product-detail');
+      const error = document.getElementById('product-error');
+      
+      const productId = getProductIdFromURL();
+      
+      if (!productId) {
+        loading.style.display = 'none';
+        error.style.display = 'block';
+        return;
+      }
+      
+      try {
+        const { data: product, error: fetchError } = await window.supabase
+          .from('products')
+          .select('*')
+          .eq('id', productId)
+          .single();
+        
+        loading.style.display = 'none';
+        
+        if (fetchError || !product) {
+          error.style.display = 'block';
+          return;
+        }
+        
+        container.style.display = 'block';
+        container.innerHTML = `
+          <div class="product-detail">
+            <div>
+              <img 
+                src="${product.image_url || 'https://via.placeholder.com/500/fff0f3/ff9db1?text=No+Image'}" 
+                alt="${escapeHtml(product.name)}"
+                class="product-image-large"
+              >
+            </div>
+            <div class="product-info">
+              <h1>${escapeHtml(product.name)}</h1>
+              <div class="product-price-large">RWF ${product.price || 0}</div>
+              <div class="product-stock">
+                <i class="fas fa-check-circle"></i> ${product.stock || 0} in stock
+              </div>
+              <div class="product-description">
+                ${escapeHtml(product.description || 'No description available')}
+              </div>
+              <button class="add-to-cart-large" onclick="addToCart('${product.id}')">
+                <i class="fa-solid fa-cart-shopping"></i> Add to Cart
+              </button>
+              <a href="shop.html" class="back-link">← Back to Shop</a>
+            </div>
+          </div>
+        `;
+        
+      } catch (err) {
+        console.error('Error:', err);
+        loading.style.display = 'none';
+        error.style.display = 'block';
+      }
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function addToCart(productId) {
+      if (typeof window.addToCartFromSupabase === 'function') {
+        window.addToCartFromSupabase(productId);
+      } else {
+        alert('Please wait for page to load');
+      }
+    }
+    
+    window.addEventListener('DOMContentLoaded', function() {
+      waitForSupabase(loadProductDetail);
+    });
+    </script>
 </body>
-
 </html>
-
