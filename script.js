@@ -928,6 +928,7 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+
 // ==============================================
 // CART SYSTEM - SUPABASE INTEGRATION
 // ==============================================
@@ -966,213 +967,42 @@ function toggleCart() {
   }
 }
 
-async function syncCartFromDatabase() {
-  if (!currentUser || !supabase) return;
-  try {
-    await updateCartBadge();
-  } catch (error) {
-    console.error('Cart sync error:', error);
-  }
-}
-
-async function addToCartFromSupabase(productId) {
-  if (!currentUser) {
-    if (confirm('Please sign in to add items to cart. Sign in now?')) {
-      const modal = document.getElementById('modal');
-      if (modal) {
-        modal.style.display = 'flex';
-        modal.classList.add('open');
-      }
-    }
-    return;
-  }
-  
-  if (!supabase) {
-    alert('Service unavailable');
-    return;
-  }
-  
-  try {
-    const { data: existing, error: checkError } = await supabase
-      .from('cart')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .eq('product_id', productId)
-      .maybeSingle();
-    
-    if (checkError && checkError.code !== 'PGRST116') throw checkError;
-    
-    if (existing) {
-      const { error: updateError } = await supabase
-        .from('cart')
-        .update({ quantity: existing.quantity + 1 })
-        .eq('id', existing.id);
-      if (updateError) throw updateError;
-    } else {
-      const { error: insertError } = await supabase
-        .from('cart')
-        .insert([{
-          user_id: currentUser.id,
-          product_id: productId,
-          quantity: 1,
-          added_at: new Date().toISOString()
-        }]);
-      if (insertError) throw insertError;
-    }
-    
-    await updateCartBadge();
-    showMessage('Added to cart!', 'success', 2000);
-    
-  } catch (error) {
-    console.error('Add to cart error:', error);
-    alert('Failed to add to cart: ' + error.message);
-  }
-}
-
-window.addToCartFromSupabase = addToCartFromSupabase;
-
-async function updateCartQuantity(cartId, newQuantity) {
-  if (!supabase || !currentUser) return;
-  
-  try {
-    if (newQuantity <= 0) {
-      const { error } = await supabase
-        .from('cart')
-        .delete()
-        .eq('id', cartId);
-      if (error) throw error;
-    } else {
-      const { error } = await supabase
-        .from('cart')
-        .update({ quantity: newQuantity })
-        .eq('id', cartId);
-      if (error) throw error;
-    }
-    
-    await renderCart();
-    await updateCartBadge();
-  } catch (error) {
-    console.error('Update cart error:', error);
-    alert('Failed to update cart');
-  }
-}
-
-async function removeFromCart(cartId) {
-  if (!supabase || !currentUser) return;
-  
-  try {
-    const { error } = await supabase
-      .from('cart')
-      .delete()
-      .eq('id', cartId);
-    if (error) throw error;
-    
-    await renderCart();
-    await updateCartBadge();
-  } catch (error) {
-    console.error('Remove error:', error);
-    alert('Failed to remove item');
-  }
-}
-
-async function handleClearCart() {
-  if (!confirm('Clear all items from cart?')) return;
-  if (!currentUser || !supabase) return;
-  
-  try {
-    const { error } = await supabase
-      .from('cart')
-      .delete()
-      .eq('user_id', currentUser.id);
-    if (error) throw error;
-    
-    await renderCart();
-    await updateCartBadge();
-  } catch (error) {
-    console.error('Clear cart error:', error);
-    alert('Failed to clear cart');
-  }
-}
-
-async function handleCheckout() {
-  if (!currentUser) {
-    alert('Please sign in to checkout');
-    return;
-  }
-  
-  if (!supabase) return;
-  
-  try {
-    const { data: cartItems, error: cartError } = await supabase
-      .from('cart')
-      .select('*, products(*)')
-      .eq('user_id', currentUser.id);
-    
-    if (cartError) throw cartError;
-    if (!cartItems || cartItems.length === 0) {
-      alert('Cart is empty');
-      return;
-    }
-    
-    let total = 0;
-    cartItems.forEach(item => {
-      if (item.products) total += item.products.price * item.quantity;
-    });
-    
-    if (confirm(`Checkout - Total: RWF ${total}. Proceed?`)) {
-      const { error: clearError } = await supabase
-        .from('cart')
-        .delete()
-        .eq('user_id', currentUser.id);
-      if (clearError) throw clearError;
-      
-      await renderCart();
-      await updateCartBadge();
-      closeCart();
-      alert('Thank you! (This was a simulated checkout.)');
-    }
-  } catch (error) {
-    console.error('Checkout error:', error);
-    alert('Checkout failed: ' + error.message);
-  }
-}
-
 async function renderCart() {
   if (!cartItemsNode) return;
-  
+
   if (!currentUser) {
     cartItemsNode.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#666;"><p>Please sign in to view your cart</p></div>';
     if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
     return;
   }
-  
+
   if (!supabase) return;
-  
+
   try {
     const { data: cartItems, error } = await supabase
-      .from('cart')
-      .select('id, quantity, products(id, name, price, image_url, stock)')
+      .from('cart_items')
+      .select('id, quantity, product_id, products(id, name, price, image_url, stock)')
       .eq('user_id', currentUser.id);
-    
+
     if (error) throw error;
-    
+
     cartItemsNode.innerHTML = "";
-    
+
     if (!cartItems || cartItems.length === 0) {
       cartItemsNode.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#666;">Your cart is empty.</div>';
       if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
       return;
     }
-    
+
     let subtotal = 0;
-    
+
     for (const item of cartItems) {
       if (!item.products) continue;
-      
+
       const product = item.products;
       const itemTotal = product.price * item.quantity;
       subtotal += itemTotal;
-      
+
       const ci = document.createElement("div");
       ci.style.cssText = "display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;";
       ci.innerHTML = `
@@ -1182,24 +1012,24 @@ async function renderCart() {
         <div style="flex:1;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <div style="font-weight:600;color:#333;">${product.name}</div>
-            <div style="font-weight:700;color:${UI.primaryPink};">RWF ${itemTotal}</div>
+            <div style="font-weight:700;color:#ff9db1;">RWF ${itemTotal}</div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <button data-decrease="${item.id}" style="padding:4px 12px;border-radius:6px;background:${UI.primaryPink};color:#fff;border:none;cursor:pointer;">−</button>
+              <button data-decrease="${item.id}" style="padding:4px 12px;border-radius:6px;background:#ff9db1;color:#fff;border:none;cursor:pointer;">−</button>
               <div style="min-width:28px;text-align:center;font-weight:600;">${item.quantity}</div>
-              <button data-increase="${item.id}" style="padding:4px 12px;border-radius:6px;background:${UI.primaryPink};color:#fff;border:none;cursor:pointer;">+</button>
+              <button data-increase="${item.id}" style="padding:4px 12px;border-radius:6px;background:#ff9db1;color:#fff;border:none;cursor:pointer;">+</button>
             </div>
-            <button data-remove="${item.id}" style="padding:6px 12px;border-radius:6px;background:${UI.danger};color:#fff;border:none;cursor:pointer;font-size:13px;">Remove</button>
+            <button data-remove="${item.id}" style="padding:6px 12px;border-radius:6px;background:#ff4d4f;color:#fff;border:none;cursor:pointer;font-size:13px;">Remove</button>
           </div>
         </div>
       `;
       cartItemsNode.appendChild(ci);
     }
-    
+
     if (cartSubtotalNode) cartSubtotalNode.textContent = `RWF ${subtotal}`;
     bindCartEventListeners();
-    
+
   } catch (error) {
     console.error('Render cart error:', error);
     cartItemsNode.innerHTML = '<div style="text-align:center;padding:20px;color:#c62828;">Error loading cart</div>';
@@ -1211,7 +1041,7 @@ function bindCartEventListeners() {
     b.addEventListener("click", async () => {
       const cartId = b.getAttribute("data-increase");
       const { data: cartItem } = await supabase
-        .from('cart')
+        .from('cart_items')
         .select('quantity')
         .eq('id', cartId)
         .single();
@@ -1223,7 +1053,7 @@ function bindCartEventListeners() {
     b.addEventListener("click", async () => {
       const cartId = b.getAttribute("data-decrease");
       const { data: cartItem } = await supabase
-        .from('cart')
+        .from('cart_items')
         .select('quantity')
         .eq('id', cartId)
         .single();
@@ -1241,21 +1071,21 @@ function bindCartEventListeners() {
 
 async function updateCartBadge() {
   if (!cartBadge) return;
-  
+
   if (!currentUser || !supabase) {
     cartBadge.textContent = '0';
     cartBadge.style.display = 'none';
     return;
   }
-  
+
   try {
     const { data: cartItems, error } = await supabase
-      .from('cart')
+      .from('cart_items')
       .select('quantity')
       .eq('user_id', currentUser.id);
-    
+
     if (error) throw error;
-    
+
     const count = cartItems ? cartItems.reduce((sum, item) => sum + item.quantity, 0) : 0;
     cartBadge.textContent = count;
     cartBadge.style.display = count > 0 ? 'inline-block' : 'none';
@@ -1281,15 +1111,9 @@ function closeCart() {
   cartBackdrop.hidden = true;
 }
 
-const style = document.createElement('style');
-style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
-document.head.appendChild(style);
-
 function viewProduct(productId) {
-  // Example: redirect to product details page
   window.location.href = `product.html?id=${productId}`;
 }
-
 
 
 
