@@ -176,37 +176,38 @@
         
           // returns a Supabase client to use for requests (but avoids touching window.supabase)
           function getShopClient() {
-            // 1) If a proper client already exists globally, use it
-            if (window.supabase && typeof window.supabase.from === 'function') {
-              console.log('[shop] using existing window.supabase client');
-              return window.supabase;
-            }
-        
-            // 2) If the library is available as `supabase` and createClient exists, create a local client
-            if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
-              try {
-                const localClient = supabase.createClient(PROJECT_URL, PROJECT_ANON);
-                console.log('[shop] created local supabase client (did not overwrite globals)');
-                return localClient;
-              } catch (e) {
-                console.error('[shop] failed to create local client from library:', e);
+              // 1) If a proper client already exists globally, use it
+              if (window.supabase && typeof window.supabase.from === 'function') {
+                console.log('[shop] using existing window.supabase client');
+                return window.supabase;
               }
-            }
-        
-            // 3) As a last resort, if window.supabase looks like the library (has createClient), create local client
-            if (window.supabase && typeof window.supabase.createClient === 'function') {
-              try {
-                const localClient = window.supabase.createClient(PROJECT_URL, PROJECT_ANON);
-                console.log('[shop] created local client from window.supabase.createClient (no global overwrite)');
-                return localClient;
-              } catch (e) {
-                console.error('[shop] failed to create local client from window.supabase.createClient:', e);
+            
+              // 2) If the library is available as `supabase` and createClient exists, create a local client
+              if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
+                try {
+                  const localClient = supabase.createClient(PROJECT_URL, PROJECT_ANON);
+                  console.log('[shop] created local supabase client (did not overwrite globals)');
+                  return localClient;
+                } catch (e) {
+                  console.error('[shop] failed to create local client from library:', e);
+                }
               }
+            
+              // 3) If window.supabase is non-null and is the library (has createClient), create local client *safely*
+              if (typeof window.supabase !== 'undefined' && window.supabase !== null && typeof window.supabase.createClient === 'function') {
+                try {
+                  const localClient = window.supabase.createClient(PROJECT_URL, PROJECT_ANON);
+                  console.log('[shop] created local client from window.supabase.createClient (no global overwrite)');
+                  return localClient;
+                } catch (e) {
+                  console.error('[shop] failed to create local client from window.supabase.createClient:', e);
+                }
+              }
+            
+              // Nothing available
+              return null;
             }
-        
-            // Nothing available
-            return null;
-          }
+
         
           // small helper escapeHtml from your code
           function escapeHtml(text) {
@@ -314,4 +315,5 @@
 
 </body>
 </html>
+
 
