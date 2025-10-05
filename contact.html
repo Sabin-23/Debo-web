@@ -192,9 +192,36 @@
     </aside>
                 
     <div id="cart-backdrop" class="cart-backdrop" hidden></div>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    // Minimal auth check for pages without cart
+    const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        const openModalBtn = document.getElementById('openModal');
+        if (openModalBtn) {
+          const user = data.session.user;
+          const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
+          const initial = displayName.charAt(0).toUpperCase();
+          
+          openModalBtn.outerHTML = `
+            <li style="position:relative;list-style:none;">
+              <div style="width:48px;height:48px;border-radius:50%;background:#ff7da7;color:#fff;border:3px solid #fff;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;">
+                ${initial}
+              </div>
+            </li>
+          `;
+        }
+      }
+    });
+</script>
     <script src="script.js"></script>
 </body>
 
 </html>
+
 
