@@ -8,6 +8,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // ADD THIS RIGHT AFTER YOUR CONSTANTS (after SUPABASE_ANON_KEY line)
 
+// ADD THIS RIGHT AFTER YOUR CONSTANTS (after SUPABASE_ANON_KEY line)
+
+// Prevent sign-out flicker - check session immediately
+(function() {
+  if (typeof window.supabase !== 'undefined') {
+    const tempSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    tempSupabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        // Session exists, prevent UI flicker
+        const openModalBtn = document.getElementById('openModal');
+        if (openModalBtn) {
+          openModalBtn.style.display = 'none';
+        }
+      }
+    });
+  }
+})();
+
 let supabase = null;
 let currentUser = null;
 let currentUserProfile = null;
@@ -898,6 +916,7 @@ function closeCart() {
 const style = document.createElement('style');
 style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
 document.head.appendChild(style);
+
 
 
 
