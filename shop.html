@@ -310,9 +310,128 @@
           waitForDOMAndRun();
         })();
     </script>
+    <script>
+        /* --- Add to Cart (global) + badge refresh --- */
+        (function () {
+          // Use existing getShopClient() if present, otherwise create a safe local client
+          function getClientForCart() {
+            if (typeof getShopClient === 'function') {
+              try { return getShopClient(); } catch(e) { console.warn('getShopClient() error', e); }
+            }
+            // fallback: use window.supabase if it's a client
+            if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
+            // fallback library global
+            if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+              // use guarded global keys if present
+              const url = (typeof window.SUPABASE_URL !== 'undefined') ? window.SUPABASE_URL : 'https://hlskxkqwymuxcjgswqnv.supabase.co';
+              const key = (typeof window.SUPABASE_ANON_KEY !== 'undefined') ? window.SUPABASE_ANON_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
+              return supabase.createClient(url, key);
+            }
+            return null;
+          }
+        
+          async function refreshCartBadge(client = null) {
+            try {
+              const cl = client ?? getClientForCart();
+              if (!cl) return;
+              // try to get user id
+              const { data: ud, error: ue } = await cl.auth.getUser();
+              if (ue) { console.warn('refreshCartBadge auth.getUser error', ue); return; }
+              const uid = ud?.user?.id;
+              const badgeEl = document.getElementById('cart-badge');
+              if (!uid) {
+                if (badgeEl) badgeEl.textContent = '0';
+                return;
+              }
+              const { data, error } = await cl.from('cart').select('quantity').eq('user_id', uid);
+              if (error) {
+                console.warn('refreshCartBadge query error', error);
+                return;
+              }
+              const total = Array.isArray(data) ? data.reduce((s, r) => s + (r.quantity || 0), 0) : 0;
+              if (badgeEl) badgeEl.textContent = total;
+            } catch (e) {
+              console.error('refreshCartBadge unexpected', e);
+            }
+          }
+        
+          // Expose global function used by your product cards
+          window.addProductToCart = async function addProductToCart(event, productId) {
+            try {
+              if (event && typeof event.preventDefault === 'function') {
+                event.preventDefault();
+                event.stopPropagation();
+              }
+        
+              const client = getClientForCart();
+              if (!client) { alert('Unable to initialize cart. Try reloading.'); return; }
+        
+              // Get current user
+              const { data: ud, error: ue } = await client.auth.getUser();
+              if (ue) throw ue;
+              const user = ud?.user;
+              if (!user) {
+                // not signed in - open modal or alert
+                const openBtn = document.getElementById('openModal');
+                if (openBtn) openBtn.click();
+                else alert('Please sign in to add items to your cart.');
+                return;
+              }
+        
+              if (!productId) { console.error('addProductToCart: missing productId'); return; }
+        
+              // Look for existing cart row
+              const { data: existing, error: selErr } = await client
+                .from('cart')
+                .select('id,quantity')
+                .eq('user_id', user.id)
+                .eq('product_id', productId)
+                .maybeSingle();
+        
+              if (selErr) {
+                console.error('addProductToCart select error', selErr);
+                alert('Failed to add to cart (query). See console.');
+                return;
+              }
+        
+              if (existing) {
+                // update quantity
+                const { error: updErr } = await client
+                  .from('cart')
+                  .update({ quantity: (existing.quantity || 0) + 1 })
+                  .eq('id', existing.id);
+                if (updErr) { console.error('update error', updErr); alert('Failed to update cart'); return; }
+              } else {
+                // insert new row
+                const { error: insErr } = await client
+                  .from('cart')
+                  .insert([{ user_id: user.id, product_id: productId, quantity: 1 }]);
+                if (insErr) { console.error('insert error', insErr); alert('Failed to add to cart'); return; }
+              }
+        
+              // success feedback
+              await refreshCartBadge(client);
+              const badge = document.getElementById('cart-badge');
+              if (badge) badge.animate([{ transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 180 });
+            } catch (err) {
+              console.error('addProductToCart error:', err);
+              alert('Could not add to cart. Check console for details.');
+            }
+          };
+        
+          // Update badge on load
+          document.addEventListener('DOMContentLoaded', () => {
+            // small delay to allow auth init in script.js
+            setTimeout(() => refreshCartBadge(), 300);
+          });
+        
+        })();
+    </script>
+
 
 </body>
 </html>
+
 
 
 
