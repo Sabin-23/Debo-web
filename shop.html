@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shop - ECHAD</title>
+    <title>Shop - God's only Store</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,7 +12,7 @@
 <body>
     
     <section id="header">
-        <h4>ECHAD</h4>
+        <h4>God's Only Store</h4>
         <div>
             <ul id="navbar">
                 <li><a href="index.html">Home</a></li>
@@ -130,12 +130,11 @@
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; 2025 ECHAD. All Rights Reserved.</p>
+            <p>&copy; 2025 God's only Store. All Rights Reserved.</p>
             <p>@whatis50</p>
         </div>
     </footer>
     
-    <!-- CART SIDEBAR -->
     <aside id="cart-panel" class="cart-panel" aria-hidden="true">
         <div class="cart-header">
             <h3>Your Cart</h3>
@@ -156,13 +155,59 @@
     <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
     <script src="script.js"></script>
+    
+    <!-- CART FIXES & GLOBAL ADD TO CART -->
     <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        // Initialize cart functionality
-        if (typeof initializeCart === 'function') initializeCart();
-      });
+        // Initialize cart panel after DOM load
+        document.addEventListener("DOMContentLoaded", () => {
+            if (typeof initializeCart === "function") initializeCart();
+        });
+
+        // Expose global function for product cards
+        window.addProductToCart = async function(event, productId) {
+            event?.preventDefault();
+            event?.stopPropagation();
+
+            if (!window.supabase) {
+                alert("Supabase not initialized.");
+                return;
+            }
+
+            try {
+                const { data: ud } = await supabase.auth.getUser();
+                const user = ud?.user;
+                if (!user) {
+                    document.getElementById("openModal")?.click();
+                    return;
+                }
+
+                const { data: existing, error: checkError } = await supabase
+                    .from("cart")
+                    .select("id")
+                    .eq("user_id", user.id)
+                    .eq("product_id", productId)
+                    .maybeSingle();
+
+                if (checkError && checkError.code !== "PGRST116") throw checkError;
+                if (existing) {
+                    alert("Item already in cart.");
+                    return;
+                }
+
+                const { error: insertError } = await supabase
+                    .from("cart")
+                    .insert([{ user_id: user.id, product_id: productId, quantity: 1, added_at: new Date().toISOString() }]);
+
+                if (insertError) throw insertError;
+
+                showMessage("Added to cart!", "success", 2000);
+                if (typeof updateCartBadge === "function") updateCartBadge();
+            } catch (err) {
+                console.error("addProductToCart error:", err);
+                alert("Failed to add to cart: " + err.message);
+            }
+        };
     </script>
 
 </body>
 </html>
-
