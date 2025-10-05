@@ -153,98 +153,123 @@
         </div>
     </aside>
     <div id="cart-backdrop" class="cart-backdrop" hidden></div>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
     <script>
-    // Wait for supabase from script.js
-    function waitForSupabase(callback) {
-      if (window.supabase) callback();
-      else setTimeout(() => waitForSupabase(callback), 100);
-    }
-    
-    async function loadShopProducts() {
-      const loading = document.getElementById('products-loading');
-      const container = document.getElementById('products-container');
-      const empty = document.getElementById('products-empty');
-      
-      try {
-        const { data: products, error } = await window.supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
+        // Minimal auth check for pages without cart
+        const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
         
-        loading.style.display = 'none';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        if (error) throw error;
-        
-        if (!products || products.length === 0) {
-          empty.style.display = 'block';
-          return;
+        supabase.auth.getSession().then(({ data }) => {
+          if (data.session) {
+            const openModalBtn = document.getElementById('openModal');
+            if (openModalBtn) {
+              const user = data.session.user;
+              const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
+              const initial = displayName.charAt(0).toUpperCase();
+              
+              openModalBtn.outerHTML = `
+                <li style="position:relative;list-style:none;">
+                  <div style="width:48px;height:48px;border-radius:50%;background:#ff7da7;color:#fff;border:3px solid #fff;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;">
+                    ${initial}
+                  </div>
+                </li>
+              `;
+            }
+          }
+        });
+        // Wait for supabase from script.js
+        function waitForSupabase(callback) {
+          if (window.supabase) callback();
+          else setTimeout(() => waitForSupabase(callback), 100);
         }
         
-        container.style.display = 'flex';
-        container.innerHTML = '';
+        async function loadShopProducts() {
+          const loading = document.getElementById('products-loading');
+          const container = document.getElementById('products-container');
+          const empty = document.getElementById('products-empty');
+          
+          try {
+            const { data: products, error } = await window.supabase
+              .from('products')
+              .select('*')
+              .order('created_at', { ascending: false });
+            
+            loading.style.display = 'none';
+            
+            if (error) throw error;
+            
+            if (!products || products.length === 0) {
+              empty.style.display = 'block';
+              return;
+            }
+            
+            container.style.display = 'flex';
+            container.innerHTML = '';
+            
+            products.forEach(product => {
+              const card = document.createElement('div');
+              card.className = 'pro';
+              card.setAttribute('data-product-id', product.id);
+              
+              card.innerHTML = `
+                <img src="${product.image_url || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image'}" 
+                     alt="${escapeHtml(product.name)}"
+                     onclick="viewProduct('${product.id}')"
+                     style="cursor:pointer;">
+                <div class="des">
+                  <span>${escapeHtml(product.description || 'Product')}</span>
+                  <h5>${escapeHtml(product.name)}</h5>
+                  <div class="star">
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star"></i>
+                  </div>
+                  <h4>RWF ${product.price || 0}</h4>
+                  <p style="font-size:12px;color:#666;">Stock: ${product.stock || 0}</p>
+                </div>
+                <a href="#" onclick="addProductToCart(event, '${product.id}')">
+                  <i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i>
+                </a>
+              `;
+              
+              container.appendChild(card);
+            });
+            
+          } catch (err) {
+            console.error('Error:', err);
+            loading.style.display = 'none';
+            empty.querySelector('p').textContent = 'Error loading products';
+            empty.style.display = 'block';
+          }
+        }
         
-        products.forEach(product => {
-          const card = document.createElement('div');
-          card.className = 'pro';
-          card.setAttribute('data-product-id', product.id);
-          
-          card.innerHTML = `
-            <img src="${product.image_url || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image'}" 
-                 alt="${escapeHtml(product.name)}"
-                 onclick="viewProduct('${product.id}')"
-                 style="cursor:pointer;">
-            <div class="des">
-              <span>${escapeHtml(product.description || 'Product')}</span>
-              <h5>${escapeHtml(product.name)}</h5>
-              <div class="star">
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-              </div>
-              <h4>RWF ${product.price || 0}</h4>
-              <p style="font-size:12px;color:#666;">Stock: ${product.stock || 0}</p>
-            </div>
-            <a href="#" onclick="addProductToCart(event, '${product.id}')">
-              <i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i>
-            </a>
-          `;
-          
-          container.appendChild(card);
+        function escapeHtml(text) {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        }
+        
+        function viewProduct(productId) {
+          window.location.href = `sproduct.html?id=${productId}`;
+        }
+        
+        function addProductToCart(event, productId) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (typeof window.addToCartFromSupabase === 'function') {
+            window.addToCartFromSupabase(productId);
+          }
+        }
+        
+        window.addEventListener('DOMContentLoaded', function() {
+          waitForSupabase(loadShopProducts);
         });
-        
-      } catch (err) {
-        console.error('Error:', err);
-        loading.style.display = 'none';
-        empty.querySelector('p').textContent = 'Error loading products';
-        empty.style.display = 'block';
-      }
-    }
-    
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-    
-    function viewProduct(productId) {
-      window.location.href = `sproduct.html?id=${productId}`;
-    }
-    
-    function addProductToCart(event, productId) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof window.addToCartFromSupabase === 'function') {
-        window.addToCartFromSupabase(productId);
-      }
-    }
-    
-    window.addEventListener('DOMContentLoaded', function() {
-      waitForSupabase(loadShopProducts);
-    });
     </script>
 </body>
 </html>
+
