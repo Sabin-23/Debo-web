@@ -330,94 +330,108 @@
             return null;
           }
         
-          async function refreshCartBadge(client = null) {
-            try {
-              const cl = client ?? getClientForCart();
-              if (!cl) return;
-              // try to get user id
-              const { data: ud, error: ue } = await cl.auth.getUser();
-              if (ue) { console.warn('refreshCartBadge auth.getUser error', ue); return; }
-              const uid = ud?.user?.id;
-              const badgeEl = document.getElementById('cart-badge');
-              if (!uid) {
-                if (badgeEl) badgeEl.textContent = '0';
-                return;
-              }
-              const { data, error } = await cl.from('cart').select('quantity').eq('user_id', uid);
-              if (error) {
-                console.warn('refreshCartBadge query error', error);
-                return;
-              }
-              const total = Array.isArray(data) ? data.reduce((s, r) => s + (r.quantity || 0), 0) : 0;
-              if (badgeEl) badgeEl.textContent = total;
-            } catch (e) {
-              console.error('refreshCartBadge unexpected', e);
+        async function refreshCartBadge(client = null) {
+          try {
+            const cl = client ?? getClientForCart();
+            if (!cl) return;
+            const { data: ud, error: ue } = await cl.auth.getUser();
+            if (ue) {
+              console.warn("refreshCartBadge auth.getUser error", ue);
+              return;
             }
+            const uid = ud?.user?.id;
+            const badgeEl = document.getElementById("cart-badge");
+            if (!uid) {
+              if (badgeEl) {
+                badgeEl.textContent = "0";
+                badgeEl.style.display = "none";
+              }
+              return;
+            }
+        
+            const { data, error } = await cl
+              .from("cart_items")
+              .select("id")
+              .eq("user_id", uid);
+        
+            if (error) {
+              console.warn("refreshCartBadge query error", error);
+              return;
+            }
+        
+            const total = Array.isArray(data) ? data.length : 0;
+            if (badgeEl) {
+              badgeEl.textContent = total;
+              badgeEl.style.display = total > 0 ? "inline-block" : "none";
+            }
+          } catch (e) {
+            console.error("refreshCartBadge unexpected", e);
           }
+        }
+
         
           // Expose global function used by your product cards
           window.addProductToCart = async function addProductToCart(event, productId) {
-            try {
-              if (event && typeof event.preventDefault === 'function') {
-                event.preventDefault();
-                event.stopPropagation();
+              try {
+                if (event && typeof event.preventDefault === "function") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }
+            
+                const client = getClientForCart();
+                if (!client) {
+                  alert("Unable to initialize cart. Try reloading.");
+                  return;
+                }
+            
+                // Get current user
+                const { data: ud, error: ue } = await client.auth.getUser();
+                if (ue) throw ue;
+                const user = ud?.user;
+                if (!user) {
+                  const openBtn = document.getElementById("openModal");
+                  if (openBtn) openBtn.click();
+                  else alert("Please sign in to add items to your cart.");
+                  return;
+                }
+            
+                // Check if product already in cart_items
+                const { data: existing, error: checkError } = await client
+                  .from("cart_items")
+                  .select("id")
+                  .eq("user_id", user.id)
+                  .eq("product_id", productId)
+                  .maybeSingle();
+            
+                if (checkError && checkError.code !== "PGRST116") throw checkError;
+            
+                if (existing) {
+                  alert("Item already in cart.");
+                  return;
+                }
+            
+                // Insert new cart item
+                const { error: insertError } = await client
+                  .from("cart_items")
+                  .insert([
+                    {
+                      user_id: user.id,
+                      product_id: productId,
+                      added_at: new Date().toISOString(),
+                    },
+                  ]);
+            
+                if (insertError) throw insertError;
+            
+                showMessage("Added to cart!", "success", 2000);
+                await refreshCartBadge(client);
+            
+              } catch (err) {
+                console.error("addProductToCart error:", err);
+                alert("Failed to add to cart: " + err.message);
               }
-        
-              const client = getClientForCart();
-              if (!client) { alert('Unable to initialize cart. Try reloading.'); return; }
-        
-              // Get current user
-              const { data: ud, error: ue } = await client.auth.getUser();
-              if (ue) throw ue;
-              const user = ud?.user;
-              if (!user) {
-                // not signed in - open modal or alert
-                const openBtn = document.getElementById('openModal');
-                if (openBtn) openBtn.click();
-                else alert('Please sign in to add items to your cart.');
-                return;
-              }
-        
-              if (!productId) { console.error('addProductToCart: missing productId'); return; }
-        
-              // Look for existing cart row
-              const { data: existing, error: selErr } = await client
-                .from('cart')
-                .select('id,quantity')
-                .eq('user_id', user.id)
-                .eq('product_id', productId)
-                .maybeSingle();
-        
-              if (selErr) {
-                console.error('addProductToCart select error', selErr);
-                alert('Failed to add to cart (query). See console.');
-                return;
-              }
-        
-              if (existing) {
-                // update quantity
-                const { error: updErr } = await client
-                  .from('cart')
-                  .update({ quantity: (existing.quantity || 0) + 1 })
-                  .eq('id', existing.id);
-                if (updErr) { console.error('update error', updErr); alert('Failed to update cart'); return; }
-              } else {
-                // insert new row
-                const { error: insErr } = await client
-                  .from('cart')
-                  .insert([{ user_id: user.id, product_id: productId, quantity: 1 }]);
-                if (insErr) { console.error('insert error', insErr); alert('Failed to add to cart'); return; }
-              }
-        
-              // success feedback
-              await refreshCartBadge(client);
-              const badge = document.getElementById('cart-badge');
-              if (badge) badge.animate([{ transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 180 });
-            } catch (err) {
-              console.error('addProductToCart error:', err);
-              alert('Could not add to cart. Check console for details.');
-            }
-          };
+            };
+
         
           // Update badge on load
           document.addEventListener('DOMContentLoaded', () => {
@@ -431,6 +445,7 @@
 
 </body>
 </html>
+
 
 
 
