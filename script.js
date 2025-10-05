@@ -80,7 +80,7 @@ function initializeMobileMenu() {
 function setupAuthStateListener() {
   if (!supabase) return;
   
-  supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && !isProcessingAuth) {
       isProcessingAuth = true;
       currentUser = session.user;
@@ -100,7 +100,7 @@ function setupAuthStateListener() {
         }
         
         updateUIForLoggedInUser(currentUser);
-        showMessage('Successfully signed in!', 'success');
+        // REMOVED: showMessage('Successfully signed in!', 'success');
         await syncCartFromDatabase();
         
       } catch (error) {
@@ -914,4 +914,5 @@ function closeCart() {
 const style = document.createElement('style');
 style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
 document.head.appendChild(style);
+
 
