@@ -12,11 +12,12 @@
   <style>
     /* product card visual changes you asked for */
     .pro {
-      width: 230px;
+      width: 200px;
+      height: 400px;
       display:flex;
       flex-direction:column;
-      gap:10px;
-      padding:7px;
+      gap: 7px;
+      padding:12px;
       border-radius:12px;
       background: rgba(255,255,255,0.65); /* slightly transparent */
       border: 1px solid rgba(255,255,255,0.9); /* thin white-ish border */
@@ -28,7 +29,7 @@
     .pro:hover { transform: translateY(-4px); }
 
     .pro img { width:100%; height:180px; object-fit:cover; border-radius:8px; display:block; }
-    .des { display:flex; flex-direction:column; gap:8px; }
+    .des { display:flex; flex-direction:column; gap:4px; }
 
     .product-price { color: #ff9800; font-weight:700; } /* orange by default */
     .cart-icon { font-size: 26px; color: #ff9800; transition: color .12s linear, transform .08s linear; }
@@ -344,6 +345,7 @@
   </script>
 </body>
 </html>
+
 
 
 
