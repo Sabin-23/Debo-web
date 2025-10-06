@@ -116,7 +116,7 @@ function setupAuthStateListener() {
         
         updateUIForLoggedInUser(currentUser);
         // REMOVED: showMessage('Successfully signed in!', 'success');
-        await syncCartFromDatabase();
+        await syncTempCartToDatabase();
         
       } catch (error) {
         console.error('Sign in error:', error);
@@ -152,7 +152,7 @@ async function checkAuthStatus() {
         currentUserProfile = await createUserProfile(currentUser.id);
       }
       updateUIForLoggedInUser(currentUser);
-      await syncCartFromDatabase();
+      await syncTempCartToDatabase();
     } else {
       updateUIForLoggedOutUser();
     }
@@ -1386,3 +1386,4 @@ const style = document.createElement('style');
 style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
 document.head.appendChild(style);
   
+
