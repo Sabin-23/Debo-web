@@ -1007,6 +1007,24 @@ function initializeCart() {
   checkoutBtn = document.getElementById("checkout");
   clearCartBtn = document.getElementById("clear-cart");
 
+  const checkoutBtn = document.getElementById('checkout');
+  checkoutBtn.onclick = () => {
+    if (!window.currentUser) {
+      if (confirm('Please sign in to proceed to checkout. Open sign-in now?')) {
+        const modal = document.getElementById('modal');
+        if (modal) {
+          modal.style.display = 'flex';
+          modal.classList.add('open');
+        }
+      }
+      return;
+    }
+
+  // logged in → go to checkout
+  window.location.href = 'checkout.html';
+};
+
+
   
   if (!cartToggleMobile || !cartToggleDesktop) return;
   
@@ -1024,6 +1042,130 @@ function initializeCart() {
 
   if (typeof updateCartBadge === 'function') updateCartBadge();
 }
+
+// ---- Local (guest) Cart Helpers ----
+function getTempCart() {
+  try {
+    return JSON.parse(localStorage.getItem('temp_cart') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveTempCart(cart) {
+  localStorage.setItem('temp_cart', JSON.stringify(cart));
+}
+
+window.addToTempCart = function (productId, qty = 1) {
+  const cart = getTempCart();
+  const existing = cart.find(p => p.id === productId);
+  if (existing) existing.qty += qty;
+  else cart.push({ id: productId, qty });
+  saveTempCart(cart);
+  if (typeof updateCartBadge === 'function') updateCartBadge();
+  if (typeof showMessage === 'function') showMessage('Added to local cart', 'success');
+};
+
+// ---- Render local cart if not signed in ----
+window.renderCart = async function () {
+  const cartItemsDiv = document.getElementById('cart-items');
+  const subtotalDiv = document.getElementById('cart-subtotal');
+  const user = window.currentUser;
+
+  cartItemsDiv.innerHTML = '<div style="padding:20px;color:#666;">Loading...</div>';
+
+  if (!user) {
+    // guest cart
+    const cart = getTempCart();
+    if (!cart.length) {
+      cartItemsDiv.innerHTML = '<div style="padding:20px;color:#666;">Your cart is empty.</div>';
+      subtotalDiv.textContent = 'RWF 0';
+      return;
+    }
+
+    // fetch product info for each id
+    const ids = cart.map(c => c.id);
+    const { data: products, error } = await window.supabase
+      .from('products')
+      .select('*')
+      .in('id', ids);
+
+    if (error) {
+      cartItemsDiv.innerHTML = `<div style="padding:20px;color:red;">Error loading cart</div>`;
+      return;
+    }
+
+    let subtotal = 0;
+    cartItemsDiv.innerHTML = '';
+    cart.forEach(item => {
+      const p = products.find(prod => prod.id === item.id);
+      if (!p) return;
+      const total = (p.price || 0) * item.qty;
+      subtotal += total;
+      const div = document.createElement('div');
+      div.className = 'cart-item';
+      div.innerHTML = `
+        <img src="${p.image_url || 'https://via.placeholder.com/60'}" alt="">
+        <div class="cart-info">
+          <strong>${p.name}</strong>
+          <span>RWF ${p.price} × ${item.qty}</span>
+          <div class="cart-actions">
+            <button onclick="removeTempCartItem(${p.id})">Remove</button>
+          </div>
+        </div>`;
+      cartItemsDiv.appendChild(div);
+    });
+    subtotalDiv.textContent = 'RWF ' + subtotal;
+    return;
+  }
+
+  // If logged in → load from Supabase
+  const { data, error } = await window.supabase
+    .from('cart_items')
+    .select('quantity, products(id, name, price, image_url)')
+    .eq('user_id', user.id);
+
+  if (error) {
+    cartItemsDiv.innerHTML = `<div style="padding:20px;color:red;">Error loading cart</div>`;
+    return;
+  }
+
+  if (!data || !data.length) {
+    cartItemsDiv.innerHTML = '<div style="padding:20px;color:#666;">Your cart is empty.</div>';
+    subtotalDiv.textContent = 'RWF 0';
+    return;
+  }
+
+  let subtotal = 0;
+  cartItemsDiv.innerHTML = '';
+  data.forEach(item => {
+    const p = item.products;
+    const total = (p.price || 0) * item.quantity;
+    subtotal += total;
+    const div = document.createElement('div');
+    div.className = 'cart-item';
+    div.innerHTML = `
+      <img src="${p.image_url || 'https://via.placeholder.com/60'}" alt="">
+      <div class="cart-info">
+        <strong>${p.name}</strong>
+        <span>RWF ${p.price} × ${item.quantity}</span>
+        <div class="cart-actions">
+          <button onclick="removeCartItem(${p.id})">Remove</button>
+        </div>
+      </div>`;
+    cartItemsDiv.appendChild(div);
+  });
+  subtotalDiv.textContent = 'RWF ' + subtotal;
+};
+
+function removeTempCartItem(productId) {
+  let cart = getTempCart();
+  cart = cart.filter(item => item.id !== productId);
+  saveTempCart(cart);
+  renderCart();
+  if (typeof updateCartBadge === 'function') updateCartBadge();
+}
+
 
 // exported helpers
 window.toggleCart = function toggleCart() {
@@ -1201,5 +1343,6 @@ window.addToTempCart = addToTempCart;
 window.getTempCart = getTempCart;
 window.saveTempCart = saveTempCart;
 window.syncTempCartToDatabase = syncTempCartToDatabase;
+
 
 
