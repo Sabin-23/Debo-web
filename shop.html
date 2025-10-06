@@ -13,7 +13,6 @@
     /* product card visual changes you asked for */
     .pro {
       width: 200px;
-      height: 400px;
       display:flex;
       flex-direction:column;
       gap: 7px;
@@ -24,7 +23,7 @@
       box-shadow: none;
       cursor: pointer; /* card is clickable */
       transition: transform .08s ease;
-      min-height: 380px; /* longer card */
+      min-height: 4000px; /* longer card */
     }
     .pro:hover { transform: translateY(-4px); }
 
@@ -228,7 +227,7 @@
               <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
                 <div class="product-price">RWF ${product.price || 0}</div>
                 <a href="#" class="cart-icon-wrapper" data-product-id="${escapeHtml(prodId)}" title="Add to cart">
-                  <i class="fa-solid fa-cart-shopping cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
+                  <i class="fa-solid fa-cart-shopping fa-2x cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
                 </a>
               </div>
               <p style="font-size:12px;color:#666;margin:4px 0 0;">Stock: ${product.stock || 0}</p>
@@ -345,6 +344,7 @@
   </script>
 </body>
 </html>
+
 
 
 
