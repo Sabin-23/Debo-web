@@ -9,55 +9,16 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Small cart styling adjustments -->
+  <!-- Small CSS tweaks for cart icon color + in-cart state -->
   <style>
-    /* Price color variable (used for price & cart icon) */
-    :root { --price-color: #fdadcf; }
-
-    /* Make cart icon match price color and be touch-friendly */
-    .pro .cart-icon-wrapper {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      text-decoration: none;
-      padding: 6px 8px;
-      border-radius: 8px;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
-    .pro .cart-icon-wrapper .fa-cart-shopping {
-      color: var(--price-color);
-      font-size: 18px;
-      transition: transform .12s ease, opacity .12s ease;
-    }
-
-    .pro .cart-icon-wrapper .add-to-cart-text {
-      font-size: 13px;
-      color: #333;
-      font-weight: 600;
-      display: none; /* hidden by default for compact look; change to 'inline' to always show */
-    }
-
-    /* Make icon visible on larger screens; small touch area on mobile remains accessible */
-    @media(min-width:700px) {
-      .pro .cart-icon-wrapper .add-to-cart-text { display: inline; color: #333; font-weight:600; }
-    }
-
-    /* feedback when added */
-    .pro .cart-icon-wrapper.added .fa-cart-shopping {
-      transform: scale(1.08);
-      opacity: 0.9;
-    }
-
-    /* increase tap target */
-    .pro .cart-icon-wrapper { padding: 10px; }
-
-    /* ensure product card pointer */
-    .pro { cursor: pointer; }
+    /* keep other styles unchanged, only add icon color rules */
+    .product-price { color: #ff9db1; } /* price color reference */
+    .cart-icon { color: #ff9db1; font-size: 20px; cursor: pointer; transition: color .15s ease; }
+    .cart-icon.in-cart { color: #4caf50 !important; } /* green when added */
+    .cart-icon-wrapper { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:8px; text-decoration:none; }
+    .pro { position: relative; } /* ensure clickable areas behave */
+    .pro img { cursor: pointer; }
   </style>
-
 </head>
 <body>
   <section id="header">
@@ -113,11 +74,11 @@
 
   <section id="product1" class="section-p1">
     <div id="products-loading" style="text-align:center;padding:40px;">
-      <i class="fas fa-spinner fa-spin" style="font-size:32px;color:var(--price-color);"></i>
+      <i class="fas fa-spinner fa-spin" style="font-size:32px;color:#ff9db1;"></i>
       <p style="margin-top:16px;font-size:18px;color:#666;">Loading products...</p>
     </div>
 
-    <div class="pro-container" id="products-container" style="display:none;"></div>
+    <div class="pro-container" id="products-container" style="display:none; gap:12px; flex-wrap:wrap;"></div>
 
     <div id="products-empty" style="display:none;text-align:center;padding:60px 20px;">
       <i class="fas fa-box-open" style="font-size:64px;color:#ddd;"></i>
@@ -204,198 +165,176 @@
   <script src="script.js"></script>
 
   <script>
-    // SAFE fallback keys (used only if no global client exists)
-    const FALLBACK_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
-    const FALLBACK_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
-
-    function getShopClient() {
-      if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
-      if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
-        try { return supabase.createClient(FALLBACK_URL, FALLBACK_ANON); } catch(e){ console.error(e); }
-      }
-      if (typeof window.supabase !== 'undefined' && window.supabase !== null && typeof window.supabase.createClient === 'function') {
-        try { return window.supabase.createClient(FALLBACK_URL, FALLBACK_ANON); } catch(e){ console.error(e); }
-      }
-      return null;
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text || '';
-      return div.innerHTML;
-    }
-
-    function navigateToProduct(productId) {
-      if (!productId) return;
-      window.location.href = `sproduct.html?id=${encodeURIComponent(productId)}`;
-    }
-
-    // Add to cart icon click handler: adds item to cart (DB if logged in, local if not),
-    // updates badge and provides feedback. DOES NOT navigate away.
-    async function handleCartIconClick(productId, iconEl) {
-      if (!productId) return;
-      // visual feedback: add class 'added' briefly
-      try {
-        if (iconEl) iconEl.classList.add('adding');
-        if (typeof window.addToCartFromSupabase === 'function') {
-          await window.addToCartFromSupabase(productId);
-        } else if (typeof addToTempCart === 'function') {
-          addToTempCart(productId, 1);
-          if (typeof updateCartBadge === 'function') updateCartBadge();
-          if (typeof showMessage === 'function') showMessage('Added to cart (local)', 'info', 2000);
-        } else {
-          // fallback: just show message
-          if (typeof showMessage === 'function') showMessage('Added (no backend available)', 'info', 2000);
-        }
-        // small visual confirmation
-        if (iconEl) {
-          iconEl.classList.add('added');
-          setTimeout(() => iconEl.classList.remove('added'), 700);
-        }
-        // update badge if available
-        if (typeof updateCartBadge === 'function') updateCartBadge();
-      } catch (err) {
-        console.error('handleCartIconClick error', err);
-        if (typeof showMessage === 'function') showMessage('Failed to add to cart', 'error');
-      } finally {
-        if (iconEl) iconEl.classList.remove('adding');
-      }
-    }
-
-    // Attach handlers idempotently
-    function attachShopHandlers(container = document) {
-      // product card click => navigate
-      container.querySelectorAll('.pro').forEach(card => {
-        if (card.dataset.shopClickAttached) return;
-        card.dataset.shopClickAttached = '1';
-        card.addEventListener('click', (e) => {
-          // don't navigate if cart icon was the target
-          if (e.target.closest('.cart-icon-wrapper')) return;
-          const pid = card.getAttribute('data-product-id');
-          navigateToProduct(pid);
-        });
-      });
-
-      // ensure images also navigate
-      container.querySelectorAll('.pro img').forEach(img => {
-        if (img.dataset.imgClickAttached) return;
-        img.dataset.imgClickAttached = '1';
-        img.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const card = img.closest('.pro');
-          if (!card) return;
-          const pid = card.getAttribute('data-product-id');
-          navigateToProduct(pid);
-        });
-      });
-
-      // cart icons -> add to cart (no navigation)
-      container.querySelectorAll('.cart-icon-wrapper').forEach(link => {
-        if (link.dataset.cartHandlerAttached) return;
-        link.dataset.cartHandlerAttached = '1';
-        link.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          const productId = this.getAttribute('data-product-id');
-          const iconEl = this;
-          handleCartIconClick(productId, iconEl);
-        }, { passive: false });
+    // Wait for your global cart system and supabase to be ready,
+    // then load products and wire cart icon behavior.
+    async function waitForGlobals() {
+      return new Promise(resolve => {
+        const start = Date.now();
+        const interval = setInterval(() => {
+          if (window.supabase && typeof window.addToCartFromSupabase === 'function') {
+            clearInterval(interval);
+            resolve();
+          }
+          // safety timeout after 8s
+          if (Date.now() - start > 8000) {
+            clearInterval(interval);
+            resolve(); // resolve anyway (shop will show error if supabase missing)
+          }
+        }, 120);
       });
     }
 
-    // main loader
     async function loadShopProducts() {
       const loading = document.getElementById('products-loading');
       const container = document.getElementById('products-container');
       const empty = document.getElementById('products-empty');
 
-      const client = getShopClient();
+      loading.style.display = 'block';
+      container.style.display = 'none';
+      empty.style.display = 'none';
+
+      // ensure cart system loaded
+      await waitForGlobals();
+
+      const client = window.supabase || null;
       if (!client) {
-        console.error('[shop] no supabase client or library found on page.');
-        if (loading) loading.style.display = 'none';
-        if (empty) {
-          empty.querySelector('p').textContent = 'Supabase not available. Check initialization.';
-          empty.style.display = 'block';
-        }
+        loading.style.display = 'none';
+        empty.querySelector('p').textContent = 'Supabase not available. Check initialization.';
+        empty.style.display = 'block';
         return;
       }
 
       try {
-        if (loading) loading.style.display = 'block';
         const { data: products, error } = await client
           .from('products')
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (loading) loading.style.display = 'none';
+        loading.style.display = 'none';
 
         if (error) {
           console.error('[shop] Supabase returned error:', error);
-          if (empty) {
-            empty.querySelector('p').textContent = 'Error loading products: ' + (error.message || error);
-            empty.style.display = 'block';
-          }
+          empty.querySelector('p').textContent = 'Error loading products: ' + (error.message || error);
+          empty.style.display = 'block';
           return;
         }
 
         if (!products || products.length === 0) {
-          if (empty) empty.style.display = 'block';
+          empty.style.display = 'block';
           return;
         }
 
-        if (container) {
-          container.style.display = 'flex';
-          container.innerHTML = '';
+        // build set of product IDs already in cart
+        let inCartSet = new Set();
+
+        try {
+          if (window.currentUser && window.currentUser.id) {
+            // fetch cart items for current user
+            const { data: cartItems, error: cartErr } = await client
+              .from('cart_items')
+              .select('product_id')
+              .eq('user_id', window.currentUser.id);
+
+            if (!cartErr && Array.isArray(cartItems)) {
+              cartItems.forEach(ci => {
+                if (ci.product_id != null) inCartSet.add(String(ci.product_id));
+              });
+            }
+          } else if (typeof getTempCart === 'function') {
+            // use local temporary cart
+            const temp = getTempCart();
+            if (Array.isArray(temp)) temp.forEach(i => { if (i.product_id != null) inCartSet.add(String(i.product_id)); });
+          }
+        } catch (e) {
+          console.warn('Could not build in-cart set:', e);
         }
 
-        // Render
+        container.style.display = 'flex';
+        container.innerHTML = '';
+
+        // render cards
         products.forEach(product => {
           const card = document.createElement('div');
           card.className = 'pro';
-          card.setAttribute('data-product-id', product.id ?? '');
+          card.style.cssText = 'width:220px;padding:12px;border:1px solid #f2e5eb;border-radius:10px;background:#fff;display:flex;flex-direction:column;gap:8px;';
 
           const imageUrl = product.image_url || product.image || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
+          const prodId = product.id != null ? String(product.id) : '';
 
           card.innerHTML = `
-            <img src="${imageUrl}" alt="${escapeHtml(product.name)}">
-            <div class="des">
-              <span>${escapeHtml(product.description || 'Product')}</span>
-              <h5>${escapeHtml(product.name)}</h5>
-              <div class="star">
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
-                <i class="fas fa-star"></i>
+            <img src="${imageUrl}" alt="${escapeHtml(product.name || '')}" style="width:100%;height:160px;object-fit:cover;border-radius:8px;" data-product-id="${prodId}" />
+            <div class="des" style="display:flex;flex-direction:column;gap:6px;">
+              <span style="font-size:13px;color:#666;">${escapeHtml(product.description || 'Product')}</span>
+              <h5 style="margin:0;font-size:16px;">${escapeHtml(product.name || '')}</h5>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+                <div class="product-price">RWF ${product.price || 0}</div>
+                <a href="#" class="cart-icon-wrapper" data-product-id="${prodId}" title="Add to cart">
+                  <i class="fa-solid fa-cart-shopping cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
+                </a>
               </div>
-              <h4 style="color: var(--price-color);">RWF ${product.price || 0}</h4>
-              <p style="font-size:12px;color:#666;">Stock: ${product.stock || 0}</p>
+              <p style="font-size:12px;color:#666;margin:4px 0 0;">Stock: ${product.stock || 0}</p>
             </div>
-            <a href="#" class="cart-icon-wrapper" data-product-id="${product.id}" title="Add to cart">
-              <i class="fa-solid fa-cart-shopping cart"></i>
-              <span class="add-to-cart-text">Add to cart</span>
-            </a>
           `;
+
+          // image click -> navigate to single product page
+          const img = card.querySelector('img[data-product-id]');
+          if (img) {
+            img.addEventListener('click', () => {
+              if (!prodId) return;
+              window.location.href = `sproduct.html?id=${encodeURIComponent(prodId)}`;
+            });
+          }
+
+          // cart icon handler
+          const cartLink = card.querySelector('.cart-icon-wrapper');
+          const cartIcon = card.querySelector('.cart-icon');
+          if (cartLink && cartIcon) {
+            cartLink.addEventListener('click', async (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+
+              if (!prodId) return;
+
+              // disable while processing
+              cartIcon.style.pointerEvents = 'none';
+              try {
+                await window.addToCartFromSupabase(prodId);
+                // optimistic mark in-cart (addToCartFromSupabase already updates badge)
+                cartIcon.classList.add('in-cart');
+              } catch (e) {
+                console.error('Failed to add to cart:', e);
+              } finally {
+                cartIcon.style.pointerEvents = '';
+              }
+            });
+          }
 
           container.appendChild(card);
         });
 
-        // attach handlers AFTER DOM insertion
-        attachShopHandlers(container);
+        // Ensure cart toggle / panel wiring exists by calling initializeCart if available
+        if (typeof initializeCart === 'function') {
+          try { initializeCart(); } catch (e) { /* ignore */ }
+        }
 
       } catch (err) {
         console.error('[shop] Unexpected error:', err);
-        if (loading) loading.style.display = 'none';
-        if (empty) {
-          empty.querySelector('p').textContent = 'Error loading products';
-          empty.style.display = 'block';
-        }
+        loading.style.display = 'none';
+        empty.querySelector('p').textContent = 'Error loading products';
+        empty.style.display = 'block';
       }
     }
 
-    // start when DOM ready
+    // safe small escape helper
+    function escapeHtml(text) {
+      const d = document.createElement('div');
+      d.textContent = text == null ? '' : String(text);
+      return d.innerHTML;
+    }
+
+    // wait for DOM then run
     if (document.readyState === 'loading') {
-      window.addEventListener('DOMContentLoaded', loadShopProducts);
+      document.addEventListener('DOMContentLoaded', loadShopProducts);
     } else {
       loadShopProducts();
     }
