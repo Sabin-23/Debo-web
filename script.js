@@ -1074,6 +1074,31 @@ window.addToTempCart = function (productId, qty = 1) {
   if (typeof showMessage === 'function') showMessage('Added to local cart', 'success');
 };
 
+async function clearCart() {
+  const { data: { user } } = await window.supabase.auth.getUser();
+
+  if (!user) {
+    // guest user → clear local storage
+    localStorage.removeItem('temp_cart');
+    if (typeof renderCart === 'function') renderCart();
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (typeof showMessage === 'function') showMessage('Cart cleared', 'success');
+    return;
+  }
+
+  // logged-in user → clear Supabase table
+  const { error } = await window.supabase.from('cart_items').delete().eq('user_id', user.id);
+  if (error) {
+    if (typeof showMessage === 'function') showMessage('Error clearing cart', 'error');
+    return;
+  }
+
+  if (typeof renderCart === 'function') renderCart();
+  if (typeof updateCartBadge === 'function') updateCartBadge();
+  if (typeof showMessage === 'function') showMessage('Cart cleared', 'success');
+}
+
+
 // ---- Render local cart if not signed in ----
 window.renderCart = async function () {
   const cartItemsDiv = document.getElementById('cart-items');
@@ -1351,6 +1376,7 @@ window.addToTempCart = addToTempCart;
 window.getTempCart = getTempCart;
 window.saveTempCart = saveTempCart;
 window.syncTempCartToDatabase = syncTempCartToDatabase;
+
 
 
 
