@@ -1,226 +1,306 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Details - God's only Store</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        .product-detail-container {
-            max-width: 1200px;
-            margin: 50px auto;
-            padding: 20px;
-        }
-        .product-detail {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            background: #fff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .product-image-large {
-            width: 100%;
-            border-radius: 12px;
-            object-fit: cover;
-        }
-        .product-info h1 {
-            font-size: 32px;
-            margin-bottom: 20px;
-            color: #333;
-        }
-        .product-price-large {
-            font-size: 36px;
-            color: #ff9db1;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .product-description {
-            color: #666;
-            line-height: 1.8;
-            margin: 20px 0;
-        }
-        .product-stock {
-            padding: 8px 16px;
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-radius: 6px;
-            display: inline-block;
-            margin: 10px 0;
-        }
-        .add-to-cart-large {
-            padding: 15px 30px;
-            background-color: #ff9db1;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 18px;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 20px;
-            font-weight: 600;
-        }
-        .add-to-cart-large:hover {
-            background-color: #ff7da7;
-        }
-        .back-link {
-            display: inline-block;
-            margin-top: 20px;
-            color: #ff9db1;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .back-link:hover {
-            text-decoration: underline;
-        }
-        @media (max-width: 768px) {
-            .product-detail {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details - ECHAD</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .product-detail-container {
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .product-detail {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .product-image-large {
+      width: 100%;
+      max-height: 500px;
+      object-fit: cover;
+      border-radius: 12px;
+    }
+    .product-info h1 {
+      font-size: 32px;
+      margin-bottom: 15px;
+      color: #333;
+    }
+    .product-price-large {
+      font-size: 36px;
+      color: #ff9db1;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    .product-description {
+      color: #666;
+      line-height: 1.8;
+      margin: 20px 0;
+      font-size: 15px;
+    }
+    .product-stock {
+      padding: 8px 16px;
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-radius: 6px;
+      display: inline-block;
+      margin: 10px 0;
+      font-weight: 600;
+    }
+    .product-stock.out-of-stock {
+      background: #ffecec;
+      color: #c62828;
+    }
+    .quantity-selector {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin: 25px 0;
+    }
+    .quantity-selector label {
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .quantity-controls button {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: #f5f5f5;
+      cursor: pointer;
+      font-size: 20px;
+      color: #333;
+      transition: background 0.2s;
+    }
+    .quantity-controls button:hover {
+      background: #ff9db1;
+      color: white;
+    }
+    .quantity-controls input {
+      width: 60px;
+      height: 40px;
+      border: none;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    .btn-add-cart, .btn-buy-now {
+      flex: 1;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-add-cart {
+      background-color: #ff9db1;
+      color: white;
+    }
+    .btn-add-cart:hover {
+      background-color: #ff7da7;
+      transform: translateY(-2px);
+    }
+    .btn-buy-now {
+      background-color: #333;
+      color: white;
+    }
+    .btn-buy-now:hover {
+      background-color: #000;
+      transform: translateY(-2px);
+    }
+    .btn-add-cart:disabled, .btn-buy-now:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #ff9db1;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 768px) {
+      .product-detail {
+        grid-template-columns: 1fr;
+      }
+      .action-buttons {
+        flex-direction: column;
+      }
+    }
+  </style>
 </head>
 <body>
-    
-    <section id="header">
-        <h4>God's Only Store</h4>
-        <div>
-            <ul id="navbar">
-                <li><a href="index.html">Home</a></li>
-                <li><a class="active" href="shop.html">Shop</a></li>
-                <li><a href="About.html">About</a></li>
-                <li><a href="contact.html">Contact</a></li>
-                <li>
-                    <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart">
-                        <i class="fa-solid fa-bag-shopping"></i>
-                        <span id="cart-badge" class="badge">0</span>
-                    </a>
-                </li>
-                <button id="openModal">Sign-in/Register</button>
-                <div class="modal" id="modal">
-                    <div class="auth-container">
-                        <h2 id="form-title">Sign In</h2>
-                        <form id="signin-form" class="active">
-                            <input type="email" placeholder="Email" required />
-                            <input type="password" placeholder="Password" required />
-                            <button type="submit">Sign In</button>
-                            <a href="#" id="forgotPasswordLink" style="font-size:13px;color:#ff9db1;text-decoration:none;">Forgot password?</a>
-                        </form>
-                        <form id="register-form">
-                            <input type="text" placeholder="Full Name" required />
-                            <input type="email" placeholder="Email" required />
-                            <input type="password" placeholder="Password" required />
-                            <input type="password" placeholder="Confirm Password" required />
-                            <button type="submit">Register</button>
-                        </form>
-                        <p class="toggle-text">
-                            Don't have an account? <span id="toggle">Register</span>
-                        </p>
-                        <button id="closeModal">Close</button>
-                    </div>
-                </div>
-                <a href="#" id="close"><i class="far fa-times-circle"></i></a>
-            </ul>
-            <div id="mobile">
-                <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
-                    <i class="fa-solid fa-bag-shopping"></i>
-                    <span id="cart-badge" class="badge">0</span>
-                </a>
-                <i id="bar" class="fas fa-outdent"></i>
-            </div>
+  
+  <section id="header">
+    <h4>ECHAD</h4>
+    <div>
+      <ul id="navbar">
+        <li><a href="index.html">Home</a></li>
+        <li><a class="active" href="shop.html">Shop</a></li>
+        <li><a href="About.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li>
+          <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart">
+            <i class="fa-solid fa-bag-shopping"></i>
+            <span id="cart-badge" class="badge">0</span>
+          </a>
+        </li>
+        <button id="openModal">Sign-in/Register</button>
+        <div class="modal" id="modal">
+          <div class="auth-container">
+            <h2 id="form-title">Sign In</h2>
+            <form id="signin-form" class="active">
+              <input type="email" placeholder="Email" required />
+              <input type="password" placeholder="Password" required />
+              <button type="submit">Sign In</button>
+              <a href="#" id="forgotPasswordLink" style="font-size:13px;color:#ff9db1;text-decoration:none;">Forgot password?</a>
+            </form>
+            <form id="register-form">
+              <input type="text" placeholder="Full Name" required />
+              <input type="email" placeholder="Email" required />
+              <input type="password" placeholder="Password" required />
+              <input type="password" placeholder="Confirm Password" required />
+              <button type="submit">Register</button>
+            </form>
+            <p class="toggle-text">Don't have an account? <span id="toggle">Register</span></p>
+            <button id="closeModal">Close</button>
+          </div>
         </div>
-    </section>
-
-    <div class="product-detail-container">
-        <div id="product-loading" style="text-align:center;padding:60px;">
-            <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#ff9db1;"></i>
-            <p style="margin-top:20px;font-size:18px;color:#666;">Loading product...</p>
-        </div>
-        
-        <div id="product-detail" style="display:none;"></div>
-        
-        <div id="product-error" style="display:none;text-align:center;padding:60px;">
-            <i class="fas fa-exclamation-circle" style="font-size:48px;color:#ff9db1;"></i>
-            <p style="margin-top:20px;font-size:18px;color:#666;">Product not found</p>
-            <a href="shop.html" class="back-link">← Back to Shop</a>
-        </div>
+        <a href="#" id="close"><i class="far fa-times-circle"></i></a>
+      </ul>
+      <div id="mobile">
+        <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
+          <i class="fa-solid fa-bag-shopping"></i>
+          <span id="cart-badge" class="badge">0</span>
+        </a>
+        <i id="bar" class="fas fa-outdent"></i>
+      </div>
     </div>
+  </section>
 
-    <footer class="footer">
-        <div class="footer-container">
-            <div class="footer-section">
-                <h3>God's Only</h3>
-                <p>Your one-stop shop for fashion, beauty, and lifestyle essentials.</p>
-            </div>
-            <div class="footer-section">
-                <h4>Quick Links</h4>
-                <ul>
-                    <li><a href="index.html">Home</a></li>
-                    <li><a href="shop.html">Shop</a></li>
-                    <li><a href="About.html">About</a></li>
-                    <li><a href="contact.html">Contact</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h4>Customer Service</h4>
-                <ul> 
-                    <li><a href="#">FAQ</a></li>
-                    <li><a href="#">Returns</a></li>
-                    <li><a href="#">Shipping</a></li>
-                    <li><a href="#">Privacy Policy</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h4>Follow Us</h4>
-                <div class="socials">
-                    <a href="#"><i class="fab fa-facebook"></i></a>
-                    <a href="#"><i class="fab fa-instagram"></i></a>
-                    <a href="#"><i class="fab fa-twitter"></i></a>
-                    <a href="#"><i class="fab fa-youtube"></i></a>
-                </div>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2025 God's only Store. All Rights Reserved.</p>
-            <p>@whatis50</p>
-        </div>
-    </footer>
+  <div class="product-detail-container">
+    <div id="product-loading" style="text-align:center;padding:60px;">
+      <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#ff9db1;"></i>
+      <p style="margin-top:20px;font-size:18px;color:#666;">Loading product...</p>
+    </div>
     
-    <aside id="cart-panel" class="cart-panel" aria-hidden="true">
-        <div class="cart-header">
-            <h3>Your Cart</h3>
-            <button id="cart-close" aria-label="Close cart">✕</button>
-        </div>
-        <div id="cart-items" class="cart-items"></div>
-        <div class="cart-footer">
-            <div class="cart-totals">
-                <div>Subtotal</div>
-                <div id="cart-subtotal">—</div>
-            </div>
-            <div class="cart-actions">
-                <button id="checkout" class="accent">Checkout</button>
-                <button id="clear-cart" class="secondary">Clear Cart</button>
-            </div>
-        </div>
-    </aside>
-    <div id="cart-backdrop" class="cart-backdrop" hidden></div>
+    <div id="product-detail" style="display:none;"></div>
+    
+    <div id="product-error" style="display:none;text-align:center;padding:60px;">
+      <i class="fas fa-exclamation-circle" style="font-size:48px;color:#ff9db1;"></i>
+      <p style="margin-top:20px;font-size:18px;color:#666;">Product not found</p>
+      <a href="shop.html" class="back-link">← Back to Shop</a>
+    </div>
+  </div>
 
-    <script src="script.js"></script>
-    <script>
-    function waitForSupabase(callback) {
-      if (window.supabase) callback();
-      else setTimeout(() => waitForSupabase(callback), 100);
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-section">
+        <h3>ECHAD</h3>
+        <p>Your one-stop shop for fashion, beauty, and lifestyle essentials.</p>
+      </div>
+      <div class="footer-section">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="shop.html">Shop</a></li>
+          <li><a href="About.html">About</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Customer Service</h4>
+        <ul> 
+          <li><a href="#">FAQ</a></li>
+          <li><a href="#">Returns</a></li>
+          <li><a href="#">Shipping</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Follow Us</h4>
+        <div class="socials">
+          <a href="#"><i class="fab fa-facebook"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 ECHAD. All Rights Reserved.</p>
+      <p>@whatis50</p>
+    </div>
+  </footer>
+  
+  <aside id="cart-panel" class="cart-panel" aria-hidden="true">
+    <div class="cart-header">
+      <h3>Your Cart</h3>
+      <button id="cart-close" aria-label="Close cart">✕</button>
+    </div>
+    <div id="cart-items" class="cart-items"></div>
+    <div class="cart-footer">
+      <div class="cart-totals">
+        <div>Subtotal</div>
+        <div id="cart-subtotal">—</div>
+      </div>
+      <div class="cart-actions">
+        <button id="checkout" class="accent">Checkout</button>
+        <button id="clear-cart" class="secondary">Clear Cart</button>
+      </div>
+    </div>
+  </aside>
+  <div id="cart-backdrop" class="cart-backdrop" hidden></div>
+
+  <script src="script.js"></script>
+  <script>
+    let currentProduct = null;
+    let selectedQuantity = 1;
+
+    function waitForGlobals(callback) {
+      if (window.supabase && typeof window.addToCartFromSupabase === 'function') {
+        callback();
+      } else {
+        setTimeout(() => waitForGlobals(callback), 100);
+      }
     }
-    
+
     function getProductIdFromURL() {
       const params = new URLSearchParams(window.location.search);
       return params.get('id');
     }
-    
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
     async function loadProductDetail() {
       const loading = document.getElementById('product-loading');
       const container = document.getElementById('product-detail');
@@ -230,75 +310,4 @@
       
       if (!productId) {
         loading.style.display = 'none';
-        error.style.display = 'block';
-        return;
-      }
-      
-      try {
-        const { data: product, error: fetchError } = await window.supabase
-          .from('products')
-          .select('*')
-          .eq('id', productId)
-          .single();
-        
-        loading.style.display = 'none';
-        
-        if (fetchError || !product) {
-          error.style.display = 'block';
-          return;
-        }
-        
-        container.style.display = 'block';
-        container.innerHTML = `
-          <div class="product-detail">
-            <div>
-              <img 
-                src="${product.image_url || 'https://via.placeholder.com/500/fff0f3/ff9db1?text=No+Image'}" 
-                alt="${escapeHtml(product.name)}"
-                class="product-image-large"
-              >
-            </div>
-            <div class="product-info">
-              <h1>${escapeHtml(product.name)}</h1>
-              <div class="product-price-large">RWF ${product.price || 0}</div>
-              <div class="product-stock">
-                <i class="fas fa-check-circle"></i> ${product.stock || 0} in stock
-              </div>
-              <div class="product-description">
-                ${escapeHtml(product.description || 'No description available')}
-              </div>
-              <button class="add-to-cart-large" onclick="addToCart('${product.id}')">
-                <i class="fa-solid fa-cart-shopping"></i> Add to Cart
-              </button>
-              <a href="shop.html" class="back-link">← Back to Shop</a>
-            </div>
-          </div>
-        `;
-        
-      } catch (err) {
-        console.error('Error:', err);
-        loading.style.display = 'none';
-        error.style.display = 'block';
-      }
-    }
-    
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-    
-    function addToCart(productId) {
-      if (typeof window.addToCartFromSupabase === 'function') {
-        window.addToCartFromSupabase(productId);
-      } else {
-        alert('Please wait for page to load');
-      }
-    }
-    
-    window.addEventListener('DOMContentLoaded', function() {
-      waitForSupabase(loadProductDetail);
-    });
-    </script>
-</body>
-</html>
+        error.
