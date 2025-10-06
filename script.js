@@ -60,7 +60,7 @@ window.addEventListener('load', function() {
   initializeSupabase();
   setupAuth();
   initializeCart();
-  initializeMobileMenu();
+  
 });
 
 function initializeSupabase() {
@@ -79,14 +79,13 @@ function initializeSupabase() {
   }
 }
 
-function initializeMobileMenu() {
-  const bar = document.getElementById('bar');
-  const close = document.getElementById('close');
-  const nav = document.getElementById('navbar');
+const bar = document.getElementById('bar');
+const close = document.getElementById('close');
+const nav = document.getElementById('navbar');
   
-  if (bar) bar.addEventListener('click', () => nav.classList.add('active'));
-  if (close) close.addEventListener('click', () => nav.classList.remove('active'));
-}
+if (bar) bar.addEventListener('click', () => nav.classList.add('active'));
+if (close) close.addEventListener('click', () => nav.classList.remove('active'));
+
 
 // ==============================================
 // AUTH STATE MANAGEMENT
@@ -1352,6 +1351,7 @@ window.addToTempCart = addToTempCart;
 window.getTempCart = getTempCart;
 window.saveTempCart = saveTempCart;
 window.syncTempCartToDatabase = syncTempCartToDatabase;
+
 
 
 
