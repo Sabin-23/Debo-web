@@ -1007,23 +1007,6 @@ function initializeCart() {
   checkoutBtn = document.getElementById("checkout");
   clearCartBtn = document.getElementById("clear-cart");
 
-  const checkoutBtn = document.getElementById('checkout');
-  checkoutBtn.onclick = () => {
-    if (!window.currentUser) {
-      if (confirm('Please sign in to proceed to checkout. Open sign-in now?')) {
-        const modal = document.getElementById('modal');
-        if (modal) {
-          modal.style.display = 'flex';
-          modal.classList.add('open');
-        }
-      }
-      return;
-    }
-
-  // logged in → go to checkout
-  window.location.href = 'checkout.html';
-};
-
 
   
   if (!cartToggleMobile || !cartToggleDesktop) return;
@@ -1042,6 +1025,31 @@ function initializeCart() {
 
   if (typeof updateCartBadge === 'function') updateCartBadge();
 }
+
+  // Inside or after initializeCart()
+const checkoutBtn = document.getElementById('checkout');
+if (checkoutBtn) {
+  checkoutBtn.onclick = async () => {
+    const { data: { user } } = await window.supabase.auth.getUser();
+
+    if (!user) {
+      // user not logged in → show message or login modal
+      alert('You must sign in before checking out.');
+
+      const modal = document.getElementById('modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+      }
+
+      return; // stop here — don’t redirect
+    }
+
+    // user logged in → proceed
+    window.location.href = 'checkout.html';
+  };
+}
+
 
 // ---- Local (guest) Cart Helpers ----
 function getTempCart() {
@@ -1343,6 +1351,7 @@ window.addToTempCart = addToTempCart;
 window.getTempCart = getTempCart;
 window.saveTempCart = saveTempCart;
 window.syncTempCartToDatabase = syncTempCartToDatabase;
+
 
 
 
