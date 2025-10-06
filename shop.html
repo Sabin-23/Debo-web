@@ -8,6 +8,56 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Small cart styling adjustments -->
+  <style>
+    /* Price color variable (used for price & cart icon) */
+    :root { --price-color: #fdadcf; }
+
+    /* Make cart icon match price color and be touch-friendly */
+    .pro .cart-icon-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      padding: 6px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .pro .cart-icon-wrapper .fa-cart-shopping {
+      color: var(--price-color);
+      font-size: 18px;
+      transition: transform .12s ease, opacity .12s ease;
+    }
+
+    .pro .cart-icon-wrapper .add-to-cart-text {
+      font-size: 13px;
+      color: #333;
+      font-weight: 600;
+      display: none; /* hidden by default for compact look; change to 'inline' to always show */
+    }
+
+    /* Make icon visible on larger screens; small touch area on mobile remains accessible */
+    @media(min-width:700px) {
+      .pro .cart-icon-wrapper .add-to-cart-text { display: inline; color: #333; font-weight:600; }
+    }
+
+    /* feedback when added */
+    .pro .cart-icon-wrapper.added .fa-cart-shopping {
+      transform: scale(1.08);
+      opacity: 0.9;
+    }
+
+    /* increase tap target */
+    .pro .cart-icon-wrapper { padding: 10px; }
+
+    /* ensure product card pointer */
+    .pro { cursor: pointer; }
+  </style>
+
 </head>
 <body>
   <section id="header">
@@ -63,10 +113,12 @@
 
   <section id="product1" class="section-p1">
     <div id="products-loading" style="text-align:center;padding:40px;">
-      <i class="fas fa-spinner fa-spin" style="font-size:32px;color:#ff9db1;"></i>
+      <i class="fas fa-spinner fa-spin" style="font-size:32px;color:var(--price-color);"></i>
       <p style="margin-top:16px;font-size:18px;color:#666;">Loading products...</p>
     </div>
+
     <div class="pro-container" id="products-container" style="display:none;"></div>
+
     <div id="products-empty" style="display:none;text-align:center;padding:60px 20px;">
       <i class="fas fa-box-open" style="font-size:64px;color:#ddd;"></i>
       <p style="font-size:18px;color:#666;margin-top:20px;">No products available yet.</p>
@@ -150,40 +202,20 @@
   <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
   <script src="script.js"></script>
+
   <script>
-    // --- SAFETY: local fallback keys used only if no global client exists
+    // SAFE fallback keys (used only if no global client exists)
     const FALLBACK_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
     const FALLBACK_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
     function getShopClient() {
-      // 1) If a proper client already exists globally, use it
-      if (window.supabase && typeof window.supabase.from === 'function') {
-        console.log('[shop] using existing window.supabase client');
-        return window.supabase;
-      }
-
-      // 2) If the library global `supabase` is present (UMD), create a local client using safe fallback keys
+      if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
       if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
-        try {
-          const localClient = supabase.createClient(FALLBACK_URL, FALLBACK_ANON);
-          console.log('[shop] created local supabase client (did not overwrite globals)');
-          return localClient;
-        } catch (e) {
-          console.error('[shop] failed to create local client from library:', e);
-        }
+        try { return supabase.createClient(FALLBACK_URL, FALLBACK_ANON); } catch(e){ console.error(e); }
       }
-
-      // 3) If window.supabase has createClient method, create local client (safe)
       if (typeof window.supabase !== 'undefined' && window.supabase !== null && typeof window.supabase.createClient === 'function') {
-        try {
-          const localClient = window.supabase.createClient(FALLBACK_URL, FALLBACK_ANON);
-          console.log('[shop] created local client from window.supabase.createClient (no global overwrite)');
-          return localClient;
-        } catch (e) {
-          console.error('[shop] failed to create local client from window.supabase.createClient:', e);
-        }
+        try { return window.supabase.createClient(FALLBACK_URL, FALLBACK_ANON); } catch(e){ console.error(e); }
       }
-
       return null;
     }
 
@@ -193,15 +225,18 @@
       return div.innerHTML;
     }
 
-    // Navigate to single product page
     function navigateToProduct(productId) {
       if (!productId) return;
       window.location.href = `sproduct.html?id=${encodeURIComponent(productId)}`;
     }
 
-    // Add to cart then navigate (awaits addToCartFromSupabase if present)
-    async function handleCartAddThenNavigate(productId) {
+    // Add to cart icon click handler: adds item to cart (DB if logged in, local if not),
+    // updates badge and provides feedback. DOES NOT navigate away.
+    async function handleCartIconClick(productId, iconEl) {
+      if (!productId) return;
+      // visual feedback: add class 'added' briefly
       try {
+        if (iconEl) iconEl.classList.add('adding');
         if (typeof window.addToCartFromSupabase === 'function') {
           await window.addToCartFromSupabase(productId);
         } else if (typeof addToTempCart === 'function') {
@@ -209,35 +244,42 @@
           if (typeof updateCartBadge === 'function') updateCartBadge();
           if (typeof showMessage === 'function') showMessage('Added to cart (local)', 'info', 2000);
         } else {
-          console.warn('No addToCart function available; continuing to product page.');
+          // fallback: just show message
+          if (typeof showMessage === 'function') showMessage('Added (no backend available)', 'info', 2000);
         }
+        // small visual confirmation
+        if (iconEl) {
+          iconEl.classList.add('added');
+          setTimeout(() => iconEl.classList.remove('added'), 700);
+        }
+        // update badge if available
+        if (typeof updateCartBadge === 'function') updateCartBadge();
       } catch (err) {
-        console.error('Error adding to cart:', err);
+        console.error('handleCartIconClick error', err);
+        if (typeof showMessage === 'function') showMessage('Failed to add to cart', 'error');
       } finally {
-        navigateToProduct(productId);
+        if (iconEl) iconEl.classList.remove('adding');
       }
     }
 
-    // Attach handlers to cards + cart icons (idempotent)
+    // Attach handlers idempotently
     function attachShopHandlers(container = document) {
-      // Cards -> navigate on click
+      // product card click => navigate
       container.querySelectorAll('.pro').forEach(card => {
-        if (card.dataset._shopClickAttached) return;
-        card.dataset._shopClickAttached = '1';
-        card.style.cursor = 'pointer';
+        if (card.dataset.shopClickAttached) return;
+        card.dataset.shopClickAttached = '1';
         card.addEventListener('click', (e) => {
-          // if click was on cart icon anchor, skip (that anchor will handle navigation itself)
+          // don't navigate if cart icon was the target
           if (e.target.closest('.cart-icon-wrapper')) return;
           const pid = card.getAttribute('data-product-id');
           navigateToProduct(pid);
         });
       });
 
-      // Images inside cards also navigate (defensive)
+      // ensure images also navigate
       container.querySelectorAll('.pro img').forEach(img => {
-        if (img.dataset._imgClickAttached) return;
-        img.dataset._imgClickAttached = '1';
-        img.style.cursor = 'pointer';
+        if (img.dataset.imgClickAttached) return;
+        img.dataset.imgClickAttached = '1';
         img.addEventListener('click', (e) => {
           e.stopPropagation();
           const card = img.closest('.pro');
@@ -247,17 +289,17 @@
         });
       });
 
-      // Cart icons -> add to cart then navigate
+      // cart icons -> add to cart (no navigation)
       container.querySelectorAll('.cart-icon-wrapper').forEach(link => {
-        if (link.dataset._cartHandlerAttached) return;
-        link.dataset._cartHandlerAttached = '1';
+        if (link.dataset.cartHandlerAttached) return;
+        link.dataset.cartHandlerAttached = '1';
         link.addEventListener('click', function(e) {
           e.preventDefault();
           e.stopPropagation();
           const productId = this.getAttribute('data-product-id');
-          if (!productId) return;
-          handleCartAddThenNavigate(productId);
-        });
+          const iconEl = this;
+          handleCartIconClick(productId, iconEl);
+        }, { passive: false });
       });
     }
 
@@ -279,8 +321,7 @@
       }
 
       try {
-        console.log('> loadShopProducts: starting with client', client);
-
+        if (loading) loading.style.display = 'block';
         const { data: products, error } = await client
           .from('products')
           .select('*')
@@ -327,11 +368,12 @@
                 <i class="fas fa-star"></i>
                 <i class="fas fa-star"></i>
               </div>
-              <h4>RWF ${product.price || 0}</h4>
+              <h4 style="color: var(--price-color);">RWF ${product.price || 0}</h4>
               <p style="font-size:12px;color:#666;">Stock: ${product.stock || 0}</p>
             </div>
-            <a href="#" class="cart-icon-wrapper" data-product-id="${product.id}">
-              <i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i>
+            <a href="#" class="cart-icon-wrapper" data-product-id="${product.id}" title="Add to cart">
+              <i class="fa-solid fa-cart-shopping cart"></i>
+              <span class="add-to-cart-text">Add to cart</span>
             </a>
           `;
 
