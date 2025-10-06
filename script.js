@@ -1007,6 +1007,13 @@ function initializeCart() {
   checkoutBtn = document.getElementById("checkout");
   clearCartBtn = document.getElementById("clear-cart");
 
+  
+  if (!cartToggleMobile || !cartToggleDesktop) return;
+  
+  cartToggleMobile.addEventListener("click", toggleCart);
+  cartToggleDesktop.addEventListener("click", toggleCart);
+  
+
   // wire UI
   if (cartToggleMobile) cartToggleMobile.addEventListener("click", (e)=>{ e.preventDefault(); toggleCart(); });
   if (cartToggleDesktop) cartToggleDesktop.addEventListener("click", (e)=>{ e.preventDefault(); toggleCart(); });
@@ -1191,3 +1198,4 @@ window.addToTempCart = addToTempCart;
 window.getTempCart = getTempCart;
 window.saveTempCart = saveTempCart;
 window.syncTempCartToDatabase = syncTempCartToDatabase;
+
