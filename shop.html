@@ -224,10 +224,10 @@
             <div class="des">
               <span style="font-size:13px;color:#666;">${escapeHtml(product.description || 'Product')}</span>
               <h5 style="margin:0;font-size:16px;">${escapeHtml(product.name || '')}</h5>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
                 <div class="product-price">RWF ${product.price || 0}</div>
                 <a href="#" class="cart-icon-wrapper" data-product-id="${escapeHtml(prodId)}" title="Add to cart">
-                  <i class="fa-solid fa-cart-shopping cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
+                  <i class="fa-solid fa-cart-shopping fa-2x cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
                 </a>
               </div>
               <p style="font-size:12px;color:#666;margin:4px 0 0;">Stock: ${product.stock || 0}</p>
@@ -342,4 +342,5 @@
   </script>
 </body>
 </html>
+
 
