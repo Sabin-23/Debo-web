@@ -1114,6 +1114,9 @@ window.removeFromCartByProductId = removeFromCartByProductId;
 // If you already have renderCart/updateCartBadge implementations, keep them. Otherwise the following are safe fallback implementations.
 
 async function renderCart() {
+  const { data, error } = await supabase
+    .from('cart_items')
+    .select('*');
   const node = document.getElementById('cart-items');
   const subtotalNode = document.getElementById('cart-subtotal');
   if (!node) return;
@@ -1198,4 +1201,5 @@ window.addToTempCart = addToTempCart;
 window.getTempCart = getTempCart;
 window.saveTempCart = saveTempCart;
 window.syncTempCartToDatabase = syncTempCartToDatabase;
+
 
