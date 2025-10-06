@@ -930,14 +930,26 @@ function isValidEmail(email) {
 
 
 // ==============================================
-// TEMPORARY CART (LocalStorage)
+// CART SUBSYSTEM (local temp cart + supabase-backed cart_items)
 // ==============================================
 
+/**
+ * Notes:
+ * - Expects `supabase` and `currentUser` (user object with `.id`) to be defined elsewhere
+ * - Exposes window.addToCartFromSupabase(productId)
+ * - initializeCart() will wire up the UI buttons (it auto-runs on DOMContentLoaded)
+ */
+
+// key for local temporary cart
+const TEMP_CART_KEY = 'echad_temp_cart_v1';
+
+// ---------- Local temp cart ----------
 function getTempCart() {
   try {
     const cart = localStorage.getItem(TEMP_CART_KEY);
     return cart ? JSON.parse(cart) : [];
   } catch (error) {
+    console.error('getTempCart parse error', error);
     return [];
   }
 }
@@ -951,11 +963,11 @@ function saveTempCart(cart) {
 }
 
 function addToTempCart(productId, quantity = 1) {
+  if (!productId) return;
   const cart = getTempCart();
-  const existing = cart.find(item => item.product_id === productId);
-  
+  const existing = cart.find(item => String(item.product_id) === String(productId));
   if (existing) {
-    existing.quantity += quantity;
+    existing.quantity = (existing.quantity || 0) + quantity;
   } else {
     cart.push({
       product_id: productId,
@@ -963,7 +975,6 @@ function addToTempCart(productId, quantity = 1) {
       added_at: new Date().toISOString()
     });
   }
-  
   saveTempCart(cart);
 }
 
@@ -975,63 +986,55 @@ function clearTempCart() {
   }
 }
 
-// ==============================================
-// SYNC TEMP CART TO DATABASE
-// ==============================================
-
+// ---------- Sync temp cart to DB ----------
 async function syncTempCartToDatabase() {
-  if (!currentUser || !supabase) return;
-  
+  if (!window.currentUser || !window.supabase) return;
   const tempCart = getTempCart();
-  if (tempCart.length === 0) {
-    await updateCartBadge();
+  if (!Array.isArray(tempCart) || tempCart.length === 0) {
+    if (typeof updateCartBadge === 'function') updateCartBadge();
     return;
   }
-  
+
   try {
     for (const item of tempCart) {
+      const pid = item.product_id;
+      const qty = Number(item.quantity) || 1;
+
       const { data: existing, error: checkError } = await supabase
         .from('cart_items')
         .select('*')
         .eq('user_id', currentUser.id)
-        .eq('product_id', item.product_id)
+        .eq('product_id', pid)
         .maybeSingle();
-      
+
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Check cart error:', checkError);
+        console.warn('sync check error', checkError);
         continue;
       }
-      
+
       if (existing) {
-        await supabase
-          .from('cart_items')
-          .update({ quantity: existing.quantity + item.quantity })
+        await supabase.from('cart_items')
+          .update({ quantity: (existing.quantity || 0) + qty })
           .eq('id', existing.id);
       } else {
-        await supabase
-          .from('cart_items')
-          .insert([{
-            user_id: currentUser.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            added_at: new Date().toISOString()
-          }]);
+        await supabase.from('cart_items').insert([{
+          user_id: currentUser.id,
+          product_id: pid,
+          quantity: qty,
+          added_at: new Date().toISOString()
+        }]);
       }
     }
-    
+
     clearTempCart();
-    await updateCartBadge();
-    showMessage('Cart synced!', 'success', 2000);
-    
-  } catch (error) {
-    console.error('Sync cart error:', error);
+    if (typeof updateCartBadge === 'function') await updateCartBadge();
+    if (typeof showMessage === 'function') showMessage('Cart synced!', 'success', 2000);
+  } catch (err) {
+    console.error('syncTempCartToDatabase error', err);
   }
 }
 
-// ==============================================
-// CART SYSTEM
-// ==============================================
-
+// ---------- CART UI wiring ----------
 let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
 
 function initializeCart() {
@@ -1045,17 +1048,22 @@ function initializeCart() {
   cartSubtotalNode = document.getElementById("cart-subtotal");
   checkoutBtn = document.getElementById("checkout");
   clearCartBtn = document.getElementById("clear-cart");
-  
-  if (!cartToggleMobile || !cartToggleDesktop) return;
-  
-  cartToggleMobile.addEventListener("click", toggleCart);
-  cartToggleDesktop.addEventListener("click", toggleCart);
+
+  // don't crash if some elements missing
+  if (cartToggleMobile) cartToggleMobile.addEventListener("click", toggleCart);
+  if (cartToggleDesktop) cartToggleDesktop.addEventListener("click", toggleCart);
   if (cartClose) cartClose.addEventListener("click", closeCart);
   if (cartBackdrop) cartBackdrop.addEventListener("click", closeCart);
   if (checkoutBtn) checkoutBtn.addEventListener("click", handleCheckout);
   if (clearCartBtn) clearCartBtn.addEventListener("click", handleClearCart);
-  
-  updateCartBadge();
+
+  // sync temp -> DB if user already signed in
+  if (typeof currentUser !== 'undefined' && currentUser && typeof syncTempCartToDatabase === 'function') {
+    syncTempCartToDatabase().catch(e => console.warn('initial sync failed', e));
+  }
+
+  // update badge initially
+  if (typeof updateCartBadge === 'function') updateCartBadge();
 }
 
 function toggleCart() {
@@ -1066,19 +1074,26 @@ function toggleCart() {
   }
 }
 
+// ---------- Add to cart (exposed) ----------
 async function addToCartFromSupabase(productId) {
-  if (!currentUser) {
-    addToTempCart(productId, 1);
-    updateCartBadge();
-    showMessage('Added to cart! Sign in to save.', 'info', 3000);
+  if (!productId) {
+    console.warn('addToCartFromSupabase missing productId');
     return;
   }
-  
-  if (!supabase) {
+
+  // If no signed-in user, save to temp cart
+  if (!window.currentUser) {
+    addToTempCart(productId, 1);
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (typeof showMessage === 'function') showMessage('Added to cart! Sign in to save.', 'info', 3000);
+    return;
+  }
+
+  if (!window.supabase) {
     alert('Service unavailable');
     return;
   }
-  
+
   try {
     const { data: existing, error: checkError } = await supabase
       .from('cart_items')
@@ -1086,13 +1101,13 @@ async function addToCartFromSupabase(productId) {
       .eq('user_id', currentUser.id)
       .eq('product_id', productId)
       .maybeSingle();
-    
+
     if (checkError && checkError.code !== 'PGRST116') throw checkError;
-    
+
     if (existing) {
       const { error: updateError } = await supabase
         .from('cart_items')
-        .update({ quantity: existing.quantity + 1 })
+        .update({ quantity: (existing.quantity || 0) + 1 })
         .eq('id', existing.id);
       if (updateError) throw updateError;
     } else {
@@ -1106,183 +1121,152 @@ async function addToCartFromSupabase(productId) {
         }]);
       if (insertError) throw insertError;
     }
-    
-    await updateCartBadge();
-    showMessage('Added to cart!', 'success', 2000);
-    
-  } catch (error) {
-    console.error('Add to cart error:', error);
-    alert('Failed to add to cart: ' + error.message);
+
+    if (typeof updateCartBadge === 'function') await updateCartBadge();
+    if (typeof showMessage === 'function') showMessage('Added to cart!', 'success', 2000);
+  } catch (err) {
+    console.error('addToCartFromSupabase error', err);
+    throw err;
   }
 }
-
 window.addToCartFromSupabase = addToCartFromSupabase;
 
+// ---------- Update / Remove ----------
 async function updateCartQuantity(cartId, newQuantity) {
-  if (!supabase || !currentUser) return;
-  
+  if (!window.supabase || !window.currentUser) return;
   try {
     if (newQuantity <= 0) {
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('id', cartId);
+      const { error } = await supabase.from('cart_items').delete().eq('id', cartId);
       if (error) throw error;
     } else {
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity: newQuantity })
-        .eq('id', cartId);
+      const { error } = await supabase.from('cart_items').update({ quantity: newQuantity }).eq('id', cartId);
       if (error) throw error;
     }
-    
     await renderCart();
-    await updateCartBadge();
-  } catch (error) {
-    console.error('Update cart error:', error);
+    if (typeof updateCartBadge === 'function') await updateCartBadge();
+  } catch (err) {
+    console.error('updateCartQuantity error', err);
   }
 }
 
 async function removeFromCart(cartId) {
-  if (!supabase || !currentUser) return;
-  
+  if (!window.supabase || !window.currentUser) {
+    // local removal fallback
+    const temp = getTempCart().filter(i => String(i.product_id) !== String(cartId));
+    saveTempCart(temp);
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (typeof renderCart === 'function') renderCart();
+    return;
+  }
   try {
-    const { error } = await supabase
-      .from('cart_items')
-      .delete()
-      .eq('id', cartId);
+    const { error } = await supabase.from('cart_items').delete().eq('id', cartId);
     if (error) throw error;
-    
     await renderCart();
-    await updateCartBadge();
-  } catch (error) {
-    console.error('Remove error:', error);
+    if (typeof updateCartBadge === 'function') await updateCartBadge();
+  } catch (err) {
+    console.error('removeFromCart error', err);
   }
 }
 
+// ---------- Clear / Checkout ----------
 async function handleClearCart() {
   if (!confirm('Clear all items from cart?')) return;
-  
-  if (currentUser && supabase) {
+  if (window.currentUser && window.supabase) {
     try {
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('user_id', currentUser.id);
+      const { error } = await supabase.from('cart_items').delete().eq('user_id', currentUser.id);
       if (error) throw error;
-      
       await renderCart();
-      await updateCartBadge();
-    } catch (error) {
-      console.error('Clear cart error:', error);
+      if (typeof updateCartBadge === 'function') await updateCartBadge();
+    } catch (err) {
+      console.error('handleClearCart error', err);
     }
   } else {
     clearTempCart();
-    updateCartBadge();
-    renderCart();
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (typeof renderCart === 'function') renderCart();
   }
 }
 
 async function handleCheckout() {
-  if (!currentUser) {
+  if (!window.currentUser) {
     alert('Please sign in to checkout');
     const modal = document.getElementById('modal');
-    if (modal) {
-      modal.style.display = 'flex';
-      modal.classList.add('open');
-    }
+    if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
     return;
   }
-  
-  if (!supabase) return;
-  
+  if (!window.supabase) return;
   try {
     const { data: cartItems, error: cartError } = await supabase
       .from('cart_items')
       .select('*, products(*)')
       .eq('user_id', currentUser.id);
-    
     if (cartError) throw cartError;
-    if (!cartItems || cartItems.length === 0) {
-      alert('Cart is empty');
-      return;
-    }
-    
+    if (!cartItems || cartItems.length === 0) { alert('Cart is empty'); return; }
     let total = 0;
-    cartItems.forEach(item => {
-      if (item.products) total += item.products.price * item.quantity;
-    });
-    
+    cartItems.forEach(i => { if (i.products) total += i.products.price * i.quantity; });
     if (confirm(`Checkout - Total: RWF ${total}. Proceed?`)) {
-      const { error: clearError } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('user_id', currentUser.id);
-      if (clearError) throw clearError;
-      
+      const { error } = await supabase.from('cart_items').delete().eq('user_id', currentUser.id);
+      if (error) throw error;
       await renderCart();
-      await updateCartBadge();
+      if (typeof updateCartBadge === 'function') await updateCartBadge();
       closeCart();
       alert('Thank you for your order!');
     }
-  } catch (error) {
-    console.error('Checkout error:', error);
-    alert('Checkout failed: ' + error.message);
+  } catch (err) {
+    console.error('handleCheckout error', err);
+    alert('Checkout failed: ' + (err.message || err));
   }
 }
 
+// ---------- Render cart UI ----------
 async function renderCart() {
   if (!cartItemsNode) return;
-  
-  if (!currentUser) {
+  // if no signed in user => show temp cart prompt
+  if (!window.currentUser) {
     const tempCart = getTempCart();
-    if (tempCart.length === 0) {
+    if (!Array.isArray(tempCart) || tempCart.length === 0) {
       cartItemsNode.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#666;"><p>Your cart is empty</p></div>';
       if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
       return;
     }
-    
-    cartItemsNode.innerHTML = '<div style="text-align:center;padding:20px;background:#fff4f7;margin:10px;border-radius:8px;"><p style="margin:0 0 10px 0;color:#666;">You have items in cart</p><button onclick="document.getElementById(\'modal\').style.display=\'flex\'" style="padding:8px 16px;background:#ff9db1;color:#fff;border:none;border-radius:6px;cursor:pointer;">Sign in to save cart</button></div>';
+    cartItemsNode.innerHTML = '<div style="text-align:center;padding:20px;background:#fff4f7;margin:10px;border-radius:8px;"><p style="margin:0 0 10px 0;color:#666;">You have items in cart</p><button onclick="document.getElementById(\\'modal\\').style.display=\\'flex\\'" style="padding:8px 16px;background:#ff9db1;color:#fff;border:none;border-radius:6px;cursor:pointer;">Sign in to save cart</button></div>';
     if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
     return;
   }
-  
-  if (!supabase) return;
-  
+
+  if (!window.supabase) return;
+
   try {
     const { data: cartItems, error } = await supabase
       .from('cart_items')
       .select('id, quantity, product_id, products(id, name, price, image_url, stock)')
       .eq('user_id', currentUser.id);
-    
+
     if (error) throw error;
-    
-    cartItemsNode.innerHTML = "";
-    
+    cartItemsNode.innerHTML = '';
+
     if (!cartItems || cartItems.length === 0) {
       cartItemsNode.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#666;">Your cart is empty.</div>';
       if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
       return;
     }
-    
+
     let subtotal = 0;
-    
     for (const item of cartItems) {
       if (!item.products) continue;
-      
       const product = item.products;
-      const itemTotal = product.price * item.quantity;
+      const itemTotal = (product.price || 0) * (item.quantity || 0);
       subtotal += itemTotal;
-      
+
       const ci = document.createElement("div");
       ci.style.cssText = "display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;";
       ci.innerHTML = `
-        <img src="${product.image_url || 'https://via.placeholder.com/80/fff0f3/ff9db1?text=No+Img'}" 
-             alt="${product.name}" 
+        <img src="${escapeHtml(product.image_url || 'https://via.placeholder.com/80/fff0f3/ff9db1?text=No+Img')}" 
+             alt="${escapeHtml(product.name)}" 
              style="width:80px;height:80px;object-fit:cover;border-radius:8px;" />
         <div style="flex:1;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div style="font-weight:600;color:#333;">${product.name}</div>
+            <div style="font-weight:600;color:#333;">${escapeHtml(product.name)}</div>
             <div style="font-weight:700;color:#ff9db1;">RWF ${itemTotal}</div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1297,41 +1281,46 @@ async function renderCart() {
       `;
       cartItemsNode.appendChild(ci);
     }
-    
+
     if (cartSubtotalNode) cartSubtotalNode.textContent = `RWF ${subtotal}`;
     bindCartEventListeners();
-    
-  } catch (error) {
-    console.error('Render cart error:', error);
+  } catch (err) {
+    console.error('renderCart error', err);
     cartItemsNode.innerHTML = '<div style="text-align:center;padding:20px;color:#c62828;">Error loading cart</div>';
   }
 }
 
+// ---------- Bind increment/decrement/remove ----------
 function bindCartEventListeners() {
+  if (!cartItemsNode) return;
+
+  cartItemsNode.querySelectorAll("button[data-increase]").forEach(b => {
+    b.replaceWith(b.cloneNode(true));
+  });
+  cartItemsNode.querySelectorAll("button[data-decrease]").forEach(b => {
+    b.replaceWith(b.cloneNode(true));
+  });
+  cartItemsNode.querySelectorAll("button[data-remove]").forEach(b => {
+    b.replaceWith(b.cloneNode(true));
+  });
+
+  // Re-query after cloning to avoid duplicate listeners
   cartItemsNode.querySelectorAll("button[data-increase]").forEach(b => {
     b.addEventListener("click", async () => {
       const cartId = b.getAttribute("data-increase");
-      const { data: cartItem } = await supabase
-        .from('cart_items')
-        .select('quantity')
-        .eq('id', cartId)
-        .single();
-      if (cartItem) await updateCartQuantity(cartId, cartItem.quantity + 1);
+      const { data } = await supabase.from('cart_items').select('quantity').eq('id', cartId).single();
+      if (data) await updateCartQuantity(cartId, (data.quantity || 0) + 1);
     });
   });
-  
+
   cartItemsNode.querySelectorAll("button[data-decrease]").forEach(b => {
     b.addEventListener("click", async () => {
       const cartId = b.getAttribute("data-decrease");
-      const { data: cartItem } = await supabase
-        .from('cart_items')
-        .select('quantity')
-        .eq('id', cartId)
-        .single();
-      if (cartItem) await updateCartQuantity(cartId, cartItem.quantity - 1);
+      const { data } = await supabase.from('cart_items').select('quantity').eq('id', cartId).single();
+      if (data) await updateCartQuantity(cartId, (data.quantity || 0) - 1);
     });
   });
-  
+
   cartItemsNode.querySelectorAll("button[data-remove]").forEach(b => {
     b.addEventListener("click", async () => {
       const cartId = b.getAttribute("data-remove");
@@ -1340,50 +1329,72 @@ function bindCartEventListeners() {
   });
 }
 
+// ---------- Badge update ----------
 async function updateCartBadge() {
-  if (!cartBadge) return;
-  
+  // ensure element present
+  if (!cartBadge) {
+    cartBadge = document.getElementById('cart-badge');
+    if (!cartBadge) return;
+  }
+
   let count = 0;
-  
-  if (currentUser && supabase) {
+  if (window.currentUser && window.supabase) {
     try {
-      const { data: cartItems, error } = await supabase
-        .from('cart_items')
-        .select('quantity')
-        .eq('user_id', currentUser.id);
-      
-      if (!error && cartItems) {
-        count = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      const { data: cartItems, error } = await supabase.from('cart_items').select('quantity').eq('user_id', currentUser.id);
+      if (!error && Array.isArray(cartItems)) {
+        count = cartItems.reduce((s, r) => s + (r.quantity || 0), 0);
       }
-    } catch (error) {
-      console.error('Badge update error:', error);
+    } catch (err) {
+      console.error('updateCartBadge error', err);
     }
   } else {
-    const tempCart = getTempCart();
-    count = tempCart.reduce((sum, item) => sum + item.quantity, 0);
+    const temp = getTempCart();
+    if (Array.isArray(temp)) count = temp.reduce((s, r) => s + (r.quantity || 0), 0);
   }
-  
-  cartBadge.textContent = count;
+
+  cartBadge.textContent = String(count);
   cartBadge.style.display = count > 0 ? 'inline-block' : 'none';
 }
 
+// ---------- Open/Close ----------
 function openCart() {
-  if (!cartPanel || !cartBackdrop) return;
-  cartPanel.classList.add("open");
-  cartPanel.setAttribute("aria-hidden", "false");
+  if (!cartPanel || !cartBackdrop) {
+    cartPanel = document.getElementById('cart-panel');
+    cartBackdrop = document.getElementById('cart-backdrop');
+    if (!cartPanel || !cartBackdrop) return;
+  }
+  cartPanel.classList.add('open');
+  cartPanel.setAttribute('aria-hidden', 'false');
   cartBackdrop.hidden = false;
-  renderCart();
+  if (typeof renderCart === 'function') renderCart();
 }
 
 function closeCart() {
   if (!cartPanel || !cartBackdrop) return;
-  cartPanel.classList.remove("open");
-  cartPanel.setAttribute("aria-hidden", "true");
+  cartPanel.classList.remove('open');
+  cartPanel.setAttribute('aria-hidden', 'true');
   cartBackdrop.hidden = true;
 }
 
-const style = document.createElement('style');
-style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
-document.head.appendChild(style);
-  
+// small helper
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text == null ? '' : String(text);
+  return d.innerHTML;
+}
+
+// inject tiny spinner keyframes (used elsewhere)
+(function addKeyframes() {
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(style);
+})();
+
+// auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeCart);
+} else {
+  initializeCart();
+}
+
 
