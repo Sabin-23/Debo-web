@@ -86,7 +86,7 @@
       color: #333;
       transition: background 0.2s;
     }
-    .quantity-controls button:hover {
+    .quantity-controls button:hover:not(:disabled) {
       background: #ff9db1;
       color: white;
     }
@@ -117,7 +117,7 @@
       background-color: #ff9db1;
       color: white;
     }
-    .btn-add-cart:hover {
+    .btn-add-cart:hover:not(:disabled) {
       background-color: #ff7da7;
       transform: translateY(-2px);
     }
@@ -125,7 +125,7 @@
       background-color: #333;
       color: white;
     }
-    .btn-buy-now:hover {
+    .btn-buy-now:hover:not(:disabled) {
       background-color: #000;
       transform: translateY(-2px);
     }
@@ -279,20 +279,32 @@
 
   <script src="script.js"></script>
   <script>
+    console.log('[SPRODUCT] ===== PRODUCT PAGE LOADING =====');
+    console.log('[SPRODUCT] Page URL:', window.location.href);
+    
     let currentProduct = null;
     let selectedQuantity = 1;
 
+    // CHECKPOINT 1: Check URL parameters
+    function getProductIdFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      console.log('[SPRODUCT CHECKPOINT 1] Product ID from URL:', id);
+      return id;
+    }
+
+    // CHECKPOINT 2: Wait for dependencies
     function waitForGlobals(callback) {
+      console.log('[SPRODUCT CHECKPOINT 2] Waiting for globals...');
+      console.log('[SPRODUCT] window.supabase exists:', typeof window.supabase !== 'undefined');
+      console.log('[SPRODUCT] addToCartFromSupabase exists:', typeof window.addToCartFromSupabase !== 'undefined');
+      
       if (window.supabase && typeof window.addToCartFromSupabase === 'function') {
+        console.log('[SPRODUCT CHECKPOINT 2] All globals ready!');
         callback();
       } else {
         setTimeout(() => waitForGlobals(callback), 100);
       }
-    }
-
-    function getProductIdFromURL() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('id');
     }
 
     function escapeHtml(text) {
@@ -301,13 +313,222 @@
       return div.innerHTML;
     }
 
+    // CHECKPOINT 3: Load product data
     async function loadProductDetail() {
+      console.log('[SPRODUCT CHECKPOINT 3] Starting loadProductDetail()');
+      
       const loading = document.getElementById('product-loading');
       const container = document.getElementById('product-detail');
       const error = document.getElementById('product-error');
       
+      console.log('[SPRODUCT] DOM elements found:', {
+        loading: !!loading,
+        container: !!container,
+        error: !!error
+      });
+      
       const productId = getProductIdFromURL();
       
       if (!productId) {
+        console.error('[SPRODUCT CHECKPOINT 3] ERROR: No product ID in URL');
         loading.style.display = 'none';
-        error.
+        error.style.display = 'block';
+        return;
+      }
+      
+      console.log('[SPRODUCT CHECKPOINT 3] Fetching product with ID:', productId);
+      
+      try {
+        // CHECKPOINT 4: Database query
+        console.log('[SPRODUCT CHECKPOINT 4] Querying Supabase...');
+        const { data: product, error: fetchError } = await window.supabase
+          .from('products')
+          .select('*')
+          .eq('id', productId)
+          .single();
+        
+        console.log('[SPRODUCT CHECKPOINT 4] Query result:', {
+          product: product,
+          error: fetchError
+        });
+        
+        loading.style.display = 'none';
+        
+        if (fetchError) {
+          console.error('[SPRODUCT CHECKPOINT 4] ERROR: Supabase error:', fetchError);
+          error.style.display = 'block';
+          error.querySelector('p').textContent = 'Error: ' + fetchError.message;
+          return;
+        }
+        
+        if (!product) {
+          console.error('[SPRODUCT CHECKPOINT 4] ERROR: Product not found');
+          error.style.display = 'block';
+          return;
+        }
+        
+        // CHECKPOINT 5: Render product
+        console.log('[SPRODUCT CHECKPOINT 5] Rendering product:', product.name);
+        currentProduct = product;
+        container.style.display = 'block';
+        
+        const stockStatus = product.stock > 0 
+          ? `<div class="product-stock"><i class="fas fa-check-circle"></i> ${product.stock} in stock</div>`
+          : `<div class="product-stock out-of-stock"><i class="fas fa-times-circle"></i> Out of stock</div>`;
+        
+        container.innerHTML = `
+          <div class="product-detail">
+            <div>
+              <img 
+                src="${product.image_url || 'https://via.placeholder.com/500/fff0f3/ff9db1?text=No+Image'}" 
+                alt="${escapeHtml(product.name)}"
+                class="product-image-large"
+              >
+            </div>
+            <div class="product-info">
+              <h1>${escapeHtml(product.name)}</h1>
+              <div class="product-price-large">RWF ${product.price || 0}</div>
+              ${stockStatus}
+              <div class="product-description">
+                ${escapeHtml(product.description || 'No description available')}
+              </div>
+              
+              <div class="quantity-selector">
+                <label>Quantity:</label>
+                <div class="quantity-controls">
+                  <button onclick="decreaseQuantity()" ${product.stock <= 0 ? 'disabled' : ''}>−</button>
+                  <input type="number" id="quantity-input" value="1" min="1" max="${product.stock}" readonly>
+                  <button onclick="increaseQuantity()" ${product.stock <= 0 ? 'disabled' : ''}>+</button>
+                </div>
+              </div>
+              
+              <div class="action-buttons">
+                <button class="btn-add-cart" onclick="addToCart()" ${product.stock <= 0 ? 'disabled' : ''}>
+                  <i class="fa-solid fa-cart-shopping"></i> Add to Cart
+                </button>
+                <button class="btn-buy-now" onclick="buyNow()" ${product.stock <= 0 ? 'disabled' : ''}>
+                  <i class="fa-solid fa-bolt"></i> Buy Now
+                </button>
+              </div>
+              
+              <a href="shop.html" class="back-link">← Back to Shop</a>
+            </div>
+          </div>
+        `;
+        
+        console.log('[SPRODUCT CHECKPOINT 5] Product rendered successfully');
+        
+      } catch (err) {
+        console.error('[SPRODUCT CHECKPOINT 4] CRITICAL ERROR:', err);
+        loading.style.display = 'none';
+        error.style.display = 'block';
+        error.querySelector('p').textContent = 'Critical error: ' + err.message;
+      }
+    }
+
+    // CHECKPOINT 6: Button handlers
+    function increaseQuantity() {
+      console.log('[SPRODUCT CHECKPOINT 6] Increase quantity clicked');
+      if (!currentProduct) {
+        console.error('[SPRODUCT] No current product');
+        return;
+      }
+      const input = document.getElementById('quantity-input');
+      const current = parseInt(input.value);
+      if (current < currentProduct.stock) {
+        input.value = current + 1;
+        selectedQuantity = current + 1;
+        console.log('[SPRODUCT] New quantity:', selectedQuantity);
+      }
+    }
+
+    function decreaseQuantity() {
+      console.log('[SPRODUCT CHECKPOINT 6] Decrease quantity clicked');
+      const input = document.getElementById('quantity-input');
+      const current = parseInt(input.value);
+      if (current > 1) {
+        input.value = current - 1;
+        selectedQuantity = current - 1;
+        console.log('[SPRODUCT] New quantity:', selectedQuantity);
+      }
+    }
+
+    function addToCart() {
+      console.log('[SPRODUCT CHECKPOINT 7] Add to cart clicked');
+      if (!currentProduct) {
+        console.error('[SPRODUCT] No current product');
+        return;
+      }
+      
+      const input = document.getElementById('quantity-input');
+      const quantity = parseInt(input.value) || 1;
+      console.log('[SPRODUCT] Adding', quantity, 'item(s) to cart');
+      
+      if (typeof window.addToCartFromSupabase === 'function') {
+        for (let i = 0; i < quantity; i++) {
+          window.addToCartFromSupabase(currentProduct.id);
+        }
+        console.log('[SPRODUCT] Added to cart successfully');
+      } else {
+        console.error('[SPRODUCT] addToCartFromSupabase function not available');
+        alert('Cart system loading, please try again');
+      }
+    }
+
+    function buyNow() {
+      console.log('[SPRODUCT CHECKPOINT 8] Buy now clicked');
+      if (!currentProduct) {
+        console.error('[SPRODUCT] No current product');
+        return;
+      }
+      
+      if (!window.currentUser) {
+        console.log('[SPRODUCT] User not logged in, showing sign-in modal');
+        if (confirm('Please sign in to continue with checkout. Sign in now?')) {
+          const modal = document.getElementById('modal');
+          if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('open');
+          }
+        }
+        return;
+      }
+      
+      console.log('[SPRODUCT] Adding to cart and opening checkout');
+      addToCart();
+      
+      setTimeout(() => {
+        const cartPanel = document.getElementById('cart-panel');
+        const cartBackdrop = document.getElementById('cart-backdrop');
+        if (cartPanel && cartBackdrop) {
+          cartPanel.classList.add('open');
+          cartPanel.setAttribute('aria-hidden', 'false');
+          cartBackdrop.hidden = false;
+          console.log('[SPRODUCT] Cart panel opened');
+        }
+      }, 500);
+    }
+
+    // Make functions global so onclick can access them
+    window.increaseQuantity = increaseQuantity;
+    window.decreaseQuantity = decreaseQuantity;
+    window.addToCart = addToCart;
+    window.buyNow = buyNow;
+
+    // CHECKPOINT 9: Initialize
+    console.log('[SPRODUCT CHECKPOINT 9] Setting up page load listeners');
+    if (document.readyState === 'loading') {
+      console.log('[SPRODUCT] Document still loading, waiting for DOMContentLoaded');
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('[SPRODUCT] DOMContentLoaded fired');
+        waitForGlobals(loadProductDetail);
+      });
+    } else {
+      console.log('[SPRODUCT] Document already loaded');
+      waitForGlobals(loadProductDetail);
+    }
+    
+    console.log('[SPRODUCT] ===== INITIALIZATION COMPLETE =====');
+  </script>
+</body>
+</html>
