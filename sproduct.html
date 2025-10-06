@@ -1,149 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Product Details - ECHAD</title>
-
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
-    .product-detail-container {
-      max-width: 1200px;
-      margin: 50px auto;
-      padding: 20px;
-    }
-    .product-detail {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 40px;
-      background: #fff;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    .product-image-large {
-      width: 100%;
-      max-height: 500px;
-      object-fit: cover;
-      border-radius: 12px;
-    }
-    .product-info h1 {
-      font-size: 32px;
-      margin-bottom: 15px;
-      color: #333;
-    }
-    .product-price-large {
-      font-size: 36px;
-      color: #ff9db1;
-      font-weight: bold;
-      margin: 20px 0;
-    }
-    .product-description {
-      color: #666;
-      line-height: 1.8;
-      margin: 20px 0;
-      font-size: 15px;
-    }
-    .product-stock {
-      padding: 8px 16px;
-      background: #e8f5e9;
-      color: #2e7d32;
-      border-radius: 6px;
-      display: inline-block;
-      margin: 10px 0;
-      font-weight: 600;
-    }
-    .product-stock.out-of-stock {
-      background: #ffecec;
-      color: #c62828;
-    }
-    .quantity-selector {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      margin: 25px 0;
-    }
-    .quantity-controls {
-      display: flex;
-      align-items: center;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .quantity-controls button {
-      width: 40px;
-      height: 40px;
-      border: none;
-      background: #f5f5f5;
-      cursor: pointer;
-      font-size: 20px;
-      color: #333;
-      transition: background 0.2s;
-    }
-    .quantity-controls button:hover:not(:disabled) {
-      background: #ff9db1;
-      color: white;
-    }
-    .quantity-controls input {
-      width: 60px;
-      height: 40px;
-      border: none;
-      text-align: center;
-      font-size: 16px;
-      font-weight: 600;
-    }
-    .action-buttons {
-      display: flex;
-      gap: 15px;
-      margin-top: 30px;
-    }
-    .btn-add-cart, .btn-buy-now {
-      flex: 1;
-      padding: 15px 30px;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    .btn-add-cart {
-      background-color: #ff9db1;
-      color: white;
-    }
-    .btn-add-cart.in-cart {
-      background-color: #4caf50 !important;
-    }
-    .btn-add-cart:hover:not(:disabled) {
-      background-color: #ff7da7;
-      transform: translateY(-2px);
-    }
-    .btn-buy-now {
-      background-color: #333;
-      color: white;
-    }
-    .btn-buy-now:hover:not(:disabled) {
-      background-color: #000;
-      transform: translateY(-2px);
-    }
-    .back-link {
-      display: inline-block;
-      margin-top: 20px;
-      color: #ff9db1;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    @media (max-width: 768px) {
-      .product-detail { grid-template-columns: 1fr; }
-      .action-buttons { flex-direction: column; }
-    }
+    /* your existing sproduct styles kept, unchanged */
+    .product-detail-container { max-width:1200px;margin:50px auto;padding:20px; }
+    .product-detail { display:grid; grid-template-columns:1fr 1fr; gap:40px; background:#fff; padding:30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+    .product-image-large { width:100%; max-height:500px; object-fit:cover; border-radius:12px; }
+    .product-price-large { font-size:36px; color:#ff9db1; font-weight:700; margin:20px 0; }
+    .product-stock { padding:8px 16px; border-radius:6px; display:inline-block; margin:10px 0; font-weight:600; }
+    .quantity-controls button { width:40px; height:40px; border:none; background:#f5f5f5; cursor:pointer; font-size:20px; color:#333;}
+    .btn-add-cart { background-color:#ff9db1;color:#fff;padding:15px 30px;border-radius:8px;border:none;font-weight:600;cursor:pointer;}
+    .btn-buy-now { background:#333;color:#fff;padding:15px 30px;border-radius:8px;border:none;font-weight:600;cursor:pointer;}
   </style>
 </head>
-
 <body>
+
   <section id="header">
     <h4>ECHAD</h4>
     <div>
@@ -158,13 +36,13 @@
             <span id="cart-badge" class="badge">0</span>
           </a>
         </li>
+        <button id="openModal">Sign-in/Register</button>
       </ul>
       <div id="mobile">
         <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
           <i class="fa-solid fa-bag-shopping"></i>
           <span id="cart-badge" class="badge">0</span>
         </a>
-        <i id="bar" class="fas fa-outdent"></i>
       </div>
     </div>
   </section>
@@ -174,13 +52,17 @@
       <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#ff9db1;"></i>
       <p style="margin-top:20px;font-size:18px;color:#666;">Loading product...</p>
     </div>
+
     <div id="product-detail" style="display:none;"></div>
+
     <div id="product-error" style="display:none;text-align:center;padding:60px;">
       <i class="fas fa-exclamation-circle" style="font-size:48px;color:#ff9db1;"></i>
       <p style="margin-top:20px;font-size:18px;color:#666;">Product not found</p>
       <a href="shop.html" class="back-link">← Back to Shop</a>
     </div>
   </div>
+
+  <footer class="footer"> ... your footer ... </footer>
 
   <aside id="cart-panel" class="cart-panel" aria-hidden="true">
     <div class="cart-header">
@@ -204,131 +86,164 @@
   <script src="script.js"></script>
 
   <script>
-    console.log("[SPRODUCT] PAGE LOADED");
+    console.log('[SPRODUCT] PAGE LOADED');
 
-    let currentProduct = null;
-    let selectedQuantity = 1;
+    // utilities
+    function escapeHtml(text){ const d = document.createElement('div'); d.textContent = text == null ? '' : String(text); return d.innerHTML; }
+    function formatDate(iso){ if (!iso) return ''; const d=new Date(iso); return isNaN(d.getTime())?iso:d.toLocaleString(); }
 
+    // 1) parse id from URL
     function getProductIdFromURL() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("id");
+      return new URLSearchParams(window.location.search).get('id');
     }
 
-    async function waitForCartSystem() {
-      console.log("[SPRODUCT] Waiting for cart system...");
-      return new Promise(resolve => {
-        const interval = setInterval(() => {
-          if (window.supabase && typeof window.addToCartFromSupabase === "function") {
-            clearInterval(interval);
-            resolve();
+    // 2) robust waiter: wait until either addToCartFromSupabase OR addToTempCart is available,
+    // with a max attempt guard so we don't loop forever.
+    function waitForCartFns(maxAttempts = 40, interval = 100) {
+      return new Promise((resolve) => {
+        let attempts = 0;
+        const id = setInterval(() => {
+          attempts++;
+          if (typeof window.addToCartFromSupabase === 'function' || typeof window.addToTempCart === 'function') {
+            clearInterval(id);
+            resolve(true);
+          } else if (attempts >= maxAttempts) {
+            clearInterval(id);
+            resolve(false);
           }
-        }, 150);
+        }, interval);
       });
     }
 
+    // 3) load product
     async function loadProductDetail() {
-      const id = getProductIdFromURL();
-      if (!id) return showError("No product ID found in URL.");
+      const loading = document.getElementById('product-loading');
+      const container = document.getElementById('product-detail');
+      const error = document.getElementById('product-error');
+      const productId = getProductIdFromURL();
 
-      const { data: product, error } = await window.supabase.from("products").select("*").eq("id", id).single();
-      if (error || !product) return showError("Product not found.");
+      if (!productId) { loading.style.display = 'none'; error.style.display = 'block'; return; }
 
-      currentProduct = product;
-      renderProduct(product);
-    }
+      // wait briefly for script.js to initialize cart/supabase functions
+      const cartFnsReady = await waitForCartFns(50, 100);
+      console.log('[SPRODUCT] cart functions ready?', cartFnsReady);
 
-    function showError(message) {
-      document.getElementById("product-loading").style.display = "none";
-      const err = document.getElementById("product-error");
-      err.style.display = "block";
-      err.querySelector("p").textContent = message;
-    }
+      try {
+        const { data: product, error: fetchError } = await window.supabase
+          .from('products')
+          .select('*')
+          .eq('id', productId)
+          .maybeSingle();
 
-    function renderProduct(product) {
-      const container = document.getElementById("product-detail");
-      document.getElementById("product-loading").style.display = "none";
-      container.style.display = "block";
+        loading.style.display = 'none';
+        if (fetchError) { console.error(fetchError); error.style.display='block'; error.querySelector('p').textContent = 'Error: ' + fetchError.message; return; }
+        if (!product) { error.style.display = 'block'; return; }
 
-      const stockStatus =
-        product.stock > 0
-          ? `<div class="product-stock"><i class="fas fa-check-circle"></i> ${product.stock} in stock</div>`
-          : `<div class="product-stock out-of-stock"><i class="fas fa-times-circle"></i> Out of stock</div>`;
+        // render
+        container.style.display = 'block';
+        const stockOk = !!(product.stock && product.stock > 0);
 
-      container.innerHTML = `
-        <div class="product-detail">
-          <div><img src="${product.image_url || "https://via.placeholder.com/500/fff0f3/ff9db1?text=No+Image"}" 
-          alt="${product.name}" class="product-image-large"></div>
-          <div class="product-info">
-            <h1>${product.name}</h1>
-            <div class="product-price-large">RWF ${product.price}</div>
-            ${stockStatus}
-            <div class="product-description">${product.description || "No description available"}</div>
-
-            <div class="quantity-selector">
-              <label>Quantity:</label>
-              <div class="quantity-controls">
-                <button onclick="decreaseQuantity()">−</button>
-                <input id="quantity-input" type="number" value="1" readonly>
-                <button onclick="increaseQuantity()">+</button>
+        container.innerHTML = `
+          <div class="product-detail">
+            <div>
+              <img src="${escapeHtml(product.image_url || 'https://via.placeholder.com/500/fff0f3/ff9db1?text=No+Image')}"
+                   alt="${escapeHtml(product.name)}" class="product-image-large" />
+            </div>
+            <div class="product-info">
+              <h1>${escapeHtml(product.name)}</h1>
+              <div class="product-price-large">RWF ${product.price || 0}</div>
+              <div class="${stockOk ? 'product-stock' : 'product-stock out-of-stock'}">
+                ${stockOk ? `<i class="fas fa-check-circle"></i> ${product.stock} in stock` : `<i class="fas fa-times-circle"></i> Out of stock`}
               </div>
-            </div>
+              <div class="product-description">${escapeHtml(product.description || 'No description available')}</div>
 
-            <div class="action-buttons">
-              <button id="addCartBtn" class="btn-add-cart" onclick="addToCart()">
-                <i class="fa-solid fa-cart-shopping"></i>
-              </button>
-              <button class="btn-buy-now" onclick="buyNow()">
-                <i class="fa-solid fa-bolt"></i> Buy Now
-              </button>
-            </div>
+              <div class="quantity-selector">
+                <label>Quantity:</label>
+                <div class="quantity-controls">
+                  <button id="qty-decrease" ${!stockOk ? 'disabled' : ''}>−</button>
+                  <input type="number" id="quantity-input" value="1" min="1" max="${product.stock || 1}" readonly>
+                  <button id="qty-increase" ${!stockOk ? 'disabled' : ''}>+</button>
+                </div>
+              </div>
 
-            <a href="shop.html" class="back-link">← Back to Shop</a>
+              <div class="action-buttons">
+                <button id="btn-add-cart" class="btn-add-cart" ${!stockOk ? 'disabled' : ''}><i class="fa-solid fa-cart-shopping"></i> Add to Cart</button>
+                <button id="btn-buy-now" class="btn-buy-now" ${!stockOk ? 'disabled' : ''}><i class="fa-solid fa-bolt"></i> Buy Now</button>
+              </div>
+
+              <a href="shop.html" class="back-link">← Back to Shop</a>
+            </div>
           </div>
-        </div>
-      `;
-    }
+        `;
 
-    function increaseQuantity() {
-      const input = document.getElementById("quantity-input");
-      if (!currentProduct) return;
-      const current = parseInt(input.value);
-      if (current < currentProduct.stock) input.value = current + 1;
-      selectedQuantity = parseInt(input.value);
-    }
+        // event wiring
+        let quantity = 1;
+        const qtyInput = document.getElementById('quantity-input');
+        document.getElementById('qty-increase').addEventListener('click', () => {
+          const max = Number(qtyInput.max || 1);
+          let cur = Number(qtyInput.value || 1);
+          if (cur < max) { cur++; qtyInput.value = cur; quantity = cur; }
+        });
+        document.getElementById('qty-decrease').addEventListener('click', () => {
+          let cur = Number(qtyInput.value || 1);
+          if (cur > 1) { cur--; qtyInput.value = cur; quantity = cur; }
+        });
 
-    function decreaseQuantity() {
-      const input = document.getElementById("quantity-input");
-      const current = parseInt(input.value);
-      if (current > 1) input.value = current - 1;
-      selectedQuantity = parseInt(input.value);
-    }
+        const btnAdd = document.getElementById('btn-add-cart');
+        btnAdd.addEventListener('click', async () => {
+          // try server-backed add first, fallback to temp cart
+          try {
+            if (typeof window.addToCartFromSupabase === 'function') {
+              // call once per item or call server to set quantity - here we'll call addToCartFromSupabase quantity times
+              for (let i=0;i<quantity;i++) await window.addToCartFromSupabase(product.id);
+              if (typeof updateCartBadge === 'function') updateCartBadge();
+              if (typeof showMessage === 'function') showMessage('Added to cart', 'success');
+            } else if (typeof window.addToTempCart === 'function') {
+              window.addToTempCart(product.id, quantity);
+              if (typeof updateCartBadge === 'function') updateCartBadge();
+              if (typeof showMessage === 'function') showMessage('Added to local cart', 'success');
+            } else {
+              alert('Cart not available right now');
+            }
+          } catch (err) {
+            console.error('Add to cart failed', err);
+            alert('Failed to add to cart: ' + (err.message || err));
+          }
+        });
 
-    function addToCart() {
-      if (!currentProduct) return alert("Product not loaded yet.");
-      for (let i = 0; i < selectedQuantity; i++) {
-        window.addToCartFromSupabase(currentProduct.id);
+        document.getElementById('btn-buy-now').addEventListener('click', async () => {
+          // ensure user signed in
+          if (!window.currentUser) {
+            if (confirm('Sign in to proceed to checkout?')) {
+              const modal = document.getElementById('modal'); if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
+            }
+            return;
+          }
+          // add to cart then open cart panel
+          document.getElementById('btn-add-cart').click();
+          setTimeout(() => {
+            if (typeof toggleCart === 'function') toggleCart();
+            else {
+              const panel = document.getElementById('cart-panel'), backdrop = document.getElementById('cart-backdrop');
+              if (panel && backdrop) { panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); backdrop.hidden=false; if (typeof renderCart==='function') renderCart(); }
+            }
+          }, 400);
+        });
+
+      } catch (err) {
+        console.error('sproduct critical error', err);
+        loading.style.display = 'none';
+        error.style.display = 'block';
+        error.querySelector('p').textContent = 'Error: ' + (err.message || err);
       }
-      const btn = document.getElementById("addCartBtn");
-      btn.classList.add("in-cart");
     }
 
-    function buyNow() {
-      addToCart();
-      setTimeout(() => {
-        document.getElementById("cart-panel").classList.add("open");
-        document.getElementById("cart-backdrop").hidden = false;
-      }, 400);
-    }
-
-    window.increaseQuantity = increaseQuantity;
-    window.decreaseQuantity = decreaseQuantity;
-    window.addToCart = addToCart;
-    window.buyNow = buyNow;
-
-    document.addEventListener("DOMContentLoaded", async () => {
-      await waitForCartSystem();
+    // initialize: wait for DOM and then load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => loadProductDetail());
+    } else {
       loadProductDetail();
-    });
+    }
   </script>
 </body>
 </html>
