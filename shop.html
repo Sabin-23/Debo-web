@@ -220,19 +220,65 @@
           const card = document.createElement('div');
           card.className = 'pro';
           card.innerHTML = `
-            <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name||'')}" data-product-id="${escapeHtml(prodId)}" />
+            <style>
+              .pro {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                border: 1px solid #eee;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+              }
+          
+              .pro img {
+                height: 60%;
+                width: 100%;
+                object-fit: cover;
+              }
+          
+              .des {
+                height: 40%;
+                padding: 10px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+              }
+          
+              .cart-icon {
+                font-size: 4em;
+                color: #333;
+                transition: transform 0.2s ease;
+              }
+          
+              .cart-icon.in-cart {
+                color: green;
+              }
+          
+              .cart-icon-wrapper:hover .cart-icon {
+                transform: scale(1.1);
+              }
+          
+              .product-price {
+                font-weight: bold;
+                font-size: 14px;
+              }
+            </style>
+          
+            <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name || '')}" data-product-id="${escapeHtml(prodId)}" />
             <div class="des">
               <span style="font-size:13px;color:#666;">${escapeHtml(product.description || 'Product')}</span>
               <h5 style="margin:0;font-size:16px;">${escapeHtml(product.name || '')}</h5>
               <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
                 <div class="product-price">RWF ${product.price || 0}</div>
                 <a href="#" class="cart-icon-wrapper" data-product-id="${escapeHtml(prodId)}" title="Add to cart">
-                  <i class="fa-solid fa-cart-shopping fa-2x cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
+                  <i class="fa-solid fa-cart-shopping cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
                 </a>
               </div>
               <p style="font-size:12px;color:#666;margin:4px 0 0;">Stock: ${product.stock || 0}</p>
             </div>
           `;
+          
 
           // full-card click => navigate (but don't trigger when cart icon clicked)
           card.addEventListener('click', (ev) => {
@@ -342,5 +388,6 @@
   </script>
 </body>
 </html>
+
 
 
