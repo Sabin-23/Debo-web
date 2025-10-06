@@ -930,7 +930,106 @@ function isValidEmail(email) {
 
 
 // ==============================================
-// CART SYSTEM - SUPABASE INTEGRATION
+// TEMPORARY CART (LocalStorage)
+// ==============================================
+
+function getTempCart() {
+  try {
+    const cart = localStorage.getItem(TEMP_CART_KEY);
+    return cart ? JSON.parse(cart) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveTempCart(cart) {
+  try {
+    localStorage.setItem(TEMP_CART_KEY, JSON.stringify(cart));
+  } catch (error) {
+    console.error('Failed to save temp cart:', error);
+  }
+}
+
+function addToTempCart(productId, quantity = 1) {
+  const cart = getTempCart();
+  const existing = cart.find(item => item.product_id === productId);
+  
+  if (existing) {
+    existing.quantity += quantity;
+  } else {
+    cart.push({
+      product_id: productId,
+      quantity: quantity,
+      added_at: new Date().toISOString()
+    });
+  }
+  
+  saveTempCart(cart);
+}
+
+function clearTempCart() {
+  try {
+    localStorage.removeItem(TEMP_CART_KEY);
+  } catch (error) {
+    console.error('Failed to clear temp cart:', error);
+  }
+}
+
+// ==============================================
+// SYNC TEMP CART TO DATABASE
+// ==============================================
+
+async function syncTempCartToDatabase() {
+  if (!currentUser || !supabase) return;
+  
+  const tempCart = getTempCart();
+  if (tempCart.length === 0) {
+    await updateCartBadge();
+    return;
+  }
+  
+  try {
+    for (const item of tempCart) {
+      const { data: existing, error: checkError } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('product_id', item.product_id)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Check cart error:', checkError);
+        continue;
+      }
+      
+      if (existing) {
+        await supabase
+          .from('cart_items')
+          .update({ quantity: existing.quantity + item.quantity })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('cart_items')
+          .insert([{
+            user_id: currentUser.id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            added_at: new Date().toISOString()
+          }]);
+      }
+    }
+    
+    clearTempCart();
+    await updateCartBadge();
+    showMessage('Cart synced!', 'success', 2000);
+    
+  } catch (error) {
+    console.error('Sync cart error:', error);
+  }
+}
+
+// ==============================================
+// CART SYSTEM
 // ==============================================
 
 let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
@@ -960,49 +1059,221 @@ function initializeCart() {
 }
 
 function toggleCart() {
-  if (cartPanel.classList.contains("open")) {
+  if (cartPanel && cartPanel.classList.contains("open")) {
     closeCart();
   } else {
     openCart();
   }
 }
 
+async function addToCartFromSupabase(productId) {
+  if (!currentUser) {
+    addToTempCart(productId, 1);
+    updateCartBadge();
+    showMessage('Added to cart! Sign in to save.', 'info', 3000);
+    return;
+  }
+  
+  if (!supabase) {
+    alert('Service unavailable');
+    return;
+  }
+  
+  try {
+    const { data: existing, error: checkError } = await supabase
+      .from('cart_items')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .eq('product_id', productId)
+      .maybeSingle();
+    
+    if (checkError && checkError.code !== 'PGRST116') throw checkError;
+    
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('cart_items')
+        .update({ quantity: existing.quantity + 1 })
+        .eq('id', existing.id);
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('cart_items')
+        .insert([{
+          user_id: currentUser.id,
+          product_id: productId,
+          quantity: 1,
+          added_at: new Date().toISOString()
+        }]);
+      if (insertError) throw insertError;
+    }
+    
+    await updateCartBadge();
+    showMessage('Added to cart!', 'success', 2000);
+    
+  } catch (error) {
+    console.error('Add to cart error:', error);
+    alert('Failed to add to cart: ' + error.message);
+  }
+}
+
+window.addToCartFromSupabase = addToCartFromSupabase;
+
+async function updateCartQuantity(cartId, newQuantity) {
+  if (!supabase || !currentUser) return;
+  
+  try {
+    if (newQuantity <= 0) {
+      const { error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('id', cartId);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('cart_items')
+        .update({ quantity: newQuantity })
+        .eq('id', cartId);
+      if (error) throw error;
+    }
+    
+    await renderCart();
+    await updateCartBadge();
+  } catch (error) {
+    console.error('Update cart error:', error);
+  }
+}
+
+async function removeFromCart(cartId) {
+  if (!supabase || !currentUser) return;
+  
+  try {
+    const { error } = await supabase
+      .from('cart_items')
+      .delete()
+      .eq('id', cartId);
+    if (error) throw error;
+    
+    await renderCart();
+    await updateCartBadge();
+  } catch (error) {
+    console.error('Remove error:', error);
+  }
+}
+
+async function handleClearCart() {
+  if (!confirm('Clear all items from cart?')) return;
+  
+  if (currentUser && supabase) {
+    try {
+      const { error } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', currentUser.id);
+      if (error) throw error;
+      
+      await renderCart();
+      await updateCartBadge();
+    } catch (error) {
+      console.error('Clear cart error:', error);
+    }
+  } else {
+    clearTempCart();
+    updateCartBadge();
+    renderCart();
+  }
+}
+
+async function handleCheckout() {
+  if (!currentUser) {
+    alert('Please sign in to checkout');
+    const modal = document.getElementById('modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('open');
+    }
+    return;
+  }
+  
+  if (!supabase) return;
+  
+  try {
+    const { data: cartItems, error: cartError } = await supabase
+      .from('cart_items')
+      .select('*, products(*)')
+      .eq('user_id', currentUser.id);
+    
+    if (cartError) throw cartError;
+    if (!cartItems || cartItems.length === 0) {
+      alert('Cart is empty');
+      return;
+    }
+    
+    let total = 0;
+    cartItems.forEach(item => {
+      if (item.products) total += item.products.price * item.quantity;
+    });
+    
+    if (confirm(`Checkout - Total: RWF ${total}. Proceed?`)) {
+      const { error: clearError } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', currentUser.id);
+      if (clearError) throw clearError;
+      
+      await renderCart();
+      await updateCartBadge();
+      closeCart();
+      alert('Thank you for your order!');
+    }
+  } catch (error) {
+    console.error('Checkout error:', error);
+    alert('Checkout failed: ' + error.message);
+  }
+}
+
 async function renderCart() {
   if (!cartItemsNode) return;
-
+  
   if (!currentUser) {
-    cartItemsNode.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#666;"><p>Please sign in to view your cart</p></div>';
+    const tempCart = getTempCart();
+    if (tempCart.length === 0) {
+      cartItemsNode.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#666;"><p>Your cart is empty</p></div>';
+      if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
+      return;
+    }
+    
+    cartItemsNode.innerHTML = '<div style="text-align:center;padding:20px;background:#fff4f7;margin:10px;border-radius:8px;"><p style="margin:0 0 10px 0;color:#666;">You have items in cart</p><button onclick="document.getElementById(\'modal\').style.display=\'flex\'" style="padding:8px 16px;background:#ff9db1;color:#fff;border:none;border-radius:6px;cursor:pointer;">Sign in to save cart</button></div>';
     if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
     return;
   }
-
+  
   if (!supabase) return;
-
+  
   try {
     const { data: cartItems, error } = await supabase
       .from('cart_items')
       .select('id, quantity, product_id, products(id, name, price, image_url, stock)')
       .eq('user_id', currentUser.id);
-
+    
     if (error) throw error;
-
+    
     cartItemsNode.innerHTML = "";
-
+    
     if (!cartItems || cartItems.length === 0) {
       cartItemsNode.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#666;">Your cart is empty.</div>';
       if (cartSubtotalNode) cartSubtotalNode.textContent = 'RWF 0';
       return;
     }
-
+    
     let subtotal = 0;
-
+    
     for (const item of cartItems) {
       if (!item.products) continue;
-
+      
       const product = item.products;
       const itemTotal = product.price * item.quantity;
       subtotal += itemTotal;
-
+      
       const ci = document.createElement("div");
       ci.style.cssText = "display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;";
       ci.innerHTML = `
@@ -1020,16 +1291,16 @@ async function renderCart() {
               <div style="min-width:28px;text-align:center;font-weight:600;">${item.quantity}</div>
               <button data-increase="${item.id}" style="padding:4px 12px;border-radius:6px;background:#ff9db1;color:#fff;border:none;cursor:pointer;">+</button>
             </div>
-            <button data-remove="${item.id}" style="padding:6px 12px;border-radius:6px;background:#ff4d4f;color:#fff;border:none;cursor:pointer;font-size:13px;">Remove</button>
+            <button data-remove="${item.id}" style="padding:6px 12px;border-radius:6px;background:#c62828;color:#fff;border:none;cursor:pointer;font-size:13px;">Remove</button>
           </div>
         </div>
       `;
       cartItemsNode.appendChild(ci);
     }
-
+    
     if (cartSubtotalNode) cartSubtotalNode.textContent = `RWF ${subtotal}`;
     bindCartEventListeners();
-
+    
   } catch (error) {
     console.error('Render cart error:', error);
     cartItemsNode.innerHTML = '<div style="text-align:center;padding:20px;color:#c62828;">Error loading cart</div>';
@@ -1071,29 +1342,29 @@ function bindCartEventListeners() {
 
 async function updateCartBadge() {
   if (!cartBadge) return;
-
-  if (!currentUser || !supabase) {
-    cartBadge.textContent = '0';
-    cartBadge.style.display = 'none';
-    return;
+  
+  let count = 0;
+  
+  if (currentUser && supabase) {
+    try {
+      const { data: cartItems, error } = await supabase
+        .from('cart_items')
+        .select('quantity')
+        .eq('user_id', currentUser.id);
+      
+      if (!error && cartItems) {
+        count = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      }
+    } catch (error) {
+      console.error('Badge update error:', error);
+    }
+  } else {
+    const tempCart = getTempCart();
+    count = tempCart.reduce((sum, item) => sum + item.quantity, 0);
   }
-
-  try {
-    const { data: cartItems, error } = await supabase
-      .from('cart_items')
-      .select('quantity')
-      .eq('user_id', currentUser.id);
-
-    if (error) throw error;
-
-    const count = cartItems ? cartItems.reduce((sum, item) => sum + item.quantity, 0) : 0;
-    cartBadge.textContent = count;
-    cartBadge.style.display = count > 0 ? 'inline-block' : 'none';
-  } catch (error) {
-    console.error('Badge update error:', error);
-    cartBadge.textContent = '0';
-    cartBadge.style.display = 'none';
-  }
+  
+  cartBadge.textContent = count;
+  cartBadge.style.display = count > 0 ? 'inline-block' : 'none';
 }
 
 function openCart() {
@@ -1111,9 +1382,7 @@ function closeCart() {
   cartBackdrop.hidden = true;
 }
 
-function viewProduct(productId) {
-  window.location.href = `product.html?id=${productId}`;
-}
-
-
-
+const style = document.createElement('style');
+style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(style);
+  
