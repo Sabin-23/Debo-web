@@ -45,7 +45,32 @@
     /* Quantity controls */
     .quantity-selector { display:flex; gap:12px; align-items:center; margin-top:14px; }
     .quantity-controls { display:flex; align-items:center; border:1px solid #f2d9e6; border-radius:8px; overflow:hidden; }
-    .quantity-controls button { width:44px; height:44px; border:0; background:#fff; cursor:pointer; font-size:18px; }
+    .quantity-controls button {
+      width: 40px;
+      height: 40px;
+      border: 2px solid #ddd;
+      background: white;
+      cursor: pointer;
+      font-size: 22px;
+      color: #000;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+    
+    .quantity-controls button:hover {
+      border-color: #ff9db1;
+    }
+    
+    .quantity-controls button:active {
+      background: #f8f8f8;
+      color: #000;
+    }
+    
+    .quantity-controls button:focus {
+      outline: none;
+      color: #000;
+    }
+
     .quantity-controls button:disabled { opacity:0.5; cursor:not-allowed; }
     .quantity-controls input { width:80px; height:44px; border:0; text-align:center; font-weight:700; font-size:16px; }
 
@@ -68,6 +93,20 @@
       .product-detail { grid-template-columns: 1fr; gap:18px; padding:18px; }
       .product-image-wrap { order:-1; } /* image above on mobile */
     }
+    .back-link-top {
+  display: inline-block;
+  color: #ff9db1;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 15px;
+  transition: color 0.2s ease;
+}
+
+.back-link-top:hover {
+  color: #ff6b93;
+  text-decoration: underline;
+}
+
   </style>
 </head>
 <body>
@@ -89,6 +128,7 @@
   </section>
 
   <div class="product-detail-container">
+    <a href="shop.html" class="back-link">← Back to Shop</a>
     <div id="product-loading" style="text-align:center;padding:40px;">
       <i class="fas fa-spinner fa-spin" style="font-size:48px;color:#ff9db1;"></i>
       <p style="margin-top:20px;font-size:18px;color:#666;">Loading product...</p>
@@ -99,7 +139,6 @@
     <div id="product-error" style="display:none;text-align:center;padding:40px;">
       <i class="fas fa-exclamation-circle" style="font-size:48px;color:#ff9db1;"></i>
       <p style="margin-top:20px;font-size:18px;color:#666;">Product not found</p>
-      <a href="shop.html" class="back-link">← Back to Shop</a>
     </div>
   </div>
 
@@ -353,5 +392,6 @@
   </script>
 </body>
 </html>
+
 
 
