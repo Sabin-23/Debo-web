@@ -4,13 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin Dashboard - ECHAD</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial}
     body{display:flex;min-height:100vh;background:linear-gradient(180deg,#ffeef6,#fff0f8);color:#2a0a20}
     .sidebar{width:260px;background:#ff6fb5;color:#fff;padding:18px;display:flex;flex-direction:column;gap:10px}
-	#mobile{
-    	display: none;
+    #mobile{
+      display: none;
     }
     .brand{font-size:18px;font-weight:700;margin-bottom:6px}
     .muted{opacity:.9;font-size:13px}
@@ -34,41 +35,46 @@
     .log{font-family:monospace;background:#fff6fb;padding:8px;border-radius:6px;border:1px solid #ffe6f0;font-size:13px;max-height:140px;overflow:auto}
     .tab-panel{display:none}
     .tab-panel.active{display:block}
-    @media (max-width:900px){
-		.sidebar{
-			position: fixed;
-        	left: -260px; /* hidden by default */
-        	top: 0;
-        	height: 100%;
-        	z-index: 1000;
-        	transition: left 0.3s ease;
-		}
-		.sidebar.active{
-        	left: 0px;
-      	}
-		.main{
-			padding:12px
-		}
-		#mobile{
-      	display: flex;
+    @media (max-width:900px) {
+      .sidebar{
+        position: fixed;
+        left: -260px; /* hidden by default */
+        top: 0;
+        height: 100%;
+        z-index: 1000;
+        transition: left 0.3s ease;
+      }
+
+      .sidebar.active{
+        left: 0px;
+      }
+
+      .main{padding:12px}
+
+      #mobile{
+      display: flex;
       
-      	top: 12px;
+      top: 12px;
       
-      	z-index: 1500;
-      	cursor: pointer;
-      	font-size: 22px;
-      	color: #ff6fb5;
-      	}
-      	#mobile i{
-      	color: #1a1a1a;
-      	font-size: 24px;
-      	padding-left: 6px;
-      	}
-	}
+      z-index: 1500;
+      cursor: pointer;
+      font-size: 22px;
+      color: #ff6fb5;
+      }
+      #mobile i{
+      color: #1a1a1a;
+      font-size: 24px;
+      padding-left: 6px;
+      }
+    }
   </style>
 </head>
 <body>
+
+ 
+
   <aside class="sidebar">
+    
     <div class="brand">Admin Dashboard</div>
     <div class="muted">God's Only Store</div>
     <nav class="nav">
@@ -79,12 +85,14 @@
       <button id="logoutBtn" class="logout">Logout</button>
     </nav>
   </aside>
+  
 
   <main class="main">
-	<div id="mobile">
+    <div id="mobile">
       <i id="bar" class="fas fa-outdent"></i>
     </div>
     <div class="topbar">
+      
       <h2>Admin Panel</h2>
       <div class="muted">Manage your store</div>
     </div>
@@ -170,8 +178,7 @@
   </main>
 
   <script>
-	//sidebar dont delete please
-	const mobileBar = document.getElementById('bar');
+    const mobileBar = document.getElementById('bar');
     const sidebar = document.querySelector('.sidebar');
 
     mobileBar.addEventListener('click', () => {
@@ -185,7 +192,6 @@
       });
     });
 
-	
     const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
     const BUCKET = 'product-images';
@@ -662,5 +668,3 @@ async function loadOrders() {
   </script>
 </body>
 </html>
-
-
