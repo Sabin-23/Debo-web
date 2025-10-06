@@ -10,7 +10,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <!-- Header Section -->
   <section id="header">
     <h4>ECHAD</h4>
     <div>
@@ -58,12 +57,10 @@
     </div>
   </section>
 
-  <!-- Page Header -->
   <section id="page-header">
     <img src="download2.jpg" alt="">
   </section>
 
-  <!-- Product Section -->
   <section id="product1" class="section-p1">
     <div id="products-loading" style="text-align:center;padding:40px;">
       <i class="fas fa-spinner fa-spin" style="font-size:32px;color:#ff9db1;"></i>
@@ -76,14 +73,12 @@
     </div>
   </section>
 
-  <!-- Pagination -->
   <section id="pagination" class="section-p1">
     <a href="#">1</a>
     <a href="#">2</a>
     <a href="#"><i class="fas fa-arrow-right"></i></a>
   </section>
 
-  <!-- Newsletter -->
   <section id="newsletter" class="section-p1 section-m1">
     <div class="newstext">
       <h4>Sign Up For Newsletter</h4>
@@ -95,7 +90,6 @@
     </div>
   </section>
 
-  <!-- Footer -->
   <footer class="footer">
     <div class="footer-container">
       <div class="footer-section">
@@ -136,7 +130,6 @@
     </div>
   </footer>
 
-  <!-- Cart Panel -->
   <aside id="cart-panel" class="cart-panel" aria-hidden="true">
     <div class="cart-header">
       <h3>Your Cart</h3>
@@ -156,164 +149,123 @@
   </aside>
   <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
-    <script>
-        /*
-          Safe shop loader:
-          - Uses an existing Supabase client if available (window.supabase.from)
-          - Otherwise creates a local client (does NOT overwrite window.supabase)
-          - Uses window.SUPABASE_URL / window.SUPABASE_ANON_KEY if present, else fallback values
-          - Avoids redeclaring globals so you won't get SyntaxError
-        */
-        
-        (async function () {
-          // fallback values you previously shared (only used if window.SUPABASE_URL not set)
-          const FALLBACK_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
-          const FALLBACK_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
-        
-          // prefer existing guarded globals if provided by your app
-          const PROJECT_URL = (typeof window.SUPABASE_URL !== 'undefined') ? window.SUPABASE_URL : FALLBACK_URL;
-          const PROJECT_ANON = (typeof window.SUPABASE_ANON_KEY !== 'undefined') ? window.SUPABASE_ANON_KEY : FALLBACK_ANON;
-        
-          // returns a Supabase client to use for requests (but avoids touching window.supabase)
-        function getShopClient() {
-          // 1) If a proper client already exists globally, use it
-          if (window.supabase && typeof window.supabase.from === 'function') {
-            console.log('[shop] using existing window.supabase client');
-            return window.supabase;
-          }
-        
-          // 2) If the library is available as `supabase` and createClient exists, create a local client
-          if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
-            try {
-              const localClient = supabase.createClient(PROJECT_URL, PROJECT_ANON);
-              console.log('[shop] created local supabase client (did not overwrite globals)');
-              return localClient;
-            } catch (e) {
-              console.error('[shop] failed to create local client from library:', e);
-            }
-          }
-        
-          // 3) If window.supabase is non-null and is the library (has createClient), create local client *safely*
-          if (typeof window.supabase !== 'undefined' && window.supabase !== null && typeof window.supabase.createClient === 'function') {
-            try {
-              const localClient = window.supabase.createClient(PROJECT_URL, PROJECT_ANON);
-              console.log('[shop] created local client from window.supabase.createClient (no global overwrite)');
-              return localClient;
-            } catch (e) {
-              console.error('[shop] failed to create local client from window.supabase.createClient:', e);
-            }
-          }
-        
-          // Nothing available
-          return null;
+  <script src="script.js"></script>
+  <script>
+    // Wait for script.js to load, then load products
+    function waitForGlobals(callback) {
+      if (window.supabase && typeof window.addToCartFromSupabase === 'function') {
+        callback();
+      } else {
+        setTimeout(() => waitForGlobals(callback), 100);
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    async function loadShopProducts() {
+      const loading = document.getElementById('products-loading');
+      const container = document.getElementById('products-container');
+      const empty = document.getElementById('products-empty');
+
+      if (!window.supabase) {
+        console.error('Supabase not available');
+        loading.style.display = 'none';
+        empty.querySelector('p').textContent = 'Error: Store unavailable';
+        empty.style.display = 'block';
+        return;
+      }
+
+      try {
+        const { data: products, error } = await window.supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        loading.style.display = 'none';
+
+        if (error) {
+          console.error('Error loading products:', error);
+          empty.querySelector('p').textContent = 'Error loading products';
+          empty.style.display = 'block';
+          return;
         }
 
-        
-          // small helper escapeHtml from your code
-          function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text ?? '';
-            return div.innerHTML;
-          }
-        
-          // main loader
-          async function loadShopProducts() {
-            const loading = document.getElementById('products-loading');
-            const container = document.getElementById('products-container');
-            const empty = document.getElementById('products-empty');
-        
-            const client = getShopClient();
-            if (!client) {
-              console.error('[shop] no supabase client or library found on page.');
-              if (loading) loading.style.display = 'none';
-              if (empty) {
-                empty.querySelector('p').textContent = 'Supabase not available. Check initialization.';
-                empty.style.display = 'block';
-              }
+        if (!products || products.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        container.style.display = 'flex';
+        container.innerHTML = '';
+
+        products.forEach(product => {
+          const card = document.createElement('div');
+          card.className = 'pro';
+          card.style.cursor = 'pointer';
+          card.setAttribute('data-product-id', product.id);
+
+          // Make entire card clickable
+          card.addEventListener('click', function(e) {
+            // Don't navigate if cart icon was clicked
+            if (e.target.closest('.cart-icon-wrapper')) {
               return;
             }
-        
-            try {
-              console.log('> loadShopProducts: starting with client', client);
-        
-              // Use the local client variable instead of window.supabase
-              const { data: products, error } = await client
-                .from('products')
-                .select('*')
-                .order('created_at', { ascending: false });
-        
-              if (loading) loading.style.display = 'none';
-              
-              if (error) {
-                console.error('[shop] Supabase returned error:', error);
-                if (empty) {
-                  // show readable message
-                  empty.querySelector('p').textContent = 'Error loading products: ' + (error.message || error);
-                  empty.style.display = 'block';
-                }
-                return;
-              }
-        
-              if (!products || products.length === 0) {
-                if (empty) empty.style.display = 'block';
-                return;
-              }
-        
-              if (container) {
-                container.style.display = 'flex';
-                container.innerHTML = '';
-              }
-        
-              // Render
-              products.forEach(product => {
-                const card = document.createElement('div');
-                card.className = 'pro';
-                card.setAttribute('data-product-id', product.id ?? '');
-        
-                const imageUrl = product.image_url || product.image || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-        
-                card.innerHTML = `
-                  <img src="${imageUrl}" alt="${escapeHtml(product.name)}" onclick="viewProduct('${product.id}')" style="cursor:pointer;">
-                  <div class="des">
-                    <span>${escapeHtml(product.description || 'Product')}</span>
-                    <h5>${escapeHtml(product.name)}</h5>
-                    <div class="star">
-                      <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                    </div>
-                    <h4>RWF ${product.price || 0}</h4>
-                    <p style="font-size:12px;color:#666;">Stock: ${product.stock || 0}</p>
-                  </div>
-                  <a href="#" onclick="addProductToCart(event, '${product.id}')">
-                    <i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i>
-                  </a>
-                `;
-                container.appendChild(card);
-              });
-        
-            } catch (err) {
-              console.error('[shop] Unexpected error:', err);
-              if (loading) loading.style.display = 'none';
-              if (empty) {
-                empty.querySelector('p').textContent = 'Error loading products';
-                empty.style.display = 'block';
-              }
-            }
-          }
-        
-          // wait short time for scripts to load, then start
-          function waitForDOMAndRun() {
-            if (document.readyState === 'loading') {
-              window.addEventListener('DOMContentLoaded', loadShopProducts);
-            } else {
-              loadShopProducts();
-            }
-          }
-        
-          waitForDOMAndRun();
-        })();
-    </script>
-    <script src="script.js"></script> 
+            window.location.href = `sproduct.html?id=${product.id}`;
+          });
 
+          const imageUrl = product.image_url || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
+
+          card.innerHTML = `
+            <img src="${imageUrl}" alt="${escapeHtml(product.name)}">
+            <div class="des">
+              <span>${escapeHtml(product.description || 'Product')}</span>
+              <h5>${escapeHtml(product.name)}</h5>
+              <div class="star">
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+                <i class="fas fa-star"></i>
+              </div>
+              <h4>RWF ${product.price || 0}</h4>
+              <p style="font-size:12px;color:#666;">Stock: ${product.stock || 0}</p>
+            </div>
+            <a href="#" class="cart-icon-wrapper" data-product-id="${product.id}">
+              <i class="fa-solid fa-cart-shopping cart" style="color: #fdadcf;"></i>
+            </a>
+          `;
+
+          container.appendChild(card);
+        });
+
+        // Add cart icon click handlers
+        document.querySelectorAll('.cart-icon-wrapper').forEach(link => {
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const productId = this.getAttribute('data-product-id');
+            window.addToCartFromSupabase(productId);
+          });
+        });
+
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        loading.style.display = 'none';
+        empty.querySelector('p').textContent = 'Error loading products';
+        empty.style.display = 'block';
+      }
+    }
+
+    // Wait for DOM and globals, then load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => waitForGlobals(loadShopProducts));
+    } else {
+      waitForGlobals(loadShopProducts);
+    }
+  </script>
 </body>
 </html>
-
