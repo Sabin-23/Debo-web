@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Shop - ECHAD</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Small CSS tweaks for cart icon color + in-cart state -->
   <style>
-    /* keep other styles unchanged, only add icon color rules */
-    .product-price { color: #ff9db1; } /* price color reference */
-    .cart-icon { color: #ff9db1; font-size: 20px; cursor: pointer; transition: color .15s ease; }
-    .cart-icon.in-cart { color: #4caf50 !important; } /* green when added */
+    /* tiny cosmetic tweaks for cart icon + price */
+    .product-price { color: #ff9db1; font-weight:700; }
+    .cart-icon { color: #ff9db1; font-size: 18px; cursor: pointer; transition: color .12s ease; }
+    .cart-icon.in-cart { color: #4caf50 !important; } /* green for added */
     .cart-icon-wrapper { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:8px; text-decoration:none; }
-    .pro { position: relative; } /* ensure clickable areas behave */
+    .pro { position: relative; }
     .pro img { cursor: pointer; }
   </style>
 </head>
@@ -36,6 +35,7 @@
           </a>
         </li>
         <button id="openModal">Sign-in/Register</button>
+
         <div class="modal" id="modal">
           <div class="auth-container">
             <h2 id="form-title">Sign In</h2>
@@ -56,8 +56,10 @@
             <button id="closeModal">Close</button>
           </div>
         </div>
+
         <a href="#" id="close"><i class="far fa-times-circle"></i></a>
       </ul>
+
       <div id="mobile">
         <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
           <i class="fa-solid fa-bag-shopping"></i>
@@ -69,7 +71,7 @@
   </section>
 
   <section id="page-header">
-    <img src="download2.jpg" alt="">
+    <img src="download2.jpg" alt="" />
   </section>
 
   <section id="product1" class="section-p1">
@@ -78,7 +80,7 @@
       <p style="margin-top:16px;font-size:18px;color:#666;">Loading products...</p>
     </div>
 
-    <div class="pro-container" id="products-container" style="display:none; gap:12px; flex-wrap:wrap;"></div>
+    <div class="pro-container" id="products-container" style="display:none;gap:12px;flex-wrap:wrap;align-items:flex-start;"></div>
 
     <div id="products-empty" style="display:none;text-align:center;padding:60px 20px;">
       <i class="fas fa-box-open" style="font-size:64px;color:#ddd;"></i>
@@ -98,7 +100,7 @@
       <p>Get E-mail updates about our latest shop and <span>special offers.</span></p>
     </div>
     <div class="form">
-      <input type="text" placeholder="Your email address">
+      <input type="text" placeholder="Your email address" />
       <button class="normal">Sign Up</button>
     </div>
   </section>
@@ -162,28 +164,31 @@
   </aside>
   <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
+  <!-- your existing cart & auth logic file (must remain) -->
   <script src="script.js"></script>
 
   <script>
-    // Wait for your global cart system and supabase to be ready,
-    // then load products and wire cart icon behavior.
-    async function waitForGlobals() {
-      return new Promise(resolve => {
-        const start = Date.now();
-        const interval = setInterval(() => {
-          if (window.supabase && typeof window.addToCartFromSupabase === 'function') {
-            clearInterval(interval);
-            resolve();
-          }
-          // safety timeout after 8s
-          if (Date.now() - start > 8000) {
-            clearInterval(interval);
-            resolve(); // resolve anyway (shop will show error if supabase missing)
-          }
-        }, 120);
-      });
+    // fallback supabase project keys (use your project's keys if different)
+    const FALLBACK_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
+    const FALLBACK_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
+
+    // Safe client getter: use existing window.supabase if available, otherwise create a local client
+    function getShopClient() {
+      if (window.supabase && typeof window.supabase.from === 'function') {
+        return window.supabase;
+      }
+      if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+        try {
+          return supabase.createClient(FALLBACK_URL, FALLBACK_ANON);
+        } catch (e) {
+          console.error('Failed to create local supabase client:', e);
+          return null;
+        }
+      }
+      return null;
     }
 
+    // load products and wire cart icons (no blocking infinite wait)
     async function loadShopProducts() {
       const loading = document.getElementById('products-loading');
       const container = document.getElementById('products-container');
@@ -193,10 +198,7 @@
       container.style.display = 'none';
       empty.style.display = 'none';
 
-      // ensure cart system loaded
-      await waitForGlobals();
-
-      const client = window.supabase || null;
+      const client = getShopClient();
       if (!client) {
         loading.style.display = 'none';
         empty.querySelector('p').textContent = 'Supabase not available. Check initialization.';
@@ -224,59 +226,54 @@
           return;
         }
 
-        // build set of product IDs already in cart
-        let inCartSet = new Set();
-
+        // build set of product IDs currently in cart (server or local)
+        const inCartSet = new Set();
         try {
-          if (window.currentUser && window.currentUser.id) {
-            // fetch cart items for current user
+          if (window.currentUser && window.currentUser.id && client) {
             const { data: cartItems, error: cartErr } = await client
               .from('cart_items')
               .select('product_id')
               .eq('user_id', window.currentUser.id);
-
             if (!cartErr && Array.isArray(cartItems)) {
-              cartItems.forEach(ci => {
-                if (ci.product_id != null) inCartSet.add(String(ci.product_id));
-              });
+              cartItems.forEach(ci => { if (ci.product_id != null) inCartSet.add(String(ci.product_id)); });
             }
           } else if (typeof getTempCart === 'function') {
-            // use local temporary cart
             const temp = getTempCart();
             if (Array.isArray(temp)) temp.forEach(i => { if (i.product_id != null) inCartSet.add(String(i.product_id)); });
           }
         } catch (e) {
-          console.warn('Could not build in-cart set:', e);
+          console.warn('Could not prebuild in-cart set:', e);
         }
 
         container.style.display = 'flex';
         container.innerHTML = '';
 
-        // render cards
         products.forEach(product => {
+          const prodId = product.id != null ? String(product.id) : '';
+          const imageUrl = product.image_url || product.image || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
+
           const card = document.createElement('div');
           card.className = 'pro';
           card.style.cssText = 'width:220px;padding:12px;border:1px solid #f2e5eb;border-radius:10px;background:#fff;display:flex;flex-direction:column;gap:8px;';
-
-          const imageUrl = product.image_url || product.image || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-          const prodId = product.id != null ? String(product.id) : '';
 
           card.innerHTML = `
             <img src="${imageUrl}" alt="${escapeHtml(product.name || '')}" style="width:100%;height:160px;object-fit:cover;border-radius:8px;" data-product-id="${prodId}" />
             <div class="des" style="display:flex;flex-direction:column;gap:6px;">
               <span style="font-size:13px;color:#666;">${escapeHtml(product.description || 'Product')}</span>
               <h5 style="margin:0;font-size:16px;">${escapeHtml(product.name || '')}</h5>
+
               <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
                 <div class="product-price">RWF ${product.price || 0}</div>
                 <a href="#" class="cart-icon-wrapper" data-product-id="${prodId}" title="Add to cart">
                   <i class="fa-solid fa-cart-shopping cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
                 </a>
               </div>
+
               <p style="font-size:12px;color:#666;margin:4px 0 0;">Stock: ${product.stock || 0}</p>
             </div>
           `;
 
-          // image click -> navigate to single product page
+          // image click => product page
           const img = card.querySelector('img[data-product-id]');
           if (img) {
             img.addEventListener('click', () => {
@@ -285,24 +282,34 @@
             });
           }
 
-          // cart icon handler
+          // cart icon click handler (prevent navigation)
           const cartLink = card.querySelector('.cart-icon-wrapper');
           const cartIcon = card.querySelector('.cart-icon');
           if (cartLink && cartIcon) {
-            cartLink.addEventListener('click', async (ev) => {
+            cartLink.addEventListener('click', async function (ev) {
               ev.preventDefault();
-              ev.stopPropagation();
+              ev.stopImmediatePropagation();
 
               if (!prodId) return;
 
-              // disable while processing
+              // disable rapid clicks
               cartIcon.style.pointerEvents = 'none';
               try {
-                await window.addToCartFromSupabase(prodId);
-                // optimistic mark in-cart (addToCartFromSupabase already updates badge)
+                if (typeof window.addToCartFromSupabase === 'function') {
+                  await window.addToCartFromSupabase(prodId);
+                } else if (typeof addToTempCart === 'function') {
+                  addToTempCart(prodId, 1);
+                  if (typeof updateCartBadge === 'function') updateCartBadge();
+                  // optional: show user a quick message if your showMessage exists
+                  if (typeof showMessage === 'function') showMessage('Added to cart (local)', 'success', 2000);
+                } else {
+                  alert('Cart not available right now');
+                }
+                // optimistic mark
                 cartIcon.classList.add('in-cart');
               } catch (e) {
-                console.error('Failed to add to cart:', e);
+                console.error('Add to cart failed:', e);
+                if (typeof showMessage === 'function') showMessage('Failed to add to cart', 'error');
               } finally {
                 cartIcon.style.pointerEvents = '';
               }
@@ -312,7 +319,35 @@
           container.appendChild(card);
         });
 
-        // Ensure cart toggle / panel wiring exists by calling initializeCart if available
+        // Wire nav cart anchors to prevent default navigation and open cart. This avoids href="#" adding '/#' to the URL.
+        const navDesktop = document.getElementById('cart-toggle-desktop');
+        const navMobile = document.getElementById('cart-toggle-mobile');
+        [navDesktop, navMobile].forEach(el => {
+          if (!el) return;
+          // remove previously added click handlers? just add a safe listener that prevents default
+          el.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // prefer toggleCart if defined, otherwise initializeCart -> toggle by toggling class
+            if (typeof toggleCart === 'function') {
+              try { toggleCart(); } catch (err) { console.warn('toggleCart failed', err); }
+            } else if (typeof initializeCart === 'function') {
+              try { initializeCart(); if (typeof toggleCart === 'function') toggleCart(); } catch (err) { console.warn('initializeCart failed', err); }
+            } else {
+              // fallback: open cart panel directly if present
+              const panel = document.getElementById('cart-panel');
+              const backdrop = document.getElementById('cart-backdrop');
+              if (panel && backdrop) {
+                panel.classList.add('open');
+                panel.setAttribute('aria-hidden', 'false');
+                backdrop.hidden = false;
+                if (typeof renderCart === 'function') renderCart();
+              }
+            }
+          }, { passive: false });
+        });
+
+        // After rendering products, try to call initializeCart() once so cart panel wiring happens from your script.js
         if (typeof initializeCart === 'function') {
           try { initializeCart(); } catch (e) { /* ignore */ }
         }
@@ -325,14 +360,14 @@
       }
     }
 
-    // safe small escape helper
+    // small safe escape
     function escapeHtml(text) {
       const d = document.createElement('div');
       d.textContent = text == null ? '' : String(text);
       return d.innerHTML;
     }
 
-    // wait for DOM then run
+    // run after DOM ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', loadShopProducts);
     } else {
