@@ -139,10 +139,32 @@
     const FALLBACK_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
     function getShopClient() {
-      if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
-      if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
-        try { return supabase.createClient(FALLBACK_URL, FALLBACK_ANON); } catch(e){ return null; }
+      // 1) If a ready-to-use global client exists, return it.
+      if (typeof window.supabase !== 'undefined' && window.supabase && typeof window.supabase.from === 'function') {
+        return window.supabase;
       }
+
+      // 2) If the library object is available (supabase) and has createClient, create a local client safely.
+      if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
+        try {
+          return supabase.createClient(FALLBACK_URL, FALLBACK_ANON);
+        } catch (e) {
+          console.warn('[shop] Failed to create local supabase client from supabase.createClient:', e);
+          return null;
+        }
+      }
+
+      // 3) If window.supabase is defined as the library and has createClient, use it safely.
+      if (typeof window.supabase !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+        try {
+          return window.supabase.createClient(FALLBACK_URL, FALLBACK_ANON);
+        } catch (e) {
+          console.warn('[shop] Failed to create local supabase client from window.supabase.createClient:', e);
+          return null;
+        }
+      }
+
+      // 4) Nothing usable
       return null;
     }
 
@@ -320,3 +342,4 @@
   </script>
 </body>
 </html>
+
