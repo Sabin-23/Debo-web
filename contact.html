@@ -194,9 +194,32 @@
                 
     <div id="cart-backdrop" class="cart-backdrop" hidden></div>
     <script src="script.js"></script>
+    <script> 
+        const navDesktop = document.getElementById('cart-toggle-desktop');
+        const navMobile = document.getElementById('cart-toggle-mobile');
+        [navDesktop, navMobile].forEach(el => {
+          if (!el) return;
+          el.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (typeof toggleCart === 'function') toggleCart();
+            else if (typeof initializeCart === 'function') { initializeCart(); if (typeof toggleCart==='function') toggleCart(); }
+            else {
+              // fallback: open panel directly
+              const panel = document.getElementById('cart-panel');
+              const backdrop = document.getElementById('cart-backdrop');
+              if (panel && backdrop) {
+                panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); backdrop.hidden = false;
+                if (typeof renderCart === 'function') renderCart();
+              }
+            }
+          }, { passive:false });
+        });
+    </script>
 </body>
 
 </html>
+
 
 
 
