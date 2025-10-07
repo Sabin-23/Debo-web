@@ -676,26 +676,13 @@
                 }
               }, { passive:false });
             });
-    
-            // call initializeCart if available so cart close button gets wired
-            if (typeof initializeCart === 'function') {
-              try { initializeCart(); } catch(e) { /* ignore */ }
-            }
-    
-          } catch (err) {
-            console.error('Unexpected error loading shop products', err);
-            if (loading) loading.style.display = 'none';
-            if (empty) { empty.querySelector('p').textContent = 'Error loading products'; empty.style.display = 'block'; }
+
           }
-        }
-    
-        // DOM ready
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadShopProducts);
-        else loadShopProducts();
     </script>
 </body>
 
 </html>
+
 
 
 
