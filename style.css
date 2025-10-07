@@ -1438,9 +1438,10 @@ body {
 }
 
 .cart-icon, .cart-icon-wrapper .cart {
-  font-size: 22px; /* increase */
+  font-size: 40px; /* increase */
 }
 .cart-icon.in-cart { transform: scale(1.08); }
+
 
 
 
