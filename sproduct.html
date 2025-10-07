@@ -170,13 +170,25 @@
 
       // --- Initialize Supabase Client ---
 
-    // If not already initialized by script.js, do it here
-    if (!window.supabase || typeof window.supabase.from !== 'function') {
-      window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log('[SPRODUCT] Supabase client initialized manually.');
-    } else {
-      console.log('[SPRODUCT] Supabase client already available.');
+    // ensure the global supabase client is available (without forcing createClient if it's the client already)
+  (async function ensureClientForPage(){
+    // attempt to use helper defined in script.js
+    if (typeof ensureSupabaseClient === 'function') {
+      const client = ensureSupabaseClient();
+      if (!client) {
+        // last resort: try to wait a little for script.js to init it
+        for (let i=0;i<6;i++){
+          await new Promise(r => setTimeout(r, 150));
+          if (typeof ensureSupabaseClient === 'function') {
+            const c2 = ensureSupabaseClient();
+            if (c2) break;
+          }
+        }
+      }
     }
+  })();
+
+
 
     console.log('[SPRODUCT] PAGE LOADED');
 
@@ -311,36 +323,47 @@
           }
         });
 
-        // buy now: add and open cart (or go to checkout if you prefer)
+        // buy now: add to cart then either go to checkout (if signed-in) or open sign-in modal and set pending flag
         document.getElementById('btn-buy-now').addEventListener('click', async () => {
           const qty = Number(qtyInput.value || 1);
-          // require sign-in for checkout flow in your app - here we add then open cart
           try {
+            // add to cart (server or temp)
             if (typeof window.addToCartFromSupabase === 'function') {
-              for (let i=0;i<qty;i++) await window.addToCartFromSupabase(product.id);
+              await window.addToCartFromSupabase(product.id, qty);
             } else if (typeof window.addToTempCart === 'function') {
               window.addToTempCart(product.id, qty);
             } else {
               alert('Cart not available right now');
               return;
             }
+        
             if (typeof updateCartBadge === 'function') updateCartBadge();
-
-            // open cart panel (use toggleCart/openCart if available)
-            if (typeof toggleCart === 'function') toggleCart();
-            else if (typeof openCart === 'function') openCart();
-            else {
-              const panel = document.getElementById('cart-panel'), backdrop = document.getElementById('cart-backdrop');
-              if (panel && backdrop) { panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); backdrop.hidden=false; if (typeof renderCart==='function') renderCart(); }
+        
+            // check auth; if user signed in -> go to checkout; otherwise show modal and set pending flag
+            let signedIn = false;
+            try {
+              if (window.supabase && typeof window.supabase.auth?.getUser === 'function') {
+                const { data } = await window.supabase.auth.getUser();
+                if (data?.user) signedIn = true;
+              } else if (window.currentUser && window.currentUser.id) {
+                signedIn = true;
+              }
+            } catch (err) { console.warn('auth check failed', err); }
+        
+            if (signedIn) {
+              window.location.href = 'checkout.html';
+            } else {
+              window.__pendingCheckout = true;
+              const modal = document.getElementById('modal');
+              if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
+              if (typeof showMessage === 'function') showMessage('Please sign in to proceed to checkout', 'info', 2500);
             }
-
-            // optionally navigate to checkout page:
-            // window.location.href = 'checkout.html';
           } catch (err) {
             console.error('Buy now failed', err);
-            alert('Failed to proceed to checkout');
+            alert('Failed to process Buy Now.');
           }
         });
+
 
         // Protect checkout button inside cart to go to checkout.html (override existing handler)
         const checkoutBtn = document.getElementById('checkout');
@@ -392,6 +415,7 @@
   </script>
 </body>
 </html>
+
 
 
 
