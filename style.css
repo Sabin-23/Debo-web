@@ -1430,7 +1430,17 @@ body {
   .settings-body { grid-template-columns: 1fr; }
 }
 
+.cart-icon, .cart-icon-wrapper.in-cart i {
+  color: #ff9db1; /* default color */
+}
+.cart-icon.in-cart, .cart-icon-wrapper.in-cart .cart {
+  color: #2e7d32 !important; /* green when in cart */
+}
 
+.cart-icon, .cart-icon-wrapper .cart {
+  font-size: 22px; /* increase */
+}
+.cart-icon.in-cart { transform: scale(1.08); }
 
 
 
