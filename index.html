@@ -486,176 +486,7 @@
     <div id="cart-backdrop" class="cart-backdrop" hidden></div>
     <script src="script.js"></script>
     <script>
-        const FALLBACK_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
-        const FALLBACK_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
-    
-        function getShopClient() {
-          // 1) If a ready-to-use global client exists, return it.
-          if (typeof window.supabase !== 'undefined' && window.supabase && typeof window.supabase.from === 'function') {
-            return window.supabase;
-          }
-    
-          // 2) If the library object is available (supabase) and has createClient, create a local client safely.
-          if (typeof supabase !== 'undefined' && supabase && typeof supabase.createClient === 'function') {
-            try {
-              return supabase.createClient(FALLBACK_URL, FALLBACK_ANON);
-            } catch (e) {
-              console.warn('[shop] Failed to create local supabase client from supabase.createClient:', e);
-              return null;
-            }
-          }
-    
-          // 3) If window.supabase is defined as the library and has createClient, use it safely.
-          if (typeof window.supabase !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
-            try {
-              return window.supabase.createClient(FALLBACK_URL, FALLBACK_ANON);
-            } catch (e) {
-              console.warn('[shop] Failed to create local supabase client from window.supabase.createClient:', e);
-              return null;
-            }
-          }
-    
-          // 4) Nothing usable
-          return null;
-        }
-    
-        function escapeHtml(text) {
-          const d = document.createElement('div'); d.textContent = text == null ? '' : String(text); return d.innerHTML;
-        }
-    
-        async function loadShopProducts() {
-          const loading = document.getElementById('products-loading');
-          const container = document.getElementById('products-container');
-          const empty = document.getElementById('products-empty');
-    
-          if (loading) loading.style.display = 'block';
-          if (container) container.style.display = 'none';
-          if (empty) empty.style.display = 'none';
-    
-          const client = getShopClient();
-          if (!client) {
-            if (loading) loading.style.display = 'none';
-            if (empty) { empty.querySelector('p').textContent = 'Supabase not available. Check initialization.'; empty.style.display = 'block'; }
-            return;
-          }
-    
-          try {
-            const { data: products, error } = await client.from('products').select('*').order('created_at', { ascending:false });
-            if (loading) loading.style.display = 'none';
-            if (error) {
-              console.error('Error loading products', error);
-              if (empty) { empty.querySelector('p').textContent = 'Error loading products: ' + (error.message||error); empty.style.display = 'block'; }
-              return;
-            }
-            if (!products || products.length === 0) { if (empty) empty.style.display = 'block'; return; }
-    
-            // prebuild in-cart set
-            const inCartSet = new Set();
-            try {
-              if (window.currentUser && window.currentUser.id) {
-                const { data: cartItems } = await client.from('cart_items').select('product_id').eq('user_id', window.currentUser.id);
-                if (Array.isArray(cartItems)) cartItems.forEach(ci => { if (ci.product_id != null) inCartSet.add(String(ci.product_id)); });
-              } else if (typeof getTempCart === 'function') {
-                const temp = getTempCart();
-                if (Array.isArray(temp)) temp.forEach(i => { if (i.product_id != null) inCartSet.add(String(i.product_id)); });
-              }
-            } catch(e) { console.warn('in-cart fetch failed', e); }
-    
-            container.style.display = 'flex';
-            container.innerHTML = '';
-    
-            for (const product of products) {
-              const prodId = product.id != null ? String(product.id) : '';
-              const imageUrl = product.image_url || product.image || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
-    
-              const card = document.createElement('div');
-              card.className = 'pro';
-              card.innerHTML = `
-                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name||'')}" data-product-id="${escapeHtml(prodId)}" />
-                <div class="des">
-                  <span style="font-size:13px;color:#666;">${escapeHtml(product.description || 'Product')}</span>
-                  <h5 style="margin:0;font-size:16px;">${escapeHtml(product.name || '')}</h5>
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
-                    <div class="product-price">RWF ${product.price || 0}</div>
-                    <a href="#" class="cart-icon-wrapper" data-product-id="${escapeHtml(prodId)}" title="Add to cart">
-                      <i class="fa-solid fa-cart-shopping fa-2x cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
-                    </a>
-                  </div>
-                  <p style="font-size:12px;color:#666;margin:4px 0 0;">Stock: ${product.stock || 0}</p>
-                </div>
-              `;
-    
-              
-    
-              // full-card click => navigate (but don't trigger when cart icon clicked)
-              card.addEventListener('click', (ev) => {
-                if (ev.target.closest('.cart-icon-wrapper')) return;
-                if (!prodId) return;
-                window.location.href = `sproduct.html?id=${encodeURIComponent(prodId)}`;
-              });
-    
-              // product image already clickable (redundant, okay)
-              const img = card.querySelector('img[data-product-id]');
-              img && img.addEventListener('click', () => { /* no-op: parent handles navigation */ });
-    
-              const cartLink = card.querySelector('.cart-icon-wrapper');
-              const cartIcon = card.querySelector('.cart-icon');
-              if (cartLink && cartIcon) {
-                cartLink.addEventListener('click', async function (e) {
-                  e.preventDefault(); e.stopPropagation();
-                  const pid = prodId;
-                  if (!pid) return;
-    
-                  // optimistic toggle while calling add function
-                  const wasIn = cartIcon.classList.contains('in-cart');
-                  // immediate UI toggle
-                  if (wasIn) cartIcon.classList.remove('in-cart'); else cartIcon.classList.add('in-cart');
-    
-                  try {
-                    if (typeof window.addToCartFromSupabase === 'function') {
-                      // if already in cart, remove; else add
-                      if (!wasIn) {
-                        await window.addToCartFromSupabase(pid);
-                      } else {
-                        // try to remove one or the item — fallback: call remove endpoint if exists
-                        if (typeof removeFromCartByProductId === 'function') {
-                          await removeFromCartByProductId(pid);
-                        } else {
-                          // If we don't have removal helper, just toggle and let user remove in cart panel
-                          // (no-op)
-                        }
-                      }
-                    } else if (typeof addToTempCart === 'function') {
-                      // fallback to temp cart toggle
-                      if (!wasIn) addToTempCart(pid, 1);
-                      else {
-                        // remove one entry from temp cart
-                        const t = getTempCart().filter(x => String(x.product_id) !== String(pid));
-                        saveTempCart(t);
-                      }
-                      if (typeof updateCartBadge === 'function') updateCartBadge();
-                    } else {
-                      // neither function available
-                      alert('Cart not available right now');
-                      // revert the optimistic toggle
-                      if (wasIn) cartIcon.classList.add('in-cart'); else cartIcon.classList.remove('in-cart');
-                      return;
-                    }
-                    // successful - update badge
-                    if (typeof updateCartBadge === 'function') updateCartBadge();
-                  } catch (err) {
-                    console.error('Add/remove cart error', err);
-                    // revert optimistic
-                    if (wasIn) cartIcon.classList.add('in-cart'); else cartIcon.classList.remove('in-cart');
-                    if (typeof showMessage === 'function') showMessage('Failed to update cart', 'error');
-                  }
-                });
-              }
-    
-              container.appendChild(card);
-            }
-    
-            // wire nav cart anchors to open cart panel (prevent default href)
+        // wire nav cart anchors to open cart panel (prevent default href)
             const navDesktop = document.getElementById('cart-toggle-desktop');
             const navMobile = document.getElementById('cart-toggle-mobile');
             [navDesktop, navMobile].forEach(el => {
@@ -676,12 +507,11 @@
                 }
               }, { passive:false });
             });
-
-          }
     </script>
 </body>
 
 </html>
+
 
 
 
