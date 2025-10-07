@@ -59,7 +59,7 @@ const COUNTRY_LIST = [
 window.addEventListener('load', function() {
   initializeSupabase();
   setupAuth();
-  initializeCart();
+  
   
 });
 
@@ -1665,6 +1665,7 @@ window.updateCartBadge = updateCartBadge;
     safeToggle();
   };
 })();
+
 
 
 
