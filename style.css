@@ -1398,11 +1398,8 @@ body {
 #cart-panel.open { transform: translateX(0); }
 #cart-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9998; }
 #cart-close { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 28px; cursor: pointer; color: #666; }
-.cart-item { display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid #eee; }
-.cart-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
-.ci-meta { flex: 1; }
-.qty-controls { display: flex; align-items: center; gap: 8px; }
-.qty-controls button { padding: 4px 12px; border-radius: 6px; background: #ff9db1; color: #fff; border: none; cursor: pointer; font-size: 16px; }
+
+
 .empty { text-align: center; padding: 40px 20px; color: #666; }
 
 /* Settings Modal */
@@ -1441,6 +1438,7 @@ body {
   font-size: 40px; /* increase */
 }
 .cart-icon.in-cart { transform: scale(1.08); }
+
 
 
 
