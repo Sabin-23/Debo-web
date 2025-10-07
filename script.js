@@ -1438,6 +1438,70 @@ window.renderCart = renderCart;
 window.updateCartBadge = updateCartBadge;
 
 
+// ====== Defensive cart-toggle wiring (paste at end of script.js or before </body>) ======
+(function ensureCartToggleAttached() {
+  function debugLog(...args) {
+    if (window && window.console) console.log('[CART-TOGGLE]', ...args);
+  }
+
+  function safeToggle() {
+    if (typeof toggleCart === 'function') {
+      debugLog('Calling toggleCart()');
+      toggleCart();
+      return;
+    }
+    // fallback to open/close if toggle missing
+    if (typeof openCart === 'function') {
+      debugLog('toggleCart missing, calling openCart()');
+      openCart();
+      return;
+    }
+    debugLog('No toggle/open functions found on window');
+  }
+
+  function bindOnce(el) {
+    // remove previous click handlers we added earlier to avoid duplicates
+    if (!el) return;
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      safeToggle();
+    }, { passive: false });
+  }
+
+  function attach() {
+    const sel = '#cart-toggle-desktop, #cart-toggle-mobile, .cart-btn, .cart-toggle';
+    const nodes = document.querySelectorAll(sel);
+    if (!nodes || nodes.length === 0) {
+      debugLog('No cart toggle DOM nodes found for selector:', sel);
+    } else {
+      debugLog('Found cart toggle nodes:', nodes.length);
+      nodes.forEach(bindOnce);
+    }
+
+    // Also attach to cart-badge so clicking the number opens cart
+    const badge = document.getElementById('cart-badge');
+    if (badge) badge.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); safeToggle(); }, { passive: false });
+
+    // Safety: if cart panel is present but hidden, ensure panel exists
+    const panel = document.getElementById('cart-panel');
+    if (!panel) debugLog('Warning: #cart-panel element not found in DOM');
+    else debugLog('#cart-panel found');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+
+  // Extra debug: expose a quick tester
+  window.__cartToggleTester = function() {
+    debugLog('tester calling safeToggle()');
+    safeToggle();
+  };
+})();
+
 
 
 
