@@ -1337,34 +1337,198 @@ async function handleClearCart() {
    initializeCart: attach UI listeners (safe - won't fail if some elements missing)
    ------------------------------ */
 let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
-function initializeCart() {
-  cartToggleMobile = document.getElementById("cart-toggle-mobile");
-  cartToggleDesktop = document.getElementById("cart-toggle-desktop");
-  cartBadge = document.getElementById("cart-badge");
-  cartPanel = document.getElementById("cart-panel");
-  cartBackdrop = document.getElementById("cart-backdrop");
-  cartClose = document.getElementById("cart-close");
-  cartItemsNode = document.getElementById("cart-items");
-  cartSubtotalNode = document.getElementById("cart-subtotal");
-  checkoutBtn = document.getElementById("checkout");
-  clearCartBtn = document.getElementById("clear-cart");
 
-  // attach available listeners (do not return early)
-  if (cartToggleMobile) cartToggleMobile.addEventListener('click', (e)=>{ e.preventDefault(); toggleCart(); });
-  if (cartToggleDesktop) cartToggleDesktop.addEventListener('click', (e)=>{ e.preventDefault(); toggleCart(); });
-  if (cartClose) cartClose.addEventListener('click', closeCart);
-  if (cartBackdrop) cartBackdrop.addEventListener('click', closeCart);
-  if (checkoutBtn) checkoutBtn.addEventListener('click', handleCheckout);
-  if (clearCartBtn) clearCartBtn.addEventListener('click', handleClearCart);
+// ====== CART INITIALIZATION & FIXES (Replace existing initializeCart/checkout/clear handlers) ======
 
-  // wire product icon click handlers (if product listing already present)
-  document.querySelectorAll('.cart-icon-wrapper').forEach(wrapper => {
-    wrapper.removeEventListener('click', onProductCartIconClick); // safe guard (in case running twice)
-    wrapper.addEventListener('click', onProductCartIconClick);
-  });
+/*
+  This block:
+  - Ensures event handlers are only attached once (prevents multiple confirms)
+  - Opens/closes cart reliably from nav icons
+  - Clear cart confirms once and clears guest or signed-in cart properly
+  - Checkout requires sign-in and only redirects after sign-in (no premature redirect)
+  - Hooks into Supabase auth state changes to complete pending actions
+*/
 
-  if (typeof updateCartBadge === 'function') updateCartBadge();
-}
+(function cartInitGuarded() {
+  // guard so we replace only once
+  if (document.body.dataset.cartInit === '1') return;
+  document.body.dataset.cartInit = '1';
+
+  const TEMP_CART_KEY = window.TEMP_CART_KEY || 'temp_cart_v1';
+
+  // Elements (may be null on some pages — handlers are defensive)
+  const cartToggleDesktop = document.getElementById('cart-toggle-desktop');
+  const cartToggleMobile = document.getElementById('cart-toggle-mobile');
+  const cartBadge = document.getElementById('cart-badge');
+  const cartPanel = document.getElementById('cart-panel');
+  const cartBackdrop = document.getElementById('cart-backdrop');
+  const cartClose = document.getElementById('cart-close');
+  const checkoutButton = document.getElementById('checkout');
+  const clearCartButton = document.getElementById('clear-cart');
+
+  // safe toggle functions (exported for other pages)
+  window.toggleCart = window.toggleCart || function () {
+    const p = document.getElementById('cart-panel'), b = document.getElementById('cart-backdrop');
+    if (!p || !b) return;
+    if (p.classList.contains('open')) {
+      p.classList.remove('open'); p.setAttribute('aria-hidden','true'); b.hidden = true;
+    } else {
+      p.classList.add('open'); p.setAttribute('aria-hidden','false'); b.hidden = false;
+      if (typeof renderCart === 'function') renderCart();
+    }
+  };
+  window.openCart = window.openCart || function () {
+    const p = document.getElementById('cart-panel'), b = document.getElementById('cart-backdrop');
+    if (!p || !b) return;
+    p.classList.add('open'); p.setAttribute('aria-hidden','false'); b.hidden = false;
+    if (typeof renderCart === 'function') renderCart();
+  };
+  window.closeCart = window.closeCart || function () {
+    const p = document.getElementById('cart-panel'), b = document.getElementById('cart-backdrop');
+    if (!p || !b) return;
+    p.classList.remove('open'); p.setAttribute('aria-hidden','true'); b.hidden = true;
+  };
+
+  // Attach nav toggles (defensive: prevents default anchor behavior)
+  function attachToggle(el) {
+    if (!el) return;
+    // if we already attached, skip
+    if (el.dataset.cartToggleAttached === '1') return;
+    el.dataset.cartToggleAttached = '1';
+    el.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      window.toggleCart();
+    }, { passive: false });
+  }
+
+  attachToggle(cartToggleDesktop);
+  attachToggle(cartToggleMobile);
+  // also attach to any .cart-btn elements (defensive)
+  document.querySelectorAll('.cart-btn').forEach(attachToggle);
+  if (cartBadge) {
+    if (cartBadge.dataset.attached !== '1') {
+      cartBadge.dataset.attached = '1';
+      cartBadge.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); window.toggleCart(); }, { passive: false });
+    }
+  }
+
+  // Close handlers: only attach once
+  if (cartClose && !cartClose.dataset.closeAttached) {
+    cartClose.dataset.closeAttached = '1';
+    cartClose.addEventListener('click', (e) => { e.preventDefault(); window.closeCart(); }, { passive: false });
+  }
+  if (cartBackdrop && !cartBackdrop.dataset.backdropAttached) {
+    cartBackdrop.dataset.backdropAttached = '1';
+    cartBackdrop.addEventListener('click', (e) => { e.preventDefault(); window.closeCart(); }, { passive: false });
+  }
+
+  // ===== Clear Cart (single confirm, works for guest or signed-in) =====
+  async function handleClearCartOnce(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    // single confirm
+    if (!confirm('Clear all items from cart?')) return;
+
+    try {
+      // if signed in -> delete from DB
+      const userResp = window.supabase ? await window.supabase.auth.getUser() : null;
+      const user = userResp?.data?.user;
+      if (user && window.supabase) {
+        const { error } = await window.supabase.from('cart_items').delete().eq('user_id', user.id);
+        if (error) throw error;
+      } else {
+        // guest -> clear local temp cart
+        try { localStorage.removeItem(TEMP_CART_KEY); } catch (err) { console.error('clear temp cart failed', err); }
+      }
+
+      // refresh UI
+      if (typeof renderCart === 'function') renderCart().catch(()=>{});
+      if (typeof updateCartBadge === 'function') updateCartBadge().catch(()=>{});
+      if (typeof showMessage === 'function') showMessage('Cart cleared', 'success', 1500);
+    } catch (err) {
+      console.error('handleClearCart error', err);
+      alert('Clear cart failed: ' + (err?.message || err));
+    }
+  }
+
+  if (clearCartButton && !clearCartButton.dataset.clearAttached) {
+    clearCartButton.dataset.clearAttached = '1';
+    clearCartButton.addEventListener('click', handleClearCartOnce, { passive: false });
+  }
+
+  // ===== Checkout handling (prevent premature redirect, request sign-in if necessary) =====
+  // Use a flag to remember the user's intent to checkout after login
+  window.__pendingCheckout = false;
+
+  async function handleCheckoutClick(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    // check auth
+    if (window.supabase) {
+      try {
+        const { data } = await window.supabase.auth.getUser();
+        const user = data?.user;
+        if (!user) {
+          // not signed in -> show modal and set pending
+          window.__pendingCheckout = true;
+          const modal = document.getElementById('modal');
+          if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
+          if (typeof showMessage === 'function') showMessage('Please sign in to continue to checkout', 'info', 2500);
+          return;
+        }
+        // signed in -> go to checkout
+        window.location.href = 'checkout.html';
+      } catch (err) {
+        console.error('Checkout auth check failed', err);
+        alert('Unable to check authentication: ' + (err.message || err));
+      }
+    } else {
+      // no supabase available, treat as guest: ask them to sign in
+      window.__pendingCheckout = true;
+      const modal = document.getElementById('modal');
+      if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
+      if (typeof showMessage === 'function') showMessage('Please sign in to continue to checkout', 'info', 2500);
+    }
+  }
+
+  if (checkoutButton && !checkoutButton.dataset.checkoutAttached) {
+    checkoutButton.dataset.checkoutAttached = '1';
+    checkoutButton.addEventListener('click', handleCheckoutClick, { passive: false });
+  }
+
+  // ===== Supabase auth state hook: complete pending checkout after sign-in & sync temp cart =====
+  // This is defensive: only registers if supabase object with onAuthStateChange exists
+  try {
+    if (window.supabase && typeof window.supabase.auth?.onAuthStateChange === 'function') {
+      window.supabase.auth.onAuthStateChange((event, session) => {
+        // when user signs in, if there was a pending checkout intent -> go to checkout page
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          // try syncing temp cart into DB
+          if (typeof window.syncTempCartToDatabase === 'function') {
+            window.syncTempCartToDatabase().catch(e => console.warn('syncTempCartToDatabase failed:', e));
+          }
+          // update badge
+          if (typeof updateCartBadge === 'function') updateCartBadge().catch(()=>{});
+          // if user intended to checkout, do it now
+          if (window.__pendingCheckout) {
+            window.__pendingCheckout = false;
+            // short delay to let UI settle
+            setTimeout(()=>{ window.location.href = 'checkout.html'; }, 300);
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Auth state hook setup failed', e);
+  }
+
+  // Initial badge + cart render attempt
+  if (typeof updateCartBadge === 'function') updateCartBadge().catch(()=>{});
+  if (typeof renderCart === 'function' && cartPanel && cartPanel.classList.contains('open')) renderCart().catch(()=>{});
+
+})(); // end cartInitGuarded
+
 
 /* handler used above for product listing cart icons */
 async function onProductCartIconClick(e) {
@@ -1501,6 +1665,7 @@ window.updateCartBadge = updateCartBadge;
     safeToggle();
   };
 })();
+
 
 
 
