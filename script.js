@@ -6,6 +6,36 @@
 const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
+// --- Robust supabase client getter (paste near top of script.js) ---
+function ensureSupabaseClient() {
+  // If we already created a client on __supabase_client, reuse it
+  if (window.__supabase_client && typeof window.__supabase_client.from === 'function') {
+    window.supabase = window.__supabase_client; // keep compatibility
+    return window.__supabase_client;
+  }
+
+  // Case A: window.supabase is the library object (has createClient)
+  if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
+    try {
+      window.__supabase_client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      window.supabase = window.__supabase_client; // make global client for backwards compatibility
+      return window.__supabase_client;
+    } catch (e) {
+      console.warn('Failed creating supabase client from library:', e);
+    }
+  }
+
+  // Case B: window.supabase may already be a client (has .from)
+  if (typeof window.supabase !== 'undefined' && typeof window.supabase.from === 'function') {
+    window.__supabase_client = window.supabase;
+    return window.__supabase_client;
+  }
+
+  // Nothing available
+  return null;
+}
+
+
 // ADD THIS RIGHT AFTER YOUR CONSTANTS (after SUPABASE_ANON_KEY line)
 
 // ADD THIS RIGHT AFTER YOUR CONSTANTS (after SUPABASE_ANON_KEY line)
@@ -993,23 +1023,31 @@ function removeTempCartItem(productId) {
    ------------------------------ */
 function updateProductCardIcon(productId, inCart) {
   try {
-    // target both wrapper and icon element variants
-    const wrappers = document.querySelectorAll(`.cart-icon-wrapper[data-product-id="${productId}"]`);
-    wrappers.forEach(w => {
-      // icon element inside
-      const icon = w.querySelector('.cart, .cart-icon, i.fa-cart-shopping');
-      if (icon) {
+    const norm = String(productId);
+    // match any element with data-product-id (wrapper or icon)
+    document.querySelectorAll('[data-product-id]').forEach(node => {
+      const attr = node.getAttribute('data-product-id');
+      if (attr === norm) {
+        // try icon inside wrapper first
+        const icon = node.querySelector('.cart, .cart-icon, i.fa-cart-shopping') || node;
         if (inCart) icon.classList.add('in-cart');
         else icon.classList.remove('in-cart');
-      } else {
-        // fallback: toggle class on wrapper
-        if (inCart) w.classList.add('in-cart'); else w.classList.remove('in-cart');
+      }
+    });
+
+    // also fallback: some pages might set product-id on images/buttons differently
+    const altIcons = document.querySelectorAll(`.cart-icon, i.fa-cart-shopping`);
+    altIcons.forEach(ic => {
+      const wrapper = ic.closest('[data-product-id]');
+      if (wrapper && String(wrapper.getAttribute('data-product-id')) === norm) {
+        if (inCart) ic.classList.add('in-cart'); else ic.classList.remove('in-cart');
       }
     });
   } catch (e) {
     // ignore
   }
 }
+
 
 /* ------------------------------
    SYNC TEMP CART -> DB (when user signs in)
@@ -1666,7 +1704,36 @@ window.updateCartBadge = updateCartBadge;
   };
 })();
 
+// --- Safe initializeCart wrapper (paste somewhere after cartInitGuarded IIFE in script.js) ---
+window.initializeCart = window.initializeCart || function() {
+  // if the guarded init already ran, just return
+  if (document.body.dataset.cartInit === '1') {
+    // ensure badge/render update if possible
+    if (typeof updateCartBadge === 'function') updateCartBadge().catch?.(()=>{});
+    if (typeof renderCart === 'function') {
+      try { renderCart(); } catch (e) {}
+    }
+    return;
+  }
 
+  // If the main guarded initializer hasn't run for some reason, run minimal attach logic:
+  document.body.dataset.cartInit = '1';
+
+  // Attach nav toggles defensively (same idea as the attachToggle in cartInitGuarded)
+  const sel = '#cart-toggle-desktop, #cart-toggle-mobile, .cart-btn, .cart-toggle';
+  document.querySelectorAll(sel).forEach(el => {
+    if (!el) return;
+    if (el.dataset.cartToggleAttached === '1') return;
+    el.dataset.cartToggleAttached = '1';
+    el.addEventListener('click', (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      if (typeof window.toggleCart === 'function') window.toggleCart();
+    }, { passive:false });
+  });
+
+  // ensure badge updated
+  if (typeof updateCartBadge === 'function') updateCartBadge().catch?.(()=>{});
+};
 
 
 
