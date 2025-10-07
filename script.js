@@ -927,44 +927,95 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// ====== CART SYSTEM (replace previous cart block with this) ======
+// ====== CART SYSTEM (cleaned & unified) ======
 
 const TEMP_CART_KEY = 'temp_cart_v1';
 
-// ===== TEMPORARY CART (LocalStorage) =====
+/* ------------------------------
+   TEMPORARY CART (LocalStorage)
+   shape: [{ product_id: <id>, quantity: <n>, added_at: <iso> }, ...]
+   ------------------------------ */
 function getTempCart() {
   try {
-    const cart = localStorage.getItem(TEMP_CART_KEY);
-    return cart ? JSON.parse(cart) : [];
-  } catch (e) { return []; }
+    const raw = localStorage.getItem(TEMP_CART_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('getTempCart parse error', e);
+    return [];
+  }
 }
 function saveTempCart(cart) {
-  try { localStorage.setItem(TEMP_CART_KEY, JSON.stringify(cart)); } catch (e) { console.error(e); }
+  try {
+    localStorage.setItem(TEMP_CART_KEY, JSON.stringify(cart));
+  } catch (e) {
+    console.error('saveTempCart error', e);
+  }
 }
 function addToTempCart(productId, quantity = 1) {
-  const cart = getTempCart();
-  const idx = cart.findIndex(i => String(i.product_id) === String(productId));
-  if (idx !== -1) cart[idx].quantity += quantity;
-  else cart.push({ product_id: productId, quantity, added_at: new Date().toISOString() });
-  saveTempCart(cart);
-  if (typeof updateCartBadge === 'function') updateCartBadge();
-  updateProductCardIcon(productId, true);
+  try {
+    const cart = getTempCart();
+    const idx = cart.findIndex(i => String(i.product_id) === String(productId));
+    if (idx !== -1) {
+      cart[idx].quantity = (Number(cart[idx].quantity) || 0) + Number(quantity);
+    } else {
+      cart.push({ product_id: productId, quantity: Number(quantity) || 1, added_at: new Date().toISOString() });
+    }
+    saveTempCart(cart);
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    updateProductCardIcon(productId, true);
+    return cart;
+  } catch (err) {
+    console.error('addToTempCart error', err);
+    return null;
+  }
 }
-function clearTempCart() { try { localStorage.removeItem(TEMP_CART_KEY); } catch (e) { console.error(e); } }
+function clearTempCart() {
+  try { localStorage.removeItem(TEMP_CART_KEY); } catch (e) { console.error(e); }
+}
+function removeTempCartItem(productId) {
+  try {
+    let cart = getTempCart();
+    cart = cart.filter(i => String(i.product_id) !== String(productId));
+    saveTempCart(cart);
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    updateProductCardIcon(productId, false);
+    if (typeof renderCart === 'function') renderCart();
+  } catch (e) { console.error('removeTempCartItem', e); }
+}
 
-// ====== HELPERS FOR UI ======
+/* ------------------------------
+   UI helper - mark product icons in product listing
+   .cart-icon-wrapper should contain an element with class .cart-icon (or the wrapper itself)
+   Add CSS for `.cart-icon.in-cart` to color it green.
+   e.g.
+     .cart-icon { color: #ff9db1; }
+     .cart-icon.in-cart { color: #2e7d32; transform: scale(1.05); }
+   ------------------------------ */
 function updateProductCardIcon(productId, inCart) {
   try {
-    const selector = `.cart-icon-wrapper[data-product-id="${productId}"] .cart-icon, .cart-icon-wrapper[data-product-id='${productId}'] .cart-icon`;
-    document.querySelectorAll(selector).forEach(icon => {
-      if (inCart) icon.classList.add('in-cart'); else icon.classList.remove('in-cart');
+    // target both wrapper and icon element variants
+    const wrappers = document.querySelectorAll(`.cart-icon-wrapper[data-product-id="${productId}"]`);
+    wrappers.forEach(w => {
+      // icon element inside
+      const icon = w.querySelector('.cart, .cart-icon, i.fa-cart-shopping');
+      if (icon) {
+        if (inCart) icon.classList.add('in-cart');
+        else icon.classList.remove('in-cart');
+      } else {
+        // fallback: toggle class on wrapper
+        if (inCart) w.classList.add('in-cart'); else w.classList.remove('in-cart');
+      }
     });
-  } catch(e) { /* ignore */ }
+  } catch (e) {
+    // ignore
+  }
 }
 
-// ====== SYNC TEMP CART TO DATABASE ======
+/* ------------------------------
+   SYNC TEMP CART -> DB (when user signs in)
+   ------------------------------ */
 async function syncTempCartToDatabase() {
-  if (!window.currentUser || !window.supabase) return;
+  if (!window.currentUser || !window.currentUser.id || !window.supabase) return;
   const temp = getTempCart();
   if (!temp || temp.length === 0) {
     if (typeof updateCartBadge === 'function') updateCartBadge();
@@ -972,255 +1023,64 @@ async function syncTempCartToDatabase() {
   }
   try {
     for (const item of temp) {
-      const { data: existing, error: checkErr } = await supabase
+      const pid = item.product_id;
+      const qty = Number(item.quantity) || 1;
+      const { data: existing, error: checkErr } = await window.supabase
         .from('cart_items')
         .select('*')
-        .eq('user_id', currentUser.id)
-        .eq('product_id', item.product_id)
+        .eq('user_id', window.currentUser.id)
+        .eq('product_id', pid)
         .maybeSingle();
       if (checkErr && checkErr.code !== 'PGRST116') { console.error(checkErr); continue; }
       if (existing) {
-        await supabase.from('cart_items').update({ quantity: existing.quantity + item.quantity }).eq('id', existing.id);
+        await window.supabase.from('cart_items').update({ quantity: (existing.quantity || 0) + qty }).eq('id', existing.id);
       } else {
-        await supabase.from('cart_items').insert([{ user_id: currentUser.id, product_id: item.product_id, quantity: item.quantity, added_at: new Date().toISOString() }]);
+        await window.supabase.from('cart_items').insert([{
+          user_id: window.currentUser.id,
+          product_id: pid,
+          quantity: qty,
+          added_at: new Date().toISOString()
+        }]);
       }
     }
     clearTempCart();
     if (typeof updateCartBadge === 'function') updateCartBadge();
     if (typeof showMessage === 'function') showMessage('Cart synced!', 'success', 2000);
-  } catch (e) { console.error('syncTempCartToDatabase error', e); }
-}
-
-// ====== CART (server-backed) ======
-let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
-
-function initializeCart() {
-  cartToggleMobile = document.getElementById("cart-toggle-mobile");
-  cartToggleDesktop = document.getElementById("cart-toggle-desktop");
-  cartBadge = document.getElementById("cart-badge");
-  cartPanel = document.getElementById("cart-panel");
-  cartBackdrop = document.getElementById("cart-backdrop");
-  cartClose = document.getElementById("cart-close");
-  cartItemsNode = document.getElementById("cart-items");
-  cartSubtotalNode = document.getElementById("cart-subtotal");
-  checkoutBtn = document.getElementById("checkout");
-  clearCartBtn = document.getElementById("clear-cart");
-
-
-  
-  if (!cartToggleMobile || !cartToggleDesktop) return;
-  
-  cartToggleMobile.addEventListener("click", toggleCart);
-  cartToggleDesktop.addEventListener("click", toggleCart);
-  
-
-  // wire UI
-  if (cartToggleMobile) cartToggleMobile.addEventListener("click", (e)=>{ e.preventDefault(); toggleCart(); });
-  if (cartToggleDesktop) cartToggleDesktop.addEventListener("click", (e)=>{ e.preventDefault(); toggleCart(); });
-  if (cartClose) cartClose.addEventListener("click", closeCart);
-  if (cartBackdrop) cartBackdrop.addEventListener("click", closeCart);
-  if (checkoutBtn) checkoutBtn.addEventListener("click", handleCheckout);
-  if (clearCartBtn) clearCartBtn.addEventListener("click", handleClearCart);
-
-  if (typeof updateCartBadge === 'function') updateCartBadge();
-}
-
-  // Inside or after initializeCart()
-const checkoutBtn = document.getElementById('checkout');
-if (checkoutBtn) {
-  checkoutBtn.onclick = async () => {
-    const { data: { user } } = await window.supabase.auth.getUser();
-
-    if (!user) {
-      // user not logged in → show message or login modal
-      alert('You must sign in before checking out.');
-
-      const modal = document.getElementById('modal');
-      if (modal) {
-        modal.style.display = 'flex';
-        modal.classList.add('open');
-      }
-
-      return; // stop here — don’t redirect
-    }
-
-    // user logged in → proceed
-    window.location.href = 'checkout.html';
-  };
-}
-
-
-// ---- Local (guest) Cart Helpers ----
-function getTempCart() {
-  try {
-    return JSON.parse(localStorage.getItem('temp_cart') || '[]');
-  } catch {
-    return [];
+  } catch (e) {
+    console.error('syncTempCartToDatabase error', e);
   }
 }
 
-function saveTempCart(cart) {
-  localStorage.setItem('temp_cart', JSON.stringify(cart));
-}
-
-window.addToTempCart = function (productId, qty = 1) {
-  const cart = getTempCart();
-  const existing = cart.find(p => p.id === productId);
-  if (existing) existing.qty += qty;
-  else cart.push({ id: productId, qty });
-  saveTempCart(cart);
-  if (typeof updateCartBadge === 'function') updateCartBadge();
-  if (typeof showMessage === 'function') showMessage('Added to local cart', 'success');
-};
-
-
-// ---- Render local cart if not signed in ----
-window.renderCart = async function () {
-  const cartItemsDiv = document.getElementById('cart-items');
-  const subtotalDiv = document.getElementById('cart-subtotal');
-  const user = window.currentUser;
-
-  cartItemsDiv.innerHTML = '<div style="padding:20px;color:#666;">Loading...</div>';
-
-  if (!user) {
-    // guest cart
-    const cart = getTempCart();
-    if (!cart.length) {
-      cartItemsDiv.innerHTML = '<div style="padding:20px;color:#666;">Your cart is empty.</div>';
-      subtotalDiv.textContent = 'RWF 0';
-      return;
-    }
-
-    // fetch product info for each id
-    const ids = cart.map(c => c.id);
-    const { data: products, error } = await window.supabase
-      .from('products')
-      .select('*')
-      .in('id', ids);
-
-    if (error) {
-      cartItemsDiv.innerHTML = `<div style="padding:20px;color:red;">Error loading cart</div>`;
-      return;
-    }
-
-    let subtotal = 0;
-    cartItemsDiv.innerHTML = '';
-    cart.forEach(item => {
-      const p = products.find(prod => prod.id === item.id);
-      if (!p) return;
-      const total = (p.price || 0) * item.qty;
-      subtotal += total;
-      const div = document.createElement('div');
-      div.className = 'cart-item';
-      div.innerHTML = `
-        <img src="${p.image_url || 'https://via.placeholder.com/60'}" alt="">
-        <div class="cart-info">
-          <strong>${p.name}</strong>
-          <span>RWF ${p.price} × ${item.qty}</span>
-          <div class="cart-actions">
-            <button onclick="removeTempCartItem(${p.id})">Remove</button>
-          </div>
-        </div>`;
-      cartItemsDiv.appendChild(div);
-    });
-    subtotalDiv.textContent = 'RWF ' + subtotal;
-    return;
-  }
-
-  // If logged in → load from Supabase
-  const { data, error } = await window.supabase
-    .from('cart_items')
-    .select('quantity, products(id, name, price, image_url)')
-    .eq('user_id', user.id);
-
-  if (error) {
-    cartItemsDiv.innerHTML = `<div style="padding:20px;color:red;">Error loading cart</div>`;
-    return;
-  }
-
-  if (!data || !data.length) {
-    cartItemsDiv.innerHTML = '<div style="padding:20px;color:#666;">Your cart is empty.</div>';
-    subtotalDiv.textContent = 'RWF 0';
-    return;
-  }
-
-  let subtotal = 0;
-  cartItemsDiv.innerHTML = '';
-  data.forEach(item => {
-    const p = item.products;
-    const total = (p.price || 0) * item.quantity;
-    subtotal += total;
-    const div = document.createElement('div');
-    div.className = 'cart-item';
-    div.innerHTML = `
-      <img src="${p.image_url || 'https://via.placeholder.com/60'}" alt="">
-      <div class="cart-info">
-        <strong>${p.name}</strong>
-        <span>RWF ${p.price} × ${item.quantity}</span>
-        <div class="cart-actions">
-          <button onclick="removeCartItem(${p.id})">Remove</button>
-        </div>
-      </div>`;
-    cartItemsDiv.appendChild(div);
-  });
-  subtotalDiv.textContent = 'RWF ' + subtotal;
-};
-
-function removeTempCartItem(productId) {
-  let cart = getTempCart();
-  cart = cart.filter(item => item.id !== productId);
-  saveTempCart(cart);
-  renderCart();
-  if (typeof updateCartBadge === 'function') updateCartBadge();
-}
-
-
-// exported helpers
-window.toggleCart = function toggleCart() {
-  const panel = document.getElementById('cart-panel');
-  const backdrop = document.getElementById('cart-backdrop');
-  if (!panel || !backdrop) return;
-  if (panel.classList.contains('open')) closeCart(); else openCart();
-};
-window.openCart = function openCart() {
-  const panel = document.getElementById('cart-panel');
-  const backdrop = document.getElementById('cart-backdrop');
-  if (!panel || !backdrop) return;
-  panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); backdrop.hidden = false;
-  if (typeof renderCart === 'function') renderCart();
-};
-window.closeCart = function closeCart() {
-  const panel = document.getElementById('cart-panel');
-  const backdrop = document.getElementById('cart-backdrop');
-  if (!panel || !backdrop) return;
-  panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); backdrop.hidden = true;
-};
-
-// addToCartFromSupabase: prefer server, else fallback to temp cart
-async function addToCartFromSupabase(productId) {
+/* ------------------------------
+   SERVER-BACKED CART: add/remove
+   ------------------------------ */
+async function addToCartFromSupabase(productId, quantity = 1) {
   if (!productId) return;
-  // if user not signed in, store temp
+  // guest fallback
   if (!window.currentUser || !window.currentUser.id) {
-    addToTempCart(productId, 1);
-    updateProductCardIcon(productId, true);
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    if (typeof showMessage === 'function') showMessage('Added to cart (local). Sign in to save.', 'success', 2000);
+    addToTempCart(productId, quantity);
+    if (typeof showMessage === 'function') showMessage('Added to cart (local). Sign in to save.', 'success', 1500);
     return;
   }
   if (!window.supabase) { alert('Service unavailable'); return; }
   try {
-    const { data: existing, error: checkError } = await supabase
+    const { data: existing, error: checkError } = await window.supabase
       .from('cart_items')
       .select('*')
-      .eq('user_id', currentUser.id)
+      .eq('user_id', window.currentUser.id)
       .eq('product_id', productId)
       .maybeSingle();
     if (checkError && checkError.code !== 'PGRST116') throw checkError;
     if (existing) {
-      const { error: upErr } = await supabase.from('cart_items').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
+      const { error: upErr } = await window.supabase.from('cart_items').update({ quantity: (existing.quantity || 0) + Number(quantity) }).eq('id', existing.id);
       if (upErr) throw upErr;
     } else {
-      const { error: insErr } = await supabase.from('cart_items').insert([{ user_id: currentUser.id, product_id: productId, quantity:1, added_at: new Date().toISOString() }]);
+      const { error: insErr } = await window.supabase.from('cart_items').insert([{
+        user_id: window.currentUser.id,
+        product_id: productId,
+        quantity: Number(quantity) || 1,
+        added_at: new Date().toISOString()
+      }]);
       if (insErr) throw insErr;
     }
     updateProductCardIcon(productId, true);
@@ -1233,26 +1093,30 @@ async function addToCartFromSupabase(productId) {
 }
 window.addToCartFromSupabase = addToCartFromSupabase;
 
-// optional helper to remove by product id (used by UI toggle in shop)
+/* ------------------------------
+   Remove by product id helper (DB or temp)
+   ------------------------------ */
 async function removeFromCartByProductId(productId) {
-  if (!window.currentUser || !window.currentUser.id || !window.supabase) {
-    // remove from temp
-    const t = getTempCart().filter(x => String(x.product_id) !== String(productId));
-    saveTempCart(t);
-    updateProductCardIcon(productId, false);
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    return;
-  }
   try {
-    // find cart entry
-    const { data: item, error } = await supabase.from('cart_items').select('id').eq('user_id', currentUser.id).eq('product_id', productId).maybeSingle();
+    if (!window.currentUser || !window.currentUser.id || !window.supabase) {
+      // remove from temp
+      const t = getTempCart().filter(x => String(x.product_id) !== String(productId));
+      saveTempCart(t);
+      updateProductCardIcon(productId, false);
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+      if (typeof renderCart === 'function') renderCart();
+      return;
+    }
+    // logged-in: find cart entry and delete
+    const { data: item, error } = await window.supabase.from('cart_items').select('id').eq('user_id', window.currentUser.id).eq('product_id', productId).maybeSingle();
     if (error) throw error;
     if (item && item.id) {
-      const { error: delErr } = await supabase.from('cart_items').delete().eq('id', item.id);
+      const { error: delErr } = await window.supabase.from('cart_items').delete().eq('id', item.id);
       if (delErr) throw delErr;
     }
     updateProductCardIcon(productId, false);
     if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (typeof renderCart === 'function') renderCart();
   } catch (e) {
     console.error('removeFromCartByProductId error', e);
     throw e;
@@ -1260,97 +1124,320 @@ async function removeFromCartByProductId(productId) {
 }
 window.removeFromCartByProductId = removeFromCartByProductId;
 
-// renderCart, updateCartBadge, update quantity/ removal - provide safe implementations that map to your DB structure.
-// If you already have renderCart/updateCartBadge implementations, keep them. Otherwise the following are safe fallback implementations.
-
+/* ------------------------------
+   RENDER CART (guest or logged-in)
+   ------------------------------ */
 async function renderCart() {
-  const { data, error } = await supabase
-    .from('cart_items')
-    .select('*');
   const node = document.getElementById('cart-items');
   const subtotalNode = document.getElementById('cart-subtotal');
   if (!node) return;
   node.innerHTML = '<div style="padding:20px;color:#666;">Loading cart...</div>';
-  // if user not signed in show temp cart
-  if (!window.currentUser || !window.currentUser.id) {
-    const temp = getTempCart();
-    if (!temp || temp.length === 0) {
-      node.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">Your cart is empty.</div>';
-      if (subtotalNode) subtotalNode.textContent = 'RWF 0';
+  try {
+    // guest
+    if (!window.currentUser || !window.currentUser.id) {
+      const temp = getTempCart();
+      if (!temp || temp.length === 0) {
+        node.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">Your cart is empty.</div>';
+        if (subtotalNode) subtotalNode.textContent = 'RWF 0';
+        return;
+      }
+      // fetch product info for ids
+      const ids = Array.from(new Set(temp.map(i => i.product_id).filter(Boolean)));
+      if (!window.supabase) {
+        node.innerHTML = '<div style="padding:20px;color:#666;">Service unavailable</div>';
+        return;
+      }
+      const { data: products, error } = await window.supabase.from('products').select('id, name, price, image_url').in('id', ids);
+      if (error) { node.innerHTML = '<div style="padding:20px;color:red;">Error loading cart</div>'; return; }
+      node.innerHTML = '';
+      let subtotal = 0;
+      for (const t of temp) {
+        const prod = (products && products.find(p => String(p.id) === String(t.product_id))) || { name: 'Product', price: 0, image_url: null };
+        const qty = Number(t.quantity) || 0;
+        const total = (prod.price || 0) * qty;
+        subtotal += total;
+        const div = document.createElement('div');
+        div.className = 'cart-item';
+        div.style.cssText = 'display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;align-items:center;';
+        div.innerHTML = `
+          <img src="${prod.image_url || 'https://via.placeholder.com/80'}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">
+          <div style="flex:1;">
+            <div style="font-weight:600;">${escapeHtml(prod.name)}</div>
+            <div style="color:#666;">RWF ${prod.price || 0} × ${qty} = RWF ${total}</div>
+          </div>
+          <div>
+            <button data-remove-temp="${escapeHtml(String(t.product_id))}" style="padding:6px 10px;border-radius:6px;background:#c62828;color:#fff;border:none;cursor:pointer;">Remove</button>
+          </div>`;
+        node.appendChild(div);
+      }
+      if (subtotalNode) subtotalNode.textContent = `RWF ${subtotal}`;
+      // bind remove buttons
+      node.querySelectorAll('[data-remove-temp]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const pid = btn.getAttribute('data-remove-temp');
+          removeTempCartItem(pid);
+        });
+      });
       return;
     }
-    node.innerHTML = '';
-    let subtotal = 0;
-    for (const t of temp) {
-      const p = document.querySelector(`.pro [data-product-id="${t.product_id}"]`);
-      const name = p ? p.alt || 'Product' : 'Product';
-      const price = 0;
-      subtotal += 0;
-      const div = document.createElement('div');
-      div.style.cssText = 'padding:12px;border-bottom:1px solid #eee;';
-      div.textContent = `${name} × ${t.quantity}`;
-      node.appendChild(div);
-    }
-    if (subtotalNode) subtotalNode.textContent = `RWF ${subtotal}`;
-    return;
-  }
 
-  // if signed in, attempt to read from DB
-  if (!window.supabase) { node.innerHTML = '<div style="padding:20px;color:#666;">Service unavailable</div>'; return; }
-  try {
-    const { data: cartItems, error } = await supabase.from('cart_items').select('id,quantity,products(id,name,price,image_url)').eq('user_id', currentUser.id);
-    if (error) throw error;
-    node.innerHTML = '';
+    // logged-in: fetch cart items joined with products relation
+    if (!window.supabase) { node.innerHTML = '<div style="padding:20px;color:#666;">Service unavailable</div>'; return; }
+    const { data: cartItems, error } = await window.supabase.from('cart_items').select('id, quantity, product_id, products(id,name,price,image_url)').eq('user_id', window.currentUser.id);
+    if (error) { node.innerHTML = '<div style="padding:20px;color:red;">Error loading cart</div>'; return; }
     if (!cartItems || cartItems.length === 0) {
       node.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">Your cart is empty.</div>';
       if (subtotalNode) subtotalNode.textContent = 'RWF 0';
       return;
     }
+    node.innerHTML = '';
     let subtotal = 0;
-    for (const ci of cartItems) {
-      const prod = ci.products || {};
-      const total = (prod.price || 0) * (ci.quantity || 1);
+    cartItems.forEach(ci => {
+      const prod = ci.products || { name: 'Product', price: 0, image_url: null };
+      const qty = Number(ci.quantity) || 0;
+      const total = (prod.price || 0) * qty;
       subtotal += total;
       const div = document.createElement('div');
-      div.style.cssText = 'display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;';
-      div.innerHTML = `<div style="flex:1;"><strong>${escapeHtml(prod.name||'Product')}</strong><div>Qty: ${ci.quantity}</div></div><div>RWF ${total}</div>`;
+      div.className = 'cart-item';
+      div.style.cssText = 'display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;align-items:center;';
+      div.innerHTML = `
+        <img src="${prod.image_url || 'https://via.placeholder.com/80'}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">
+        <div style="flex:1;">
+          <div style="font-weight:600;">${escapeHtml(prod.name)}</div>
+          <div style="color:#666;">RWF ${prod.price || 0} × ${qty} = RWF ${total}</div>
+        </div>
+        <div>
+          <button data-remove-db-id="${ci.id}" data-prodid="${escapeHtml(String(prod.id))}" style="padding:6px 10px;border-radius:6px;background:#c62828;color:#fff;border:none;cursor:pointer;">Remove</button>
+        </div>`;
       node.appendChild(div);
-    }
+    });
     if (subtotalNode) subtotalNode.textContent = `RWF ${subtotal}`;
-  } catch (err) {
-    console.error('renderCart err', err);
+    // bind remove DB buttons
+    node.querySelectorAll('[data-remove-db-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const dbId = btn.getAttribute('data-remove-db-id');
+        const productId = btn.getAttribute('data-prodid');
+        try {
+          const { error: delErr } = await window.supabase.from('cart_items').delete().eq('id', dbId);
+          if (delErr) throw delErr;
+          updateProductCardIcon(productId, false);
+          if (typeof updateCartBadge === 'function') updateCartBadge();
+          if (typeof renderCart === 'function') renderCart();
+        } catch (e) {
+          console.error('remove cart item db', e);
+        }
+      });
+    });
+
+  } catch (e) {
+    console.error('renderCart error', e);
     node.innerHTML = '<div style="text-align:center;padding:20px;color:#c62828;">Error loading cart</div>';
+    if (subtotalNode) subtotalNode.textContent = 'RWF 0';
   }
 }
 
+/* ------------------------------
+   updateCartBadge
+   ------------------------------ */
 async function updateCartBadge() {
   const badge = document.getElementById('cart-badge');
   if (!badge) return;
   let count = 0;
   try {
     if (window.currentUser && window.currentUser.id && window.supabase) {
-      const { data, error } = await supabase.from('cart_items').select('quantity').eq('user_id', currentUser.id);
-      if (!error && Array.isArray(data)) count = data.reduce((s,i)=>s+(i.quantity||0),0);
+      const { data, error } = await window.supabase.from('cart_items').select('quantity').eq('user_id', window.currentUser.id);
+      if (!error && Array.isArray(data)) count = data.reduce((s,i) => s + (Number(i.quantity) || 0), 0);
     } else {
       const t = getTempCart();
-      count = Array.isArray(t) ? t.reduce((s,i)=>s+(i.quantity||0),0) : 0;
+      count = Array.isArray(t) ? t.reduce((s,i) => s + (Number(i.quantity) || 0), 0) : 0;
     }
-  } catch (e) { console.error('updateCartBadge error', e); }
+  } catch (e) {
+    console.error('updateCartBadge error', e);
+  }
   badge.textContent = count;
   badge.style.display = count > 0 ? 'inline-block' : 'none';
 }
 
-// wire cart UI on DOM ready
+/* ------------------------------
+   UI wiring: open/close/toggle
+   ------------------------------ */
+function openCart() {
+  const panel = document.getElementById('cart-panel');
+  const backdrop = document.getElementById('cart-backdrop');
+  if (!panel || !backdrop) return;
+  panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); backdrop.hidden = false;
+  if (typeof renderCart === 'function') renderCart();
+}
+function closeCart() {
+  const panel = document.getElementById('cart-panel');
+  const backdrop = document.getElementById('cart-backdrop');
+  if (!panel || !backdrop) return;
+  panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); backdrop.hidden = true;
+}
+function toggleCart() {
+  const panel = document.getElementById('cart-panel');
+  if (!panel) return;
+  if (panel.classList.contains('open')) closeCart(); else openCart();
+}
+window.openCart = openCart;
+window.closeCart = closeCart;
+window.toggleCart = toggleCart;
+
+/* ------------------------------
+   Checkout / Clear handlers
+   - checkout: only redirect to checkout.html if user is authenticated
+   - clear: clears DB cart for signed-in user OR local cart for guests
+   ------------------------------ */
+async function handleCheckout(e) {
+  if (e && typeof e.preventDefault === 'function') e.preventDefault();
+  try {
+    if (!window.supabase || typeof window.supabase.auth?.getUser !== 'function') {
+      alert('Auth not ready. Try again.');
+      return;
+    }
+    const { data: ud } = await window.supabase.auth.getUser().catch(()=>({ data: { user: null } }));
+    const user = ud?.user || null;
+    if (!user) {
+      if (confirm('Please sign in to checkout. Sign in now?')) {
+        const modal = document.getElementById('modal'); if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
+      }
+      return;
+    }
+    // user signed in → go to checkout
+    window.location.href = 'checkout.html';
+  } catch (err) {
+    console.error('handleCheckout error', err);
+    alert('Unable to proceed to checkout: ' + (err.message || err));
+  }
+}
+
+async function handleClearCart() {
+  if (!confirm('Clear all items from cart?')) return;
+  try {
+    if (window.currentUser && window.currentUser.id && window.supabase) {
+      const { error } = await window.supabase.from('cart_items').delete().eq('user_id', window.currentUser.id);
+      if (error) throw error;
+      if (typeof renderCart === 'function') renderCart();
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+      if (typeof showMessage === 'function') showMessage('Cart cleared', 'success');
+      return;
+    }
+    // guest
+    clearTempCart();
+    if (typeof renderCart === 'function') renderCart();
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (typeof showMessage === 'function') showMessage('Cart cleared', 'success');
+  } catch (e) {
+    console.error('handleClearCart err', e);
+    if (typeof showMessage === 'function') showMessage('Failed to clear cart', 'error');
+  }
+}
+
+/* ------------------------------
+   initializeCart: attach UI listeners (safe - won't fail if some elements missing)
+   ------------------------------ */
+let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
+function initializeCart() {
+  cartToggleMobile = document.getElementById("cart-toggle-mobile");
+  cartToggleDesktop = document.getElementById("cart-toggle-desktop");
+  cartBadge = document.getElementById("cart-badge");
+  cartPanel = document.getElementById("cart-panel");
+  cartBackdrop = document.getElementById("cart-backdrop");
+  cartClose = document.getElementById("cart-close");
+  cartItemsNode = document.getElementById("cart-items");
+  cartSubtotalNode = document.getElementById("cart-subtotal");
+  checkoutBtn = document.getElementById("checkout");
+  clearCartBtn = document.getElementById("clear-cart");
+
+  // attach available listeners (do not return early)
+  if (cartToggleMobile) cartToggleMobile.addEventListener('click', (e)=>{ e.preventDefault(); toggleCart(); });
+  if (cartToggleDesktop) cartToggleDesktop.addEventListener('click', (e)=>{ e.preventDefault(); toggleCart(); });
+  if (cartClose) cartClose.addEventListener('click', closeCart);
+  if (cartBackdrop) cartBackdrop.addEventListener('click', closeCart);
+  if (checkoutBtn) checkoutBtn.addEventListener('click', handleCheckout);
+  if (clearCartBtn) clearCartBtn.addEventListener('click', handleClearCart);
+
+  // wire product icon click handlers (if product listing already present)
+  document.querySelectorAll('.cart-icon-wrapper').forEach(wrapper => {
+    wrapper.removeEventListener('click', onProductCartIconClick); // safe guard (in case running twice)
+    wrapper.addEventListener('click', onProductCartIconClick);
+  });
+
+  if (typeof updateCartBadge === 'function') updateCartBadge();
+}
+
+/* handler used above for product listing cart icons */
+async function onProductCartIconClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const wrapper = e.currentTarget;
+  const pid = wrapper.getAttribute('data-product-id');
+  if (!pid) return;
+  // toggle: if already in-cart -> remove, else add
+  // check temp cart or server cart quickly
+  const temp = getTempCart();
+  const inTemp = temp.some(t => String(t.product_id) === String(pid));
+  if (!window.currentUser || !window.currentUser.id) {
+    // guest toggle
+    if (inTemp) {
+      removeTempCartItem(pid);
+      updateProductCardIcon(pid, false);
+      if (typeof showMessage === 'function') showMessage('Removed from local cart', 'info');
+    } else {
+      addToTempCart(pid, 1);
+      updateProductCardIcon(pid, true);
+      if (typeof showMessage === 'function') showMessage('Added to local cart', 'success');
+    }
+    return;
+  }
+
+  // user logged in -> query DB to see if product present
+  try {
+    const { data: existing } = await window.supabase.from('cart_items').select('id, quantity').eq('user_id', window.currentUser.id).eq('product_id', pid).maybeSingle();
+    if (existing && existing.id) {
+      // remove entry
+      await window.supabase.from('cart_items').delete().eq('id', existing.id);
+      updateProductCardIcon(pid, false);
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+      if (typeof showMessage === 'function') showMessage('Removed from cart', 'info');
+    } else {
+      // insert
+      await window.supabase.from('cart_items').insert([{ user_id: window.currentUser.id, product_id: pid, quantity:1, added_at: new Date().toISOString() }]);
+      updateProductCardIcon(pid, true);
+      if (typeof updateCartBadge === 'function') updateCartBadge();
+      if (typeof showMessage === 'function') showMessage('Added to cart', 'success');
+    }
+  } catch (e) {
+    console.error('onProductCartIconClick error', e);
+    if (typeof showMessage === 'function') showMessage('Cart operation failed', 'error');
+  }
+}
+
+/* ------------------------------
+   bootstrap on DOM ready
+   ------------------------------ */
 document.addEventListener('DOMContentLoaded', () => {
-  try { initializeCart(); } catch (e) { /* ignore */ }
+  try {
+    initializeCart();
+  } catch (e) {
+    console.error('initializeCart failed', e);
+  }
+  // try to mark product icons already in temp cart
+  try {
+    const tempIds = getTempCart().map(i => String(i.product_id));
+    tempIds.forEach(pid => updateProductCardIcon(pid, true));
+  } catch {}
 });
 
-
-// export some helpers for other pages
+// export helpers for other pages
 window.addToTempCart = addToTempCart;
 window.getTempCart = getTempCart;
 window.saveTempCart = saveTempCart;
 window.syncTempCartToDatabase = syncTempCartToDatabase;
+window.renderCart = renderCart;
+window.updateCartBadge = updateCartBadge;
+
+
 
 
 
