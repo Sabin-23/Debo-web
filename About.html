@@ -194,6 +194,44 @@
 
     <script src="script.js"></script>
     <script>
+        // prebuild in-cart set
+        const inCartSet = new Set();
+        try {
+          if (window.currentUser && window.currentUser.id) {
+            const { data: cartItems } = await client.from('cart_items').select('product_id').eq('user_id', window.currentUser.id);
+            if (Array.isArray(cartItems)) cartItems.forEach(ci => { if (ci.product_id != null) inCartSet.add(String(ci.product_id)); });
+          } else if (typeof getTempCart === 'function') {
+            const temp = getTempCart();
+            if (Array.isArray(temp)) temp.forEach(i => { if (i.product_id != null) inCartSet.add(String(i.product_id)); });
+          }
+        } catch(e) { console.warn('in-cart fetch failed', e); }
+
+        container.style.display = 'flex';
+        container.innerHTML = '';
+
+        for (const product of products) {
+          const prodId = product.id != null ? String(product.id) : '';
+          const imageUrl = product.image_url || product.image || 'https://via.placeholder.com/300/fff0f3/ff9db1?text=No+Image';
+
+          const card = document.createElement('div');
+          card.className = 'pro';
+          card.innerHTML = `
+            <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name||'')}" data-product-id="${escapeHtml(prodId)}" />
+            <div class="des">
+              <span style="font-size:13px;color:#666;">${escapeHtml(product.description || 'Product')}</span>
+              <h5 style="margin:0;font-size:16px;">${escapeHtml(product.name || '')}</h5>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+                <div class="product-price">RWF ${product.price || 0}</div>
+                <a href="#" class="cart-icon-wrapper" data-product-id="${escapeHtml(prodId)}" title="Add to cart">
+                  <i class="fa-solid fa-cart-shopping fa-2x cart-icon ${inCartSet.has(prodId) ? 'in-cart' : ''}"></i>
+                </a>
+              </div>
+              <p style="font-size:12px;color:#666;margin:4px 0 0;">Stock: ${product.stock || 0}</p>
+            </div>
+          `;
+            container.appendChild(card);
+        }
+        
         const navDesktop = document.getElementById('cart-toggle-desktop');
         const navMobile = document.getElementById('cart-toggle-mobile');
         [navDesktop, navMobile].forEach(el => {
@@ -219,6 +257,7 @@
 </body>
 
 </html>
+
 
 
 
