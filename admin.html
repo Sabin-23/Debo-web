@@ -35,6 +35,7 @@
     .log{font-family:monospace;background:#fff6fb;padding:8px;border-radius:6px;border:1px solid #ffe6f0;font-size:13px;max-height:140px;overflow:auto}
     .tab-panel{display:none}
     .tab-panel.active{display:block}
+    .featured-checkbox { transform: translateY(1px); margin-right:6px; }
     @media (max-width:900px) {
       .sidebar{
         position: fixed;
@@ -71,12 +72,9 @@
 </head>
 <body>
 
- 
-
   <aside class="sidebar">
-    
     <div class="brand">Admin Dashboard</div>
-    <div class="muted">God's Only Store</div>
+    <div class="muted">ECHAD</div>
     <nav class="nav">
       <button data-tab="orders" class="active">Orders</button>
       <button data-tab="upload">Upload Product</button>
@@ -92,7 +90,6 @@
       <i id="bar" class="fas fa-outdent"></i>
     </div>
     <div class="topbar">
-      
       <h2>Admin Panel</h2>
       <div class="muted">Manage your store</div>
     </div>
@@ -105,7 +102,7 @@
       </div>
     </section>
 
-        <!-- UPLOAD TAB -->
+    <!-- UPLOAD TAB -->
     <section id="tab-upload" class="card tab-panel">
       <h3>Upload New Product</h3>
       <form id="productForm" style="margin-top:12px">
@@ -133,6 +130,15 @@
               <label>Description</label>
               <textarea id="prodDesc" rows="4" placeholder="Product description"></textarea>
             </div>
+
+            <!-- NEW: Featured checkbox -->
+            <div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:14px;">
+                <input id="prodFeatured" type="checkbox" />
+                <span>Mark as featured product</span>
+              </label>
+            </div>
+
             <div style="display:flex;gap:8px;margin-top:6px">
               <button class="primary" type="submit">Add Product</button>
               <button type="button" id="clearForm" class="danger">Clear</button>
@@ -143,8 +149,6 @@
         </div>
       </form>
     </section>
-
-
 
     <!-- USERS TAB -->
     <section id="tab-users" class="card tab-panel">
@@ -339,17 +343,31 @@
           const card = document.createElement('div');
           card.className = 'product-card';
           
+          // Use !! to ensure boolean
+          const isFeatured = !!p.featured_products;
+          
           card.innerHTML = `
             <img src="${p.image_url || 'https://via.placeholder.com/180/ffe6f0/ff6fb5?text=No+Img'}" 
                  style="width:180px;height:180px;object-fit:cover;border-radius:8px;"/>
             <strong>${escapeHtml(p.name || '')}</strong>
-            <div style="font-size:13px;color:#333;">${escapeHtml(p.description || '')}</div>
+            <div style="font-size:13px;color:#333;min-height:36px;">${escapeHtml(p.description || '')}</div>
             <div>RWF ${p.price || 0}</div>
             <div>Stock: ${p.stock || 0}</div>
-            <button class="danger" data-id="${p.id}" data-img="${p.image_url || ''}">Delete</button>
+
+            <!-- Featured checkbox added to each product card -->
+            <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" class="featured-checkbox" data-id="${escapeHtml(String(p.id))}" ${isFeatured ? 'checked' : ''} />
+                <span style="font-size:13px;">Featured</span>
+              </label>
+              <div style="margin-left:auto;">
+                <button class="danger" data-id="${p.id}" data-img="${p.image_url || ''}">Delete</button>
+              </div>
+            </div>
           `;
           
-          const delBtn = card.querySelector('button');
+          // Delete handler
+          const delBtn = card.querySelector('button.danger');
           delBtn.onclick = async () => {
             if (!confirm('Delete this product?')) return;
             
@@ -377,6 +395,31 @@
               showMessage('Delete failed: ' + err.message, 'error');
             }
           };
+
+          // Featured checkbox live-update handler
+          const featuredCheckbox = card.querySelector('.featured-checkbox');
+          if (featuredCheckbox) {
+            featuredCheckbox.addEventListener('change', async (e) => {
+              const checked = !!e.target.checked;
+              const prodId = e.target.getAttribute('data-id');
+              
+              // Optimistic UI: nothing else to change except show temporary message
+              try {
+                const { error: updErr } = await supabase
+                  .from('products')
+                  .update({ featured_products: checked })
+                  .eq('id', prodId);
+                
+                if (updErr) throw updErr;
+                showMessage(`Product ${checked ? 'marked' : 'unmarked'} as featured`, 'success');
+              } catch (err) {
+                console.error('Featured update error:', err);
+                showMessage('Failed to update featured flag: ' + err.message, 'error');
+                // Revert checkbox on failure
+                e.target.checked = !checked;
+              }
+            });
+          }
           
           grid.appendChild(card);
         });
@@ -570,6 +613,7 @@ async function loadOrders() {
       document.getElementById('prodPrice').value = '';
       document.getElementById('prodQty').value = '';
       document.getElementById('prodDesc').value = '';
+      document.getElementById('prodFeatured').checked = false;
       uploadFileInput.value = '';
       uploadSelectedFile = null;
       uploadPreview.src = '';
@@ -583,6 +627,7 @@ async function loadOrders() {
       const price = parseInt(document.getElementById('prodPrice').value || 0, 10);
       const qty = parseInt(document.getElementById('prodQty').value || 0, 10);
       const desc = document.getElementById('prodDesc').value.trim();
+      const featured = !!document.getElementById('prodFeatured').checked;
       const statusEl = document.getElementById('uploadStatus');
       
       if (!name) {
@@ -633,7 +678,8 @@ async function loadOrders() {
             stock: qty,
             description: desc,
             image_url: publicUrl,
-            owner: user.id
+            owner: user.id,
+            featured_products: featured
           }]);
         
         if (insertErr) {
