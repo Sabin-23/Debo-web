@@ -10,9 +10,7 @@
     *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial}
     body{display:flex;min-height:100vh;background:linear-gradient(180deg,#ffeef6,#fff0f8);color:#2a0a20}
     .sidebar{width:260px;background:#ff6fb5;color:#fff;padding:18px;display:flex;flex-direction:column;gap:10px}
-    #mobile{
-      display: none;
-    }
+    #mobile{ display: none; }
     .brand{font-size:18px;font-weight:700;margin-bottom:6px}
     .muted{opacity:.9;font-size:13px}
     .nav{margin-top:18px;display:flex;flex-direction:column;gap:6px}
@@ -37,36 +35,11 @@
     .tab-panel.active{display:block}
     .featured-checkbox { transform: translateY(1px); margin-right:6px; }
     @media (max-width:900px) {
-      .sidebar{
-        position: fixed;
-        left: -260px; /* hidden by default */
-        top: 0;
-        height: 100%;
-        z-index: 1000;
-        transition: left 0.3s ease;
-      }
-
-      .sidebar.active{
-        left: 0px;
-      }
-
+      .sidebar{ position: fixed; left: -260px; top: 0; height: 100%; z-index: 1000; transition: left 0.3s ease; }
+      .sidebar.active{ left: 0px; }
       .main{padding:12px}
-
-      #mobile{
-      display: flex;
-      
-      top: 12px;
-      
-      z-index: 1500;
-      cursor: pointer;
-      font-size: 22px;
-      color: #ff6fb5;
-      }
-      #mobile i{
-      color: #1a1a1a;
-      font-size: 24px;
-      padding-left: 6px;
-      }
+      #mobile{ display: flex; top: 12px; z-index: 1500; cursor: pointer; font-size: 22px; color: #ff6fb5; }
+      #mobile i{ color: #1a1a1a; font-size: 24px; padding-left: 6px; }
     }
   </style>
 </head>
@@ -235,18 +208,68 @@
       showTab('orders');
     })();
     
-    // Init
+    // Init supabase client
     try {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch (e) {
       console.error('Supabase init error:', e);
     }
+
+    // -- Helpful utilities for featured-limit enforcement --
+    // Count featured products (server count)
+    async function countFeatured() {
+      if (!supabase) throw new Error('Supabase not initialized');
+      const res = await supabase
+        .from('products')
+        .select('id', { head: true, count: 'exact' })
+        .eq('featured_products', true);
+      if (res.error) throw res.error;
+      return res.count || 0;
+    }
+
+    async function ensureCanSetFeaturedOrShowError() {
+      try {
+        const cnt = await countFeatured();
+        if (cnt >= 4) {
+          showMessage('Cannot mark as featured — limit of 4 featured products reached.', 'error');
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.error('Error checking featured count', err);
+        showMessage('Error checking featured count: ' + (err.message || err), 'error');
+        return false;
+      }
+    }
     
+    // show a short inline message next to a checkbox input (auto-removes)
+    function showCheckboxReason(checkboxEl, message, duration = 4000) {
+      try {
+        // find a sensible container for message (prefer the label or parent)
+        const container = checkboxEl.closest('label') || checkboxEl.parentElement || checkboxEl;
+        // remove any existing reason element
+        const existing = container.querySelector('.checkbox-reason');
+        if (existing) existing.remove();
+
+        const reason = document.createElement('div');
+        reason.className = 'checkbox-reason';
+        reason.textContent = message;
+        container.appendChild(reason);
+
+        // fade out then remove
+        setTimeout(() => reason.classList.add('fadeOut'), Math.max(2000, duration - 700));
+        setTimeout(() => { if (reason && reason.remove) reason.remove(); }, duration);
+      } catch (err) {
+        console.warn('showCheckboxReason failed', err);
+      }
+    }
+
+
     function escapeHtml(str) {
       if (!str) return '';
       return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[s]));
     }
-    
+
     function formatDate(dateString) {
       if (!dateString) return 'N/A';
       const date = new Date(dateString);
@@ -259,7 +282,7 @@
       const i = url.indexOf(marker);
       return i === -1 ? null : url.slice(i + marker.length);
     }
-    
+
     // Load Profiles
     async function loadProfiles() {
       const loading = document.getElementById('profilesLoading');
@@ -396,29 +419,75 @@
             }
           };
 
-          // Featured checkbox live-update handler
+          // Featured checkbox live-update handler with limit enforcement
           const featuredCheckbox = card.querySelector('.featured-checkbox');
           if (featuredCheckbox) {
             featuredCheckbox.addEventListener('change', async (e) => {
               const checked = !!e.target.checked;
               const prodId = e.target.getAttribute('data-id');
-              
-              // Optimistic UI: nothing else to change except show temporary message
-              try {
-                const { error: updErr } = await supabase
-                  .from('products')
-                  .update({ featured_products: checked })
-                  .eq('id', prodId);
-                
-                if (updErr) throw updErr;
-                showMessage(`Product ${checked ? 'marked' : 'unmarked'} as featured`, 'success');
-              } catch (err) {
-                console.error('Featured update error:', err);
-                showMessage('Failed to update featured flag: ' + err.message, 'error');
-                // Revert checkbox on failure
-                e.target.checked = !checked;
+
+              // Trying to mark as featured
+              if (checked) {
+                // Try server RPC first (atomic) - if it fails, fallback to client check + update
+                try {
+                  const { error: rpcError } = await supabase.rpc('set_featured_product', { p_id: prodId, p_featured: true });
+                  if (rpcError) throw rpcError;
+                  showMessage('Product marked as featured (server)', 'success');
+                  return;
+                } catch (rpcErr) {
+                  // RPC failed or doesn't exist -> fallback
+                  console.warn('RPC failed (fallback):', rpcErr?.message || rpcErr);
+                  const ok = await ensureCanSetFeaturedOrShowError();
+                  if (!ok) {
+                    // Revert visually and show inline reason
+                    e.target.checked = false;
+                    showCheckboxReason(e.target, 'Cannot mark featured — limit of 4 featured products reached.');
+                    return;
+                  }
+
+                  // proceed with normal update
+                  try {
+                    const { error } = await supabase
+                      .from('products')
+                      .update({ featured_products: true })
+                      .eq('id', prodId);
+
+                    if (error) throw error;
+                    showMessage('Product marked as featured', 'success');
+                  } catch (err) {
+                    console.error('Featured update error:', err);
+                    // Revert and show inline reason
+                    e.target.checked = false;
+                    showCheckboxReason(e.target, 'Failed to update featured flag — change reverted.');
+                  }
+                }
+              } else {
+                // Unmarking - try RPC first, fallback to normal update
+                try {
+                  const { error: rpcError } = await supabase.rpc('set_featured_product', { p_id: prodId, p_featured: false });
+                  if (rpcError) throw rpcError;
+                  showMessage('Product unmarked as featured (server)', 'success');
+                  return;
+                } catch (rpcErr) {
+                  // fallback to normal update
+                  try {
+                    const { error } = await supabase
+                      .from('products')
+                      .update({ featured_products: false })
+                      .eq('id', prodId);
+
+                    if (error) throw error;
+                    showMessage('Product unmarked as featured', 'success');
+                  } catch (err) {
+                    console.error('Featured unmark error:', err);
+                    // Revert visually and show inline reason
+                    e.target.checked = true;
+                    showCheckboxReason(e.target, 'Failed to unmark as featured — change reverted.');
+                  }
+                }
               }
             });
+
           }
           
           grid.appendChild(card);
@@ -429,170 +498,133 @@
       }
     }
 
-    // Robust loadOrders() - drop this in place of your current loadOrders()
-async function loadOrders() {
-  const container = document.getElementById('ordersList');
-  if (!container) return;
-  container.innerHTML = '<div style="padding:20px;color:#666;">Loading orders...</div>';
+    // Robust loadOrders()
+    async function loadOrders() {
+      const container = document.getElementById('ordersList');
+      if (!container) return;
+      container.innerHTML = '<div style="padding:20px;color:#666;">Loading orders...</div>';
 
-  if (!supabase) {
-    container.innerHTML = '<div class="muted">Supabase not initialized</div>';
-    return;
-  }
+      if (!supabase) {
+        container.innerHTML = '<div class="muted">Supabase not initialized</div>';
+        return;
+      }
 
-  try {
-    // Fetch all orders
-    const { data: ordersRaw, error: ordErr } = await supabase
-      .from('orders')
-      .select('*');
+      try {
+        const { data: ordersRaw, error: ordErr } = await supabase.from('orders').select('*');
 
-    if (ordErr) throw ordErr;
-    if (!ordersRaw || ordersRaw.length === 0) {
-      container.innerHTML = '<div class="muted" style="padding:12px;color:#666;">No orders yet.</div>';
-      return;
-    }
+        if (ordErr) throw ordErr;
+        if (!ordersRaw || ordersRaw.length === 0) {
+          container.innerHTML = '<div class="muted" style="padding:12px;color:#666;">No orders yet.</div>';
+          return;
+        }
 
-    // Gather all unique user_ids and product_ids
-    const userIds = Array.from(new Set(ordersRaw.map(o => o.user_id).filter(Boolean)));
-    const productIds = Array.from(new Set(ordersRaw.map(o => o.product_id).filter(Boolean)));
+        const userIds = Array.from(new Set(ordersRaw.map(o => o.user_id).filter(Boolean)));
+        const productIds = Array.from(new Set(ordersRaw.map(o => o.product_id).filter(Boolean)));
 
-    // Fetch related users
-    let usersById = {};
-    if (userIds.length > 0) {
-      const { data: profiles, error: profErr } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', userIds);
+        let usersById = {};
+        if (userIds.length > 0) {
+          const { data: profiles, error: profErr } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds);
 
-      if (profErr) console.warn('Failed to fetch profiles:', profErr);
-      if (profiles) {
-        profiles.forEach(u => {
-          usersById[u.id] = u;
-        });
+          if (profErr) console.warn('Failed to fetch profiles:', profErr);
+          if (profiles) profiles.forEach(u => usersById[u.id] = u);
+        }
+
+        let productsById = {};
+        if (productIds.length > 0) {
+          const { data: products, error: prodErr } = await supabase.from('products').select('id, name, price, image_url');
+          if (!prodErr && products) products.forEach(p => productsById[p.id] = p);
+        }
+
+        const orders = ordersRaw.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        container.innerHTML = '';
+
+        for (const o of orders) {
+          const user = usersById[o.user_id];
+          const product = productsById[o.product_id];
+          const userName = user?.full_name || 'Unknown User';
+          const phoneNumber = user?.phone || 'No phone number registered'
+          const prodName = product?.name || 'Unknown Product';
+          const img = product?.image_url || 'https://via.placeholder.com/100/ffe6f0/ff6fb5?text=No+Img';
+          const created = formatDate(o.created_at);
+          const borderColor = o.done_order ? '#2e7d32' : '#ff9800';
+
+          const card = document.createElement('div');
+          card.className = 'order-card';
+          card.style.cssText = `
+            border:2px solid ${borderColor};
+            border-radius:8px;
+            padding:12px;
+            margin-bottom:12px;
+            background:#fff;
+          `;
+
+          card.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div>
+                <div style="font-weight:700;">Order #${escapeHtml(String(o.id))}</div>
+                <div style="font-size:13px;color:#666;">By: ${escapeHtml(userName)} • ${escapeHtml(created)}</div>
+	          <div style="font-size:13px;color:#666;">Phone number: ${escapeHtml(phoneNumber)}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:700;">RWF ${escapeHtml(String(o.amount || 0))}</div>
+                <div style="margin-top:6px;">
+                  <span title="Paid" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${o.payment_status ? '#2e7d32' : '#ff9800'};margin-right:7px;vertical-align:middle;"></span>
+                  <span style="font-size:13px;color:#666;margin-right:6px;">Paid</span>
+                </div>
+                <div style="margin-top:6px;">
+                  <span title="Done" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${o.done_order ? '#2e7d32' : '#ff9800'};margin-right:6px;vertical-align:middle;"></span>
+                  <span style="font-size:13px;color:#666;">Done</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:center;border-top:1px solid #f0f0f0;padding-top:12px;">
+              <img src="${img}" alt="${prodName}" style="width:100px;height:100px;object-fit:cover;border-radius:6px;">
+              <div style="flex:1;">
+                <div style="font-weight:600;">${prodName}</div>
+                <div style="font-size:13px;color:#666;margin-top:6px;">Quantity: ${o.quantity}</div>
+                <div style="font-size:13px;color:#666;margin-top:6px;">Order amount: RWF ${escapeHtml(String(o.amount || 0))}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <button class="danger small" data-action="cancel" data-id="${escapeHtml(String(o.id))}">Cancel</button>
+                <button class="primary small" data-action="done" data-id="${escapeHtml(String(o.id))}">${o.done_order ? 'Undo Done' : 'Mark Done'}</button>
+              </div>
+            </div>
+          `;
+
+          // Cancel
+          card.querySelector('[data-action="cancel"]').onclick = async () => {
+            if (!confirm('Cancel this order?')) return;
+            const { error } = await supabase.from('orders').delete().eq('id', o.id);
+            if (error) showMessage('Delete failed: ' + error.message, 'error');
+            else {
+              showMessage('Order cancelled', 'success');
+              loadOrders();
+            }
+          };
+
+          // Mark Done
+          card.querySelector('[data-action="done"]').onclick = async () => {
+            const newDone = !o.done_order;
+            const { error } = await supabase.from('orders').update({ done_order: newDone }).eq('id', o.id);
+            if (error) showMessage('Update failed: ' + error.message, 'error');
+            else {
+              showMessage(`Order ${newDone ? 'marked done' : 'undone'}`, 'success');
+              loadOrders();
+            }
+          };
+
+          container.appendChild(card);
+        }
+      } catch (err) {
+        console.error('Load orders error:', err);
+        container.innerHTML = `<div class="muted">Error: ${escapeHtml(err.message || String(err))}</div>`;
       }
     }
 
-    // Fetch related products
-    let productsById = {};
-    if (productIds.length > 0) {
-      const { data: products, error: prodErr } = await supabase
-        .from('products')
-        .select('id, name, price, image_url');
-      if (!prodErr && products) {
-        products.forEach(p => {
-          productsById[p.id] = p;
-        });
-      }
-    }
-
-    // Sort orders (newest first)
-    const orders = ordersRaw.sort((a, b) =>
-      new Date(b.created_at) - new Date(a.created_at)
-    );
-
-    container.innerHTML = '';
-
-    for (const o of orders) {
-      const user = usersById[o.user_id];
-      const product = productsById[o.product_id];
-      const userName = user?.full_name || 'Unknown User';
-      const phoneNumber = user?.phone || 'No phone number registered'
-      const prodName = product?.name || 'Unknown Product';
-      const img = product?.image_url || 'https://via.placeholder.com/100/ffe6f0/ff6fb5?text=No+Img';
-      const created = formatDate(o.created_at);
-      const borderColor = o.done_order ? '#2e7d32' : '#ff9800';
-
-      const card = document.createElement('div');
-      card.className = 'order-card';
-      card.style.cssText = `
-        border:2px solid ${borderColor};
-        border-radius:8px;
-        padding:12px;
-        margin-bottom:12px;
-        background:#fff;
-      `;
-
-      card.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div>
-            <div style="font-weight:700;">Order #${escapeHtml(String(o.id))}</div>
-            <div style="font-size:13px;color:#666;">By: ${escapeHtml(userName)} • ${escapeHtml(created)}</div>
-	  <div style="font-size:13px;color:#666;">Phone number: ${escapeHtml(phoneNumber)}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-weight:700;">RWF ${escapeHtml(String(o.amount || 0))}</div>
-            <div style="margin-top:6px;">
-              <span title="Paid" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${o.payment_status ? '#2e7d32' : '#ff9800'};margin-right:7px;vertical-align:middle;"></span>
-              <span style="font-size:13px;color:#666;margin-right:6px;">Paid</span>
-            </div>
-            <div style="margin-top:6px;">
-              <span title="Done" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${o.done_order ? '#2e7d32' : '#ff9800'};margin-right:6px;vertical-align:middle;"></span>
-              <span style="font-size:13px;color:#666;">Done</span>
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:12px;align-items:center;border-top:1px solid #f0f0f0;padding-top:12px;">
-          <img src="${img}" alt="${prodName}" style="width:100px;height:100px;object-fit:cover;border-radius:6px;">
-          <div style="flex:1;">
-            <div style="font-weight:600;">${prodName}</div>
-            <div style="font-size:13px;color:#666;margin-top:6px;">Quantity: ${o.quantity}</div>
-            <div style="font-size:13px;color:#666;margin-top:6px;">Order amount: RWF ${escapeHtml(String(o.amount || 0))}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <button class="danger small" data-action="cancel" data-id="${escapeHtml(String(o.id))}">Cancel</button>
-            <button class="primary small" data-action="done" data-id="${escapeHtml(String(o.id))}">${o.done_order ? 'Undo Done' : 'Mark Done'}</button>
-          </div>
-        </div>
-      `;
-
-      // Cancel
-      card.querySelector('[data-action="cancel"]').onclick = async () => {
-        if (!confirm('Cancel this order?')) return;
-        const { error } = await supabase.from('orders').delete().eq('id', o.id);
-        if (error) showMessage('Delete failed: ' + error.message, 'error');
-        else {
-          showMessage('Order cancelled', 'success');
-          loadOrders();
-        }
-      };
-
-      // Mark Done
-      card.querySelector('[data-action="done"]').onclick = async () => {
-        const newDone = !o.done_order;
-        const { error } = await supabase.from('orders').update({ done_order: newDone }).eq('id', o.id);
-        if (error) showMessage('Update failed: ' + error.message, 'error');
-        else {
-          showMessage(`Order ${newDone ? 'marked done' : 'undone'}`, 'success');
-          loadOrders();
-        }
-      };
-
-      container.appendChild(card);
-    }
-
-  } catch (err) {
-    console.error('Load orders error:', err);
-    container.innerHTML = `<div class="muted">Error: ${escapeHtml(err.message || String(err))}</div>`;
-  }
-}
-
-    
-    
-    // small helpers
-    function escapeHtml(text) {
-      const d = document.createElement('div');
-      d.textContent = text == null ? '' : String(text);
-      return d.innerHTML;
-    }
-    
-    function formatDate(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return isNaN(d.getTime()) ? iso : d.toLocaleString();
-    }
-
-    
     // Upload Product
     const uploadFileInput = document.getElementById('fileInput');
     const uploadPreview = document.getElementById('previewImg');
@@ -638,6 +670,17 @@ async function loadOrders() {
         alert('Please select an image');
         return;
       }
+
+      // If admin wants to mark new product as featured, check limit first (client-side)
+      if (featured) {
+        const ok = await ensureCanSetFeaturedOrShowError();
+        if (!ok) {
+          // show inline reason next to the upload checkbox so admin understands why the form is blocked
+          showCheckboxReason(document.getElementById('prodFeatured'), 'Cannot mark featured — limit of 4 featured products reached.');
+          return;
+        }
+      }
+
       
       statusEl.textContent = 'Uploading...';
       
@@ -688,6 +731,7 @@ async function loadOrders() {
           return;
         }
         
+        // If you prefer stronger enforcement, create the RPC/trigger on the DB side.
         statusEl.textContent = 'Product added successfully!';
         showMessage('Product added!', 'success');
         document.getElementById('clearForm').click();
@@ -711,6 +755,9 @@ async function loadOrders() {
       }
       window.location.href = 'index.html';
     });
+
+    // Initial load of products/orders when appropriate
+    // (already wired in the tab system)
   </script>
 </body>
 </html>
