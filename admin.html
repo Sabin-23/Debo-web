@@ -101,7 +101,24 @@
             </div>
             <div>
               <label>Description</label>
-              <textarea id="prodDesc" rows="4" placeholder="Product description"></textarea>
+              <textarea id="prodDesc" rows="4" placeholder="Product description" maxlength="25" oninput="checkDescLength()"></textarea>
+              <div id="descError" style="color:#b71c1c;font-size:13px;margin-top:4px;display:none;">
+                Description must be less than 25 characters.
+              </div>
+
+              <script>
+              function checkDescLength() {
+                const t = document.getElementById('prodDesc');
+                const err = document.getElementById('descError');
+
+                if (t.value.length >= t.maxLength) {
+                  err.style.display = 'block';
+                } else {
+                  err.style.display = 'none';
+                }
+              }
+              </script>
+
             </div>
 
             <!-- NEW: Featured checkbox -->
