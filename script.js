@@ -1,59 +1,49 @@
-// ==============================================
-// GOD'S ONLY STORE - COMPLETE SCRIPT
-// Auth, Profile, Cart with Supabase
-// ==============================================
+// ==============================
+// AUTH + PROFILE + SETTINGS (NO CART)
+// Paste this to replace the corrupted auth/profile part in script.js
+// ==============================
 
 const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
-// --- Robust supabase client getter (paste near top of script.js) ---
+// Robust supabase client getter
 function ensureSupabaseClient() {
-  // If we already created a client on __supabase_client, reuse it
   if (window.__supabase_client && typeof window.__supabase_client.from === 'function') {
-    window.supabase = window.__supabase_client; // keep compatibility
+    window.supabase = window.__supabase_client;
     return window.__supabase_client;
   }
 
-  // Case A: window.supabase is the library object (has createClient)
   if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
     try {
       window.__supabase_client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      window.supabase = window.__supabase_client; // make global client for backwards compatibility
+      window.supabase = window.__supabase_client;
       return window.__supabase_client;
     } catch (e) {
       console.warn('Failed creating supabase client from library:', e);
     }
   }
 
-  // Case B: window.supabase may already be a client (has .from)
   if (typeof window.supabase !== 'undefined' && typeof window.supabase.from === 'function') {
     window.__supabase_client = window.supabase;
     return window.__supabase_client;
   }
 
-  // Nothing available
   return null;
 }
 
-
-// ADD THIS RIGHT AFTER YOUR CONSTANTS (after SUPABASE_ANON_KEY line)
-
-// ADD THIS RIGHT AFTER YOUR CONSTANTS (after SUPABASE_ANON_KEY line)
-
 // Prevent sign-out flicker - check session immediately
 (function() {
-  if (typeof window.supabase !== 'undefined') {
-    const tempSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    tempSupabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        // Session exists, prevent UI flicker
-        const openModalBtn = document.getElementById('openModal');
-        if (openModalBtn) {
-          openModalBtn.style.display = 'none';
+  try {
+    if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
+      const tempSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      tempSupabase.auth.getSession().then(({ data }) => {
+        if (data?.session) {
+          const openModalBtn = document.getElementById('openModal');
+          if (openModalBtn) openModalBtn.style.display = 'none';
         }
-      }
-    });
-  }
+      }).catch(()=>{});
+    }
+  } catch(e){ /* ignore */ }
 })();
 
 let supabase = null;
@@ -82,26 +72,32 @@ const COUNTRY_LIST = [
   { iso: 'ER', code: '+291', label: 'Eritrea' }
 ];
 
-// ==============================================
-// INITIALIZATION
-// ==============================================
-
+// ---------------------------
+// Initialization
+// ---------------------------
 window.addEventListener('load', function() {
+  // ensure we have a usable client object
+  ensureSupabaseClient();
   initializeSupabase();
   setupAuth();
-  
-  
 });
 
 function initializeSupabase() {
-  if (typeof window.supabase === 'undefined') {
-    console.error('Supabase library not loaded');
-    return;
-  }
-  
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    window.supabase = supabase;
+    // If we have a library, create client; if ensureSupabaseClient already created it, use that
+    if (!window.__supabase_client && typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      window.__supabase_client = supabase;
+      window.supabase = supabase;
+    } else {
+      supabase = ensureSupabaseClient();
+    }
+
+    if (!supabase) {
+      console.error('Supabase init failed: library not available');
+      return;
+    }
+
     setupAuthStateListener();
     checkAuthStatus();
   } catch (error) {
@@ -109,101 +105,98 @@ function initializeSupabase() {
   }
 }
 
-const bar = document.getElementById('bar');
-const close = document.getElementById('close');
-const nav = document.getElementById('navbar');
-  
-if (bar) bar.addEventListener('click', () => nav.classList.add('active'));
-if (close) close.addEventListener('click', () => nav.classList.remove('active'));
-
-
-// ==============================================
-// AUTH STATE MANAGEMENT
-// ==============================================
-
+// ---------------------------
+// Auth state management
+// ---------------------------
 function setupAuthStateListener() {
   if (!supabase) return;
-  
-    supabase.auth.onAuthStateChange(async (event, session) => {
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && !isProcessingAuth) {
       isProcessingAuth = true;
       currentUser = session.user;
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+
+      // small delay to let UI stabilize if needed
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       try {
         currentUserProfile = await getUserProfile(currentUser.id);
         if (!currentUserProfile) {
           currentUserProfile = await createUserProfile(currentUser.id);
         }
-        
+
         if (currentUserProfile?.is_admin === true) {
           showMessage('Welcome Admin! Redirecting...', 'success');
-          setTimeout(() => window.location.href = 'admin.html', 1000);
+          setTimeout(() => window.location.href = 'admin.html', 900);
           return;
         }
-        
+
         updateUIForLoggedInUser(currentUser);
-        // REMOVED: showMessage('Successfully signed in!', 'success');
-        await syncTempCartToDatabase();
-        
-      } catch (error) {
-        console.error('Sign in error:', error);
-        showMessage('Error: ' + error.message, 'error');
+        await syncTempCartToDatabase?.(); // safe no-op if cart isn't present
+      } catch (err) {
+        console.error('Sign-in listener error', err);
+        showMessage('Sign in error', 'error');
       } finally {
         isProcessingAuth = false;
       }
     }
-    
+
     if (event === 'SIGNED_OUT') {
       isProcessingAuth = false;
       currentUser = null;
       currentUserProfile = null;
       updateUIForLoggedOutUser();
       showMessage('Signed out', 'info', 2000);
-      updateCartBadge();
-      if (document.getElementById('cart-items')) renderCart();
+      // cart updates handled elsewhere (no cart code here)
     }
   });
 }
 
 async function checkAuthStatus() {
   if (!supabase) return;
-  
   try {
     const { data, error } = await supabase.auth.getSession();
-    if (error) return;
-    
-    if (data.session?.user) {
-      currentUser = data.session.user;
+    if (error) {
+      console.warn('getSession error', error);
+      updateUIForLoggedOutUser();
+      return;
+    }
+    const user = data?.session?.user || null;
+    if (user) {
+      currentUser = user;
       currentUserProfile = await getUserProfile(currentUser.id);
       if (!currentUserProfile) {
         currentUserProfile = await createUserProfile(currentUser.id);
       }
       updateUIForLoggedInUser(currentUser);
-      await syncTempCartToDatabase();
+      await syncTempCartToDatabase?.();
     } else {
       updateUIForLoggedOutUser();
     }
-  } catch (error) {
-    console.error('Auth check error:', error);
+  } catch (err) {
+    console.error('checkAuthStatus error', err);
+    updateUIForLoggedOutUser();
   }
 }
 
-// ==============================================
-// PROFILE MANAGEMENT
-// ==============================================
-
+// ---------------------------
+// Profile management
+// ---------------------------
 async function getUserProfile(userId) {
-  if (!supabase) return null;
+  if (!supabase || !userId) return null;
   try {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
-    return error ? null : data;
-  } catch (error) {
+    if (error) {
+      console.warn('getUserProfile error', error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('getUserProfile exception', err);
     return null;
   }
 }
@@ -214,30 +207,34 @@ async function createUserProfile(userId) {
     const profileData = {
       id: userId,
       email: currentUser.email,
-      full_name: currentUser.user_metadata?.full_name || currentUser.email.split('@')[0],
+      full_name: currentUser.user_metadata?.full_name || (currentUser.email ? currentUser.email.split('@')[0] : ''),
       phone: null,
-      is_admin: false
+      is_admin: false,
+      created_at: new Date().toISOString()
     };
-    
+
     const { data, error } = await supabase
       .from('profiles')
       .insert([profileData])
       .select()
       .single();
-    
-    if (error && error.code === '23505') {
-      return await getUserProfile(userId);
+
+    if (error) {
+      // unique constraint might already exist — fetch it
+      if (error.code === '23505') return await getUserProfile(userId);
+      console.warn('createUserProfile error', error);
+      return null;
     }
     return data;
-  } catch (error) {
+  } catch (err) {
+    console.error('createUserProfile exception', err);
     return null;
   }
 }
 
-// ==============================================
-// AUTH UI SETUP
-// ==============================================
-
+// ---------------------------
+// Auth UI setup
+// ---------------------------
 function setupAuth() {
   setupFormToggle();
   setupModalHandlers();
@@ -248,35 +245,35 @@ function setupAuthForms() {
   const signinForm = document.getElementById('signin-form');
   const registerForm = document.getElementById('register-form');
   const forgotLink = document.getElementById('forgotPasswordLink');
-  
+
   if (signinForm) {
     signinForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       const inputs = signinForm.querySelectorAll('input');
-      const email = inputs[0].value.trim();
-      const password = inputs[1].value;
+      const email = inputs[0]?.value?.trim();
+      const password = inputs[1]?.value;
       const btn = signinForm.querySelector('button[type="submit"]');
       setButtonLoading(btn, true);
       await handleSignIn(email, password);
       setButtonLoading(btn, false, 'Sign In');
     });
   }
-  
+
   if (registerForm) {
     registerForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       const inputs = registerForm.querySelectorAll('input');
-      const name = inputs[0].value.trim();
-      const email = inputs[1].value.trim();
-      const password = inputs[2].value;
-      const confirmPassword = inputs[3].value;
+      const name = inputs[0]?.value?.trim();
+      const email = inputs[1]?.value?.trim();
+      const password = inputs[2]?.value;
+      const confirmPassword = inputs[3]?.value;
       const btn = registerForm.querySelector('button[type="submit"]');
       setButtonLoading(btn, true);
       await handleRegister(name, email, password, confirmPassword);
       setButtonLoading(btn, false, 'Register');
     });
   }
-  
+
   if (forgotLink) {
     forgotLink.addEventListener('click', handleForgotPassword);
   }
@@ -298,24 +295,25 @@ function setupFormToggle() {
   const registerForm = document.getElementById("register-form");
   const formTitle = document.getElementById("form-title");
   const toggleText = document.querySelector(".toggle-text");
-  
+
   if (!signinForm || !registerForm) return;
-  
+
   function switchForms() {
     if (signinForm.classList.contains("active")) {
       signinForm.classList.remove("active");
       registerForm.classList.add("active");
-      formTitle.textContent = "Create Account";
-      toggleText.innerHTML = 'Already have an account? <span id="toggle">Sign In</span>';
+      if (formTitle) formTitle.textContent = "Create Account";
+      if (toggleText) toggleText.innerHTML = 'Already have an account? <span id="toggle">Sign In</span>';
     } else {
       registerForm.classList.remove("active");
       signinForm.classList.add("active");
-      formTitle.textContent = "Sign In";
-      toggleText.innerHTML = 'Don\'t have an account? <span id="toggle">Register</span>';
+      if (formTitle) formTitle.textContent = "Sign In";
+      if (toggleText) toggleText.innerHTML = 'Don\'t have an account? <span id="toggle">Register</span>';
     }
-    document.getElementById("toggle").addEventListener("click", switchForms);
+    const innerToggle = document.getElementById("toggle");
+    if (innerToggle) innerToggle.addEventListener("click", switchForms);
   }
-  
+
   const toggle = document.getElementById("toggle");
   if (toggle) toggle.addEventListener("click", switchForms);
 }
@@ -324,51 +322,50 @@ function setupModalHandlers() {
   const openBtn = document.getElementById("openModal");
   const closeBtn = document.getElementById("closeModal");
   const modal = document.getElementById("modal");
-  
+
   if (openBtn && modal) {
-    openBtn.addEventListener("click", () => {
+    openBtn.addEventListener('click', () => {
       modal.style.display = 'flex';
-      modal.classList.add("open");
+      modal.classList.add('open');
     });
   }
-  
+
   if (closeBtn && modal) {
-    closeBtn.addEventListener("click", () => {
+    closeBtn.addEventListener('click', () => {
       modal.style.display = 'none';
-      modal.classList.remove("open");
+      modal.classList.remove('open');
     });
   }
-  
+
   if (modal) {
-    modal.addEventListener("click", function(e) {
+    modal.addEventListener('click', function(e) {
       if (e.target === modal) {
         modal.style.display = 'none';
-        modal.classList.remove("open");
+        modal.classList.remove('open');
       }
     });
   }
 }
 
-// ==============================================
-// AUTH HANDLERS
-// ==============================================
-
+// ---------------------------
+// Auth handlers
+// ---------------------------
 async function handleSignIn(email, password) {
   if (!supabase || !email || !password) {
     showModalMessage('Please fill all fields', 'error');
     return;
   }
-  
+
   if (!isValidEmail(email)) {
     showModalMessage('Enter a valid email', 'error');
     return;
   }
-  
+
   try {
     showModalMessage('Signing in...', 'info');
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    
+
     showModalMessage('Sign in successful', 'success');
     setTimeout(() => {
       const modal = document.getElementById('modal');
@@ -387,36 +384,36 @@ async function handleRegister(name, email, password, confirmPassword) {
     showModalMessage('Please fill all fields', 'error');
     return;
   }
-  
+
   if (!isValidEmail(email)) {
     showModalMessage('Enter a valid email', 'error');
     return;
   }
-  
+
   if (password.length < 6) {
     showModalMessage('Password too short (min 6 characters)', 'error');
     return;
   }
-  
+
   if (password !== confirmPassword) {
     showModalMessage('Passwords do not match', 'error');
     return;
   }
-  
+
   try {
     showModalMessage('Creating account...', 'info');
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { 
+      options: {
         data: { full_name: name.trim() },
         emailRedirectTo: window.location.origin
       }
     });
-    
+
     if (error) throw error;
-    
-    if (data.user && !data.session) {
+
+    if (data?.user && !data?.session) {
       showModalMessage('Check your email to confirm your account', 'success');
     } else {
       showModalMessage('Registration successful', 'success');
@@ -434,40 +431,38 @@ async function handleRegister(name, email, password, confirmPassword) {
 }
 
 async function handleForgotPassword(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   const email = prompt('Enter your email address:');
   if (!email || !isValidEmail(email)) {
     alert('Please enter a valid email');
     return;
   }
-  
+
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin
     });
     if (error) throw error;
     alert('Password reset link sent!');
-  } catch (error) {
-    alert('Error: ' + error.message);
+  } catch (err) {
+    alert('Error: ' + (err?.message || 'Unable to send reset link'));
   }
 }
 
 async function handleLogout(e) {
-  if (e) e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   if (!confirm('Are you sure you want to sign out?')) return;
-  
   try {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  } catch (error) {
-    alert('Error: ' + error.message);
+  } catch (err) {
+    alert('Error: ' + (err?.message || 'Logout failed'));
   }
 }
 
-// ==========================================
-// 7. PROFILE SETTINGS MODAL
-// ==========================================
-
+// ---------------------------
+// Profile settings modal & handlers
+// ---------------------------
 function openProfileSettings() {
   if (!currentUser) {
     alert('Please sign in first');
@@ -480,7 +475,7 @@ function openProfileSettings() {
     return;
   }
 
-  const countryOptions = COUNTRY_LIST.map(c => 
+  const countryOptions = COUNTRY_LIST.map(c =>
     `<option value="${c.code}">${c.iso} ${c.code} - ${c.label}</option>`
   ).join('');
 
@@ -553,7 +548,7 @@ function closeProfileSettings() {
 }
 
 function loadProfileData() {
-  if (!currentUser || !currentUserProfile) return;
+  if (!currentUser) return;
 
   const nameInput = document.getElementById('settingsName');
   const emailInput = document.getElementById('settingsEmail');
@@ -563,7 +558,7 @@ function loadProfileData() {
   if (nameInput) nameInput.value = currentUser.user_metadata?.full_name || '';
   if (emailInput) emailInput.value = currentUser.email || '';
 
-  if (currentUserProfile.phone && phoneInput && countrySelect) {
+  if (currentUserProfile?.phone && phoneInput && countrySelect) {
     const match = currentUserProfile.phone.match(/^\+(\d{1,3})(.*)$/);
     if (match) {
       const code = '+' + match[1];
@@ -578,22 +573,17 @@ function loadProfileData() {
 async function handleUpdateName() {
   const nameInput = document.getElementById('settingsName');
   const msg = document.getElementById('nameMsg');
-  const name = nameInput.value.trim();
+  const name = (nameInput?.value || '').trim();
 
   if (!name) {
-    msg.textContent = 'Name cannot be empty';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = 'Name cannot be empty'; msg.style.color = UI.danger; }
     return;
   }
 
-  msg.textContent = 'Updating...';
-  msg.style.color = '';
+  if (msg) { msg.textContent = 'Updating...'; msg.style.color = ''; }
 
   try {
-    const { error: authError } = await supabase.auth.updateUser({
-      data: { full_name: name }
-    });
-
+    const { error: authError } = await supabase.auth.updateUser({ data: { full_name: name } });
     if (authError) throw authError;
 
     const { error: profileError } = await supabase
@@ -607,34 +597,27 @@ async function handleUpdateName() {
     currentUser = data?.session?.user || currentUser;
     currentUserProfile = await getUserProfile(currentUser.id);
 
-    msg.textContent = 'Name updated successfully';
-    msg.style.color = UI.success;
-    setTimeout(() => msg.textContent = '', 3000);
-
+    if (msg) { msg.textContent = 'Name updated successfully'; msg.style.color = UI.success; setTimeout(() => msg.textContent = '', 3000); }
   } catch (error) {
     console.error('Update name error:', error);
-    msg.textContent = error.message || 'Failed to update name';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = error.message || 'Failed to update name'; msg.style.color = UI.danger; }
   }
 }
 
 async function handleUpdateEmail() {
   const emailInput = document.getElementById('settingsEmail');
   const msg = document.getElementById('emailMsg');
-  const email = emailInput.value.trim();
+  const email = (emailInput?.value || '').trim();
 
   if (!isValidEmail(email)) {
-    msg.textContent = 'Enter a valid email';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = 'Enter a valid email'; msg.style.color = UI.danger; }
     return;
   }
 
-  msg.textContent = 'Updating...';
-  msg.style.color = '';
+  if (msg) { msg.textContent = 'Updating...'; msg.style.color = ''; }
 
   try {
     const { error: authError } = await supabase.auth.updateUser({ email });
-
     if (authError) throw authError;
 
     const { error: profileError } = await supabase
@@ -648,14 +631,10 @@ async function handleUpdateEmail() {
     currentUser = data?.session?.user || currentUser;
     currentUserProfile = await getUserProfile(currentUser.id);
 
-    msg.textContent = 'Email updated (check your inbox for confirmation)';
-    msg.style.color = UI.success;
-    setTimeout(() => msg.textContent = '', 4000);
-
+    if (msg) { msg.textContent = 'Email updated (check your inbox for confirmation)'; msg.style.color = UI.success; setTimeout(() => msg.textContent = '', 4000); }
   } catch (error) {
     console.error('Update email error:', error);
-    msg.textContent = error.message || 'Failed to update email';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = error.message || 'Failed to update email'; msg.style.color = UI.danger; }
   }
 }
 
@@ -663,13 +642,12 @@ async function handleUpdatePhone() {
   const phoneInput = document.getElementById('settingsPhone');
   const countrySelect = document.getElementById('settingsCountryCode');
   const msg = document.getElementById('phoneMsg');
-  
-  const phoneRaw = phoneInput.value.trim();
-  const countryCode = countrySelect.value || '+250';
+
+  const phoneRaw = (phoneInput?.value || '').trim();
+  const countryCode = (countrySelect?.value) || '+250';
 
   if (!phoneRaw) {
-    msg.textContent = 'Enter a phone number';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = 'Enter a phone number'; msg.style.color = UI.danger; }
     return;
   }
 
@@ -678,13 +656,11 @@ async function handleUpdatePhone() {
   if (!/^\+/.test(normalized)) normalized = countryCode + normalized;
 
   if (!/^\+\d{10,15}$/.test(normalized)) {
-    msg.textContent = 'Enter a valid phone number';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = 'Enter a valid phone number'; msg.style.color = UI.danger; }
     return;
   }
 
-  msg.textContent = 'Updating...';
-  msg.style.color = '';
+  if (msg) { msg.textContent = 'Updating...'; msg.style.color = ''; }
 
   try {
     const { error } = await supabase
@@ -696,77 +672,61 @@ async function handleUpdatePhone() {
 
     currentUserProfile = await getUserProfile(currentUser.id);
 
-    msg.textContent = 'Phone updated successfully';
-    msg.style.color = UI.success;
-    setTimeout(() => msg.textContent = '', 3000);
-
+    if (msg) { msg.textContent = 'Phone updated successfully'; msg.style.color = UI.success; setTimeout(() => msg.textContent = '', 3000); }
   } catch (error) {
     console.error('Update phone error:', error);
-    msg.textContent = error.message || 'Failed to update phone';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = error.message || 'Failed to update phone'; msg.style.color = UI.danger; }
   }
 }
 
 async function handleChangePassword() {
-  const currentPwd = document.getElementById('currentPassword').value;
-  const newPwd = document.getElementById('newPassword').value;
-  const confirmPwd = document.getElementById('confirmNewPassword').value;
+  const currentPwd = document.getElementById('currentPassword')?.value;
+  const newPwd = document.getElementById('newPassword')?.value;
+  const confirmPwd = document.getElementById('confirmNewPassword')?.value;
   const msg = document.getElementById('passwordMsg');
 
   if (!currentPwd || !newPwd || !confirmPwd) {
-    msg.textContent = 'Fill all password fields';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = 'Fill all password fields'; msg.style.color = UI.danger; }
     return;
   }
 
   if (newPwd.length < 6) {
-    msg.textContent = 'New password must be at least 6 characters';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = 'New password must be at least 6 characters'; msg.style.color = UI.danger; }
     return;
   }
 
   if (newPwd !== confirmPwd) {
-    msg.textContent = 'New passwords do not match';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = 'New passwords do not match'; msg.style.color = UI.danger; }
     return;
   }
 
-  msg.textContent = 'Changing password...';
-  msg.style.color = '';
+  if (msg) { msg.textContent = 'Changing password...'; msg.style.color = ''; }
 
   try {
+    // Re-authenticate by signing in with existing credentials (rare pattern, but matches previous code)
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: currentUser.email,
       password: currentPwd
     });
-
     if (signInError) throw new Error('Current password is incorrect');
 
     const { error } = await supabase.auth.updateUser({ password: newPwd });
-
     if (error) throw error;
 
-    msg.textContent = 'Password changed successfully';
-    msg.style.color = UI.success;
-
+    if (msg) { msg.textContent = 'Password changed successfully'; msg.style.color = UI.success; }
     document.getElementById('currentPassword').value = '';
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmNewPassword').value = '';
-
-    setTimeout(() => msg.textContent = '', 3000);
-
+    setTimeout(() => { if (msg) msg.textContent = ''; }, 3000);
   } catch (error) {
     console.error('Change password error:', error);
-    msg.textContent = error.message || 'Password change failed';
-    msg.style.color = UI.danger;
+    if (msg) { msg.textContent = error.message || 'Password change failed'; msg.style.color = UI.danger; }
   }
 }
 
-
-// ==========================================
-// 8. UI UPDATE FUNCTIONS
-// ==========================================
-
+// ---------------------------
+// UI update functions
+// ---------------------------
 function updateUIForLoggedInUser(user) {
   const openModalBtn = document.getElementById('openModal');
   if (!openModalBtn) return;
@@ -799,7 +759,7 @@ function updateUIForLoggedInUser(user) {
               <span style="color:#333;text-align:left;">Admin Panel</span>
             </button>
           ` : ''}
-          
+
           <button id="viewProfileBtn" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:30px;background:#fff;border:1px solid #f6f3f4;cursor:pointer;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,0.06);width:100%;">
             <span style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#6b3fb0;color:#fff;font-size:14px;">👤</span>
             <span style="color:#333;text-align:left;">Settings</span>
@@ -815,7 +775,7 @@ function updateUIForLoggedInUser(user) {
   `;
 
   openModalBtn.outerHTML = userMenuHTML;
-  
+
   setTimeout(() => {
     attachUserMenuHandlers();
   }, 100);
@@ -831,6 +791,7 @@ function attachUserMenuHandlers() {
   if (avatarBtn && dropdown) {
     avatarBtn.addEventListener('click', function(e) {
       e.stopPropagation();
+      if (!dropdown) return;
       if (dropdown.style.display === 'none' || dropdown.style.display === '') {
         dropdown.style.display = 'block';
         dropdown.style.opacity = '0';
@@ -849,23 +810,9 @@ function attachUserMenuHandlers() {
     });
   }
 
-  if (adminPanelBtn) {
-    adminPanelBtn.addEventListener('click', function() {
-      if (dropdown) dropdown.style.display = 'none';
-      window.location.href = 'admin.html';
-    });
-  }
-
-  if (viewProfileBtn) {
-    viewProfileBtn.addEventListener('click', function() {
-      if (dropdown) dropdown.style.display = 'none';
-      openProfileSettings();
-    });
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', handleLogout);
-  }
+  if (adminPanelBtn) adminPanelBtn.addEventListener('click', function() { if (dropdown) dropdown.style.display = 'none'; window.location.href = 'admin.html'; });
+  if (viewProfileBtn) viewProfileBtn.addEventListener('click', function() { if (dropdown) dropdown.style.display = 'none'; openProfileSettings(); });
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
 
   document.addEventListener('click', function(event) {
     const dd = document.getElementById('userDropdown');
@@ -885,12 +832,12 @@ function attachUserMenuHandlers() {
 function updateUIForLoggedOutUser() {
   const userMenu = document.getElementById('userMenuContainer');
   if (!userMenu) return;
-  
+
   userMenu.outerHTML = '<button id="openModal">Sign-in/Register</button>';
-  
+
   const newOpenModalBtn = document.getElementById('openModal');
   const modal = document.getElementById('modal');
-  
+
   if (newOpenModalBtn && modal) {
     newOpenModalBtn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -900,14 +847,13 @@ function updateUIForLoggedOutUser() {
   }
 }
 
-// ==============================================
-// MESSAGES
-// ==============================================
-
+// ---------------------------
+// Messages
+// ---------------------------
 function showModalMessage(text, type = 'info') {
   const modal = document.getElementById('modal');
   if (!modal) return;
-  
+
   let messageDiv = modal.querySelector('.auth-message');
   if (!messageDiv) {
     messageDiv = document.createElement('div');
@@ -916,13 +862,13 @@ function showModalMessage(text, type = 'info') {
     const formTitle = modal.querySelector('#form-title');
     if (formTitle) formTitle.insertAdjacentElement('afterend', messageDiv);
   }
-  
+
   const colors = {
     error: { bg: '#ffecec', text: UI.danger },
     success: { bg: '#e8f5e9', text: UI.success },
     info: { bg: '#fff4f7', text: UI.primaryPink }
   };
-  
+
   const color = colors[type] || colors.info;
   messageDiv.textContent = text;
   messageDiv.style.backgroundColor = color.bg;
@@ -938,11 +884,522 @@ function showMessage(text, type = 'info', duration = 5000) {
     msg.style.cssText = 'position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;font-weight:700;z-index:10001;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
     document.body.appendChild(msg);
   }
-  
+
   const colors = {
     error: { bg: '#ffecec', text: UI.danger },
     success: { bg: '#e8f5e9', text: UI.success },
     info: { bg: '#fff4f7', text: UI.primaryPink }
+  };
+
+  const color = colors[type] || colors.info;
+  msg.style.backgroundColor = color.bg;
+  msg.style.color = color.text;
+  msg.textContent = text;
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, duration);
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// ---------------------------
+// Expose a few utilities globally (used by other pages)
+// ---------------------------
+window.openProfileSettings = openProfileSettings;
+window.handleLogout = handleLogout;
+window.ensureSupabaseClient = ensureSupabaseClient;
+window.getUserProfile = getUserProfile;
+window.createUserProfile = createUserProfile;
+
+
+// ==============================================
+// 3. CART STORAGE HELPERS
+// ==============================================
+
+// Temp cart for non-logged-in users
+function getTempCart() {
+  try {
+    const cart = localStorage.getItem('echad_temp_cart');
+    return cart ? JSON.parse(cart) : [];
+  } catch (error) {
+    console.error('Error reading temp cart:', error);
+    return [];
+  }
+}
+
+function saveTempCart(cart) {
+  try {
+    localStorage.setItem('echad_temp_cart', JSON.stringify(cart));
+  } catch (error) {
+    console.error('Error saving temp cart:', error);
+  }
+}
+
+function clearTempCart() {
+  localStorage.removeItem('echad_temp_cart');
+}
+
+// ==============================================
+// 4. CART OPERATIONS
+// ==============================================
+
+
+
+
+async function clearCart() {
+  if (currentUser && supabase) {
+    try {
+      await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', currentUser.id);
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    }
+  } else {
+    clearTempCart();
+  }
+  
+  await loadCart();
+  updateCartBadge();
+  showMessage('Cart cleared', 'success');
+}
+
+
+
+// ==============================================
+// 5. CART UI
+// ==============================================
+
+function initializeCartUI() {
+  const cartToggleBtns = document.querySelectorAll('#cart-toggle-desktop, #cart-toggle-mobile');
+  const cartClose = document.getElementById('cart-close');
+  const backdrop = document.getElementById('cart-backdrop');
+  const checkoutBtn = document.getElementById('checkout');
+  const clearCartBtn = document.getElementById('clear-cart');
+  
+  // Open cart
+  cartToggleBtns.forEach(btn => {
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openCart();
+      });
+    }
+  });
+  
+  // Close cart
+  if (cartClose) {
+    cartClose.addEventListener('click', closeCart);
+  }
+  
+  if (backdrop) {
+    backdrop.addEventListener('click', closeCart);
+  }
+  
+  // Checkout button
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener('click', handleCheckout);
+  }
+  
+  // Clear cart button (NO CONFIRMATION)
+  if (clearCartBtn) {
+    clearCartBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await clearCart();
+    });
+  }
+  
+  // Initial load
+  loadCart();
+  updateCartBadge();
+}
+
+function openCart() {
+  const panel = document.getElementById('cart-panel');
+  const backdrop = document.getElementById('cart-backdrop');
+  
+  if (panel) panel.classList.add('open');
+  if (backdrop) backdrop.hidden = false;
+  
+  loadCart();
+}
+
+function closeCart() {
+  const panel = document.getElementById('cart-panel');
+  const backdrop = document.getElementById('cart-backdrop');
+  
+  if (panel) panel.classList.remove('open');
+  if (backdrop) backdrop.hidden = true;
+}
+
+// ---- Replace addToCart (guest branch now normalizes IDs) ----
+async function addToCart(productId, quantity = 1) {
+  const pid = String(productId);
+  if (currentUser && supabase) {
+    // Logged in branch unchanged (keeps using DB)
+    try {
+      const { data: existing } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('product_id', productId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('cart_items')
+          .update({ quantity: (existing.quantity || 0) + Number(quantity) })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('cart_items')
+          .insert([{
+            user_id: currentUser.id,
+            product_id: productId,
+            quantity: Number(quantity),
+            added_at: new Date().toISOString()
+          }]);
+      }
+    } catch (error) {
+      console.error('Error adding to cart (DB):', error);
+      showMessage('Failed to add to cart', 'error');
+      return;
+    }
+  } else {
+    // Guest: store product_id as STRING for consistent matching
+    const cart = getTempCart();
+    const existingItem = cart.find(item => String(item.product_id) === pid);
+
+    if (existingItem) {
+      existingItem.quantity = Number(existingItem.quantity || 0) + Number(quantity);
+    } else {
+      cart.push({ product_id: pid, quantity: Number(quantity) });
+    }
+
+    saveTempCart(cart);
+  }
+
+  await loadCart();
+  updateCartBadge();
+  showMessage('Added to cart!', 'success');
+}
+
+// ---- Replace updateCartItemQuantity ----
+async function updateCartItemQuantity(productId, newQuantity) {
+  const pid = String(productId);
+  if (newQuantity < 1) {
+    await removeFromCart(productId);
+    return;
+  }
+
+  if (currentUser && supabase) {
+    try {
+      await supabase
+        .from('cart_items')
+        .update({ quantity: Number(newQuantity) })
+        .eq('user_id', currentUser.id)
+        .eq('product_id', productId);
+    } catch (error) {
+      console.error('Error updating quantity (DB):', error);
+    }
+  } else {
+    const cart = getTempCart();
+    const item = cart.find(i => String(i.product_id) === pid);
+    if (item) {
+      item.quantity = Number(newQuantity);
+      saveTempCart(cart);
+    }
+  }
+
+  await loadCart();
+  updateCartBadge();
+}
+
+// ---- Replace removeFromCart ----
+async function removeFromCart(productId) {
+  const pid = String(productId);
+  if (currentUser && supabase) {
+    try {
+      await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('product_id', productId);
+    } catch (error) {
+      console.error('Error removing from cart (DB):', error);
+    }
+  } else {
+    const cart = getTempCart().filter(item => String(item.product_id) !== pid);
+    saveTempCart(cart);
+  }
+
+  await loadCart();
+  updateCartBadge();
+  showMessage('Removed from cart', 'success');
+}
+
+// ---- Replace syncTempCartToDatabase (string/number-safe merge) ----
+async function syncTempCartToDatabase() {
+  if (!currentUser || !supabase) return;
+
+  const tempCart = getTempCart();
+  if (!Array.isArray(tempCart) || tempCart.length === 0) {
+    await loadCart();
+    return;
+  }
+
+  try {
+    const { data: existingItems = [] } = await supabase
+      .from('cart_items')
+      .select('*')
+      .eq('user_id', currentUser.id);
+
+    for (const tmp of tempCart) {
+      const tmpPidStr = String(tmp.product_id);
+      const tmpQty = Number(tmp.quantity || 0);
+      const existing = existingItems.find(e => String(e.product_id) === tmpPidStr);
+
+      if (existing) {
+        await supabase
+          .from('cart_items')
+          .update({ quantity: (existing.quantity || 0) + tmpQty })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('cart_items')
+          .insert([{
+            user_id: currentUser.id,
+            product_id: tmpPidStr,
+            quantity: tmpQty,
+            added_at: new Date().toISOString()
+          }]);
+      }
+    }
+
+    clearTempCart();
+    await loadCart();
+    updateCartBadge();
+  } catch (error) {
+    console.error('Error syncing temp cart:', error);
+  }
+}
+
+// ---- Replace loadCart (robust id handling & product fetch) ----
+async function loadCart() {
+  const cartItemsContainer = document.getElementById('cart-items');
+  const subtotalEl = document.getElementById('cart-subtotal');
+
+  if (!cartItemsContainer) return;
+
+  let cartItems = [];
+
+  // get cart items
+  if (currentUser && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('user_id', currentUser.id);
+      if (!error && Array.isArray(data)) cartItems = data;
+    } catch (err) {
+      console.error('Error reading DB cart in loadCart:', err);
+    }
+  } else {
+    cartItems = getTempCart();
+  }
+
+  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    cartItemsContainer.innerHTML = `
+      <div style="padding:40px 20px;text-align:center;color:#666;">
+        <i class="fas fa-shopping-cart" style="font-size:48px;color:#ddd;margin-bottom:16px;"></i>
+        <p style="font-size:16px;">Your cart is empty.</p>
+      </div>
+    `;
+    if (subtotalEl) subtotalEl.textContent = 'RWF 0';
+    return;
+  }
+
+  // Build numeric productIds for query (deduped)
+  const productIds = Array.from(new Set(cartItems.map(i => {
+    const val = i.product_id;
+    const n = Number(val);
+    return Number.isNaN(n) ? null : n;
+  }).filter(x => x !== null)));
+
+  // If no valid numeric IDs, render fallback (guest items might be strings; still try fetching by strings)
+  try {
+    let products = [];
+    if (productIds.length > 0) {
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .in('id', productIds);
+      products = Array.isArray(data) ? data : [];
+    }
+
+    // if product list is empty but we have cartItems (maybe IDs are strings), do a fallback fetch per-id
+    if (products.length === 0) {
+      // attempt to fetch by filtering string ids individually (safe, small sets)
+      const fetched = [];
+      for (const it of cartItems) {
+        const pid = String(it.product_id);
+        // try numeric first
+        const numeric = Number(pid);
+        let qRes = null;
+        if (!Number.isNaN(numeric)) {
+          const { data } = await supabase.from('products').select('*').eq('id', numeric).maybeSingle();
+          if (data) { fetched.push(data); continue; }
+        }
+        // try by string equality on some string id field (unlikely) - skip
+      }
+      products = fetched;
+    }
+
+    // render
+    let subtotal = 0;
+    const cartHTML = cartItems.map(item => {
+      // match by normalized string
+      const product = (products || []).find(p => String(p.id) === String(item.product_id));
+      if (!product) return ''; // can't match this product row — skip (keeps container non-empty)
+      const qty = Number(item.quantity || 0);
+      const itemTotal = Number(product.price || 0) * qty;
+      subtotal += itemTotal;
+
+      return `
+        <div class="cart-item" data-product-id="${product.id}" style="display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;align-items:center;">
+          <img src="${product.image_url || 'https://via.placeholder.com/80'}" alt="${product.name}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">
+          <div style="flex:1;padding:0 12px;">
+            <h5 style="margin:0 0 4px;font-size:14px;">${product.name}</h5>
+            <p style="margin:0;color:#666;font-size:13px;">RWF ${product.price}</p>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+              <button class="qty-btn decrease" onclick="changeQuantity('${product.id}', -1)" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;">−</button>
+              <input type="number" value="${qty}" min="1" onchange="setQuantity('${product.id}', this.value)" style="width:50px;text-align:center;padding:4px;border:1px solid #ddd;border-radius:4px;">
+              <button class="qty-btn increase" onclick="changeQuantity('${product.id}', 1)" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;">+</button>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <p style="margin:0 0 8px;font-weight:700;">RWF ${itemTotal}</p>
+            <button onclick="removeItem('${product.id}')" style="padding:6px 12px;background:#ff9db1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">Remove</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    cartItemsContainer.innerHTML = cartHTML || `
+      <div style="padding:20px;text-align:center;color:#666;">
+        <p style="margin:0;">Some items in your cart couldn't be displayed (missing product data).</p>
+      </div>
+    `;
+    if (subtotalEl) subtotalEl.textContent = `RWF ${subtotal}`;
+
+  } catch (error) {
+    console.error('Error rendering cart (loadCart):', error);
+    cartItemsContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">Error loading cart</div>';
+    if (subtotalEl) subtotalEl.textContent = 'RWF 0';
+  }
+}
+
+// ---- Replace updateCartBadge (simple normalization) ----
+async function updateCartBadge() {
+  const badges = document.querySelectorAll('#cart-badge');
+  let totalItems = 0;
+
+  if (currentUser && supabase) {
+    try {
+      const { data } = await supabase
+        .from('cart_items')
+        .select('quantity')
+        .eq('user_id', currentUser.id);
+      if (Array.isArray(data)) totalItems = data.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    } catch (error) {
+      console.error('Error updating badge (DB):', error);
+    }
+  } else {
+    const cart = getTempCart();
+    if (Array.isArray(cart)) totalItems = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  }
+
+  badges.forEach(badge => {
+    badge.textContent = totalItems;
+    badge.style.display = totalItems > 0 ? 'flex' : 'none';
+  });
+}
+
+
+
+
+
+async function handleCheckout() {
+  if (!currentUser) {
+    // Show login modal for unsigned users
+    const modal = document.getElementById('modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('open');
+    }
+    showMessage('Please sign in to checkout', 'info');
+  } else {
+    // Redirect to checkout for signed in users
+    window.location.href = 'checkout.html';
+  }
+}
+
+// ==============================================
+// 6. GLOBAL FUNCTIONS (called from HTML)
+// ==============================================
+
+window.changeQuantity = async function(productId, change) {
+  let currentQty = 0;
+  
+  if (currentUser && supabase) {
+    const { data } = await supabase
+      .from('cart_items')
+      .select('quantity')
+      .eq('user_id', currentUser.id)
+      .eq('product_id', productId)
+      .single();
+    currentQty = data?.quantity || 0;
+  } else {
+    const cart = getTempCart();
+    const item = cart.find(i => i.product_id === productId);
+    currentQty = item?.quantity || 0;
+  }
+  
+  const newQty = Math.max(1, currentQty + change);
+  await updateCartItemQuantity(productId, newQty);
+};
+
+window.setQuantity = async function(productId, value) {
+  const newQty = Math.max(1, parseInt(value) || 1);
+  await updateCartItemQuantity(productId, newQty);
+};
+
+window.removeItem = async function(productId) {
+  await removeFromCart(productId);
+};
+
+window.addToCart = addToCart;
+
+// ==============================================
+// 7. UTILITIES
+// ==============================================
+
+function showMessage(text, type = 'info') {
+  let msg = document.getElementById('global-message');
+  
+  if (!msg) {
+    msg = document.createElement('div');
+    msg.id = 'global-message';
+    msg.style.cssText = 'position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;font-weight:700;z-index:10001;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+    document.body.appendChild(msg);
+  }
+  
+  const colors = {
+    error: { bg: '#ffecec', text: '#c62828' },
+    success: { bg: '#e8f5e9', text: '#2e7d32' },
+    info: { bg: '#fff4f7', text: '#ff9db1' }
   };
   
   const color = colors[type] || colors.info;
@@ -950,795 +1407,254 @@ function showMessage(text, type = 'info', duration = 5000) {
   msg.style.color = color.text;
   msg.textContent = text;
   msg.style.display = 'block';
-  setTimeout(() => msg.style.display = 'none', duration);
+  
+  setTimeout(() => {
+    msg.style.display = 'none';
+  }, 3000);
 }
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-// ====== CART SYSTEM (cleaned & unified) ======
-
-const TEMP_CART_KEY = 'temp_cart_v1';
-
-/* ------------------------------
-   TEMPORARY CART (LocalStorage)
-   shape: [{ product_id: <id>, quantity: <n>, added_at: <iso> }, ...]
-   ------------------------------ */
-function getTempCart() {
-  try {
-    const raw = localStorage.getItem(TEMP_CART_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    console.error('getTempCart parse error', e);
-    return [];
+function setupMobileMenu() {
+  const bar = document.getElementById('bar');
+  const close = document.getElementById('close');
+  const nav = document.getElementById('navbar');
+  
+  if (bar && nav) {
+    bar.addEventListener('click', () => nav.classList.add('active'));
+  }
+  
+  if (close && nav) {
+    close.addEventListener('click', () => nav.classList.remove('active'));
   }
 }
-function saveTempCart(cart) {
+
+// ---------------------------
+// App initializer (fixes missing initializeApp error)
+// ---------------------------
+function initializeApp() {
+  // guard so we don't double-init if called twice
+  if (initializeApp._ran) return;
+  initializeApp._ran = true;
+
   try {
-    localStorage.setItem(TEMP_CART_KEY, JSON.stringify(cart));
-  } catch (e) {
-    console.error('saveTempCart error', e);
-  }
-}
-function addToTempCart(productId, quantity = 1) {
-  try {
-    const cart = getTempCart();
-    const idx = cart.findIndex(i => String(i.product_id) === String(productId));
-    if (idx !== -1) {
-      cart[idx].quantity = (Number(cart[idx].quantity) || 0) + Number(quantity);
-    } else {
-      cart.push({ product_id: productId, quantity: Number(quantity) || 1, added_at: new Date().toISOString() });
+    // Ensure supabase client exists
+    ensureSupabaseClient();
+
+    // Initialize core pieces (these are defined above in your script)
+    try { initializeSupabase(); } catch(e){ console.warn('initializeSupabase() failed or already ran:', e); }
+    try { setupAuth(); } catch(e){ console.warn('setupAuth() failed or already ran:', e); }
+
+    // Mobile menu handlers
+    try { setupMobileMenu(); } catch(e){ /* non-fatal */ }
+
+    // If cart UI exists in this script, initialize it (safe noop if not present)
+    if (typeof initializeCartUI === 'function') {
+      try { initializeCartUI(); } catch(e){ console.warn('initializeCartUI failed:', e); }
     }
-    saveTempCart(cart);
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    updateProductCardIcon(productId, true);
-    return cart;
+    // ensure UI reflects current cart when app starts
+    setTimeout(() => { try { refreshProductInCartStates(); } catch(e){} }, 250);
+
+
+    // Keep product pages happy: expose window.supabase once ready (already done in initializeSupabase,
+    // but this makes sure any waiting code can see it)
+    if (!window.supabase) {
+      try { ensureSupabaseClient(); } catch(e){/*ignore*/ }
+    }
   } catch (err) {
-    console.error('addToTempCart error', err);
-    return null;
-  }
-}
-function clearTempCart() {
-  try { localStorage.removeItem(TEMP_CART_KEY); } catch (e) { console.error(e); }
-}
-function removeTempCartItem(productId) {
-  try {
-    let cart = getTempCart();
-    cart = cart.filter(i => String(i.product_id) !== String(productId));
-    saveTempCart(cart);
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    updateProductCardIcon(productId, false);
-    if (typeof renderCart === 'function') renderCart();
-  } catch (e) { console.error('removeTempCartItem', e); }
-}
-
-/* ------------------------------
-   UI helper - mark product icons in product listing
-   .cart-icon-wrapper should contain an element with class .cart-icon (or the wrapper itself)
-   Add CSS for `.cart-icon.in-cart` to color it green.
-   e.g.
-     .cart-icon { color: #ff9db1; }
-     .cart-icon.in-cart { color: #2e7d32; transform: scale(1.05); }
-   ------------------------------ */
-function updateProductCardIcon(productId, inCart) {
-  try {
-    const norm = String(productId);
-    // match any element with data-product-id (wrapper or icon)
-    document.querySelectorAll('[data-product-id]').forEach(node => {
-      const attr = node.getAttribute('data-product-id');
-      if (attr === norm) {
-        // try icon inside wrapper first
-        const icon = node.querySelector('.cart, .cart-icon, i.fa-cart-shopping') || node;
-        if (inCart) icon.classList.add('in-cart');
-        else icon.classList.remove('in-cart');
-      }
-    });
-
-    // also fallback: some pages might set product-id on images/buttons differently
-    const altIcons = document.querySelectorAll(`.cart-icon, i.fa-cart-shopping`);
-    altIcons.forEach(ic => {
-      const wrapper = ic.closest('[data-product-id]');
-      if (wrapper && String(wrapper.getAttribute('data-product-id')) === norm) {
-        if (inCart) ic.classList.add('in-cart'); else ic.classList.remove('in-cart');
-      }
-    });
-  } catch (e) {
-    // ignore
+    console.error('initializeApp fatal error:', err);
   }
 }
 
-
-/* ------------------------------
-   SYNC TEMP CART -> DB (when user signs in)
-   ------------------------------ */
-async function syncTempCartToDatabase() {
-  if (!window.currentUser || !window.currentUser.id || !window.supabase) return;
-  const temp = getTempCart();
-  if (!temp || temp.length === 0) {
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    return;
-  }
-  try {
-    for (const item of temp) {
-      const pid = item.product_id;
-      const qty = Number(item.quantity) || 1;
-      const { data: existing, error: checkErr } = await window.supabase
-        .from('cart_items')
-        .select('*')
-        .eq('user_id', window.currentUser.id)
-        .eq('product_id', pid)
-        .maybeSingle();
-      if (checkErr && checkErr.code !== 'PGRST116') { console.error(checkErr); continue; }
-      if (existing) {
-        await window.supabase.from('cart_items').update({ quantity: (existing.quantity || 0) + qty }).eq('id', existing.id);
-      } else {
-        await window.supabase.from('cart_items').insert([{
-          user_id: window.currentUser.id,
-          product_id: pid,
-          quantity: qty,
-          added_at: new Date().toISOString()
-        }]);
-      }
-    }
-    clearTempCart();
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    if (typeof showMessage === 'function') showMessage('Cart synced!', 'success', 2000);
-  } catch (e) {
-    console.error('syncTempCartToDatabase error', e);
-  }
+// Also call initializeApp on load if your existing code expects it
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
 }
 
-/* ------------------------------
-   SERVER-BACKED CART: add/remove
-   ------------------------------ */
-async function addToCartFromSupabase(productId, quantity = 1) {
-  if (!productId) return;
-  // guest fallback
-  if (!window.currentUser || !window.currentUser.id) {
-    addToTempCart(productId, quantity);
-    if (typeof showMessage === 'function') showMessage('Added to cart (local). Sign in to save.', 'success', 1500);
-    return;
-  }
-  if (!window.supabase) { alert('Service unavailable'); return; }
-  try {
-    const { data: existing, error: checkError } = await window.supabase
-      .from('cart_items')
-      .select('*')
-      .eq('user_id', window.currentUser.id)
-      .eq('product_id', productId)
-      .maybeSingle();
-    if (checkError && checkError.code !== 'PGRST116') throw checkError;
-    if (existing) {
-      const { error: upErr } = await window.supabase.from('cart_items').update({ quantity: (existing.quantity || 0) + Number(quantity) }).eq('id', existing.id);
-      if (upErr) throw upErr;
-    } else {
-      const { error: insErr } = await window.supabase.from('cart_items').insert([{
-        user_id: window.currentUser.id,
-        product_id: productId,
-        quantity: Number(quantity) || 1,
-        added_at: new Date().toISOString()
-      }]);
-      if (insErr) throw insErr;
-    }
-    updateProductCardIcon(productId, true);
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    if (typeof showMessage === 'function') showMessage('Added to cart', 'success', 1500);
-  } catch (e) {
-    console.error('addToCartFromSupabase error', e);
-    throw e;
-  }
-}
-window.addToCartFromSupabase = addToCartFromSupabase;
-
-/* ------------------------------
-   Remove by product id helper (DB or temp)
-   ------------------------------ */
-async function removeFromCartByProductId(productId) {
-  try {
-    if (!window.currentUser || !window.currentUser.id || !window.supabase) {
-      // remove from temp
-      const t = getTempCart().filter(x => String(x.product_id) !== String(productId));
-      saveTempCart(t);
-      updateProductCardIcon(productId, false);
-      if (typeof updateCartBadge === 'function') updateCartBadge();
-      if (typeof renderCart === 'function') renderCart();
-      return;
-    }
-    // logged-in: find cart entry and delete
-    const { data: item, error } = await window.supabase.from('cart_items').select('id').eq('user_id', window.currentUser.id).eq('product_id', productId).maybeSingle();
-    if (error) throw error;
-    if (item && item.id) {
-      const { error: delErr } = await window.supabase.from('cart_items').delete().eq('id', item.id);
-      if (delErr) throw delErr;
-    }
-    updateProductCardIcon(productId, false);
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    if (typeof renderCart === 'function') renderCart();
-  } catch (e) {
-    console.error('removeFromCartByProductId error', e);
-    throw e;
-  }
-}
-window.removeFromCartByProductId = removeFromCartByProductId;
-
-/* ------------------------------
-   RENDER CART (guest or logged-in)
-   ------------------------------ */
-async function renderCart() {
-  const node = document.getElementById('cart-items');
-  const subtotalNode = document.getElementById('cart-subtotal');
-  if (!node) return;
-  node.innerHTML = '<div style="padding:20px;color:#666;">Loading cart...</div>';
-  try {
-    // guest
-    if (!window.currentUser || !window.currentUser.id) {
-      const temp = getTempCart();
-      if (!temp || temp.length === 0) {
-        node.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">Your cart is empty.</div>';
-        if (subtotalNode) subtotalNode.textContent = 'RWF 0';
-        return;
-      }
-      // fetch product info for ids
-      const ids = Array.from(new Set(temp.map(i => i.product_id).filter(Boolean)));
-      if (!window.supabase) {
-        node.innerHTML = '<div style="padding:20px;color:#666;">Service unavailable</div>';
-        return;
-      }
-      const { data: products, error } = await window.supabase.from('products').select('id, name, price, image_url').in('id', ids);
-      if (error) { node.innerHTML = '<div style="padding:20px;color:red;">Error loading cart</div>'; return; }
-      node.innerHTML = '';
-      let subtotal = 0;
-      for (const t of temp) {
-        const prod = (products && products.find(p => String(p.id) === String(t.product_id))) || { name: 'Product', price: 0, image_url: null };
-        const qty = Number(t.quantity) || 0;
-        const total = (prod.price || 0) * qty;
-        subtotal += total;
-        const div = document.createElement('div');
-        div.className = 'cart-item';
-        div.style.cssText = 'display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;align-items:center;';
-        div.innerHTML = `
-          <img src="${prod.image_url || 'https://via.placeholder.com/80'}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">
-          <div style="flex:1;">
-            <div style="font-weight:600;">${escapeHtml(prod.name)}</div>
-            <div style="color:#666;">RWF ${prod.price || 0} × ${qty} = RWF ${total}</div>
-          </div>
-          <div>
-            <button data-remove-temp="${escapeHtml(String(t.product_id))}" style="padding:6px 10px;border-radius:6px;background:#c62828;color:#fff;border:none;cursor:pointer;">Remove</button>
-          </div>`;
-        node.appendChild(div);
-      }
-      if (subtotalNode) subtotalNode.textContent = `RWF ${subtotal}`;
-      // bind remove buttons
-      node.querySelectorAll('[data-remove-temp]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const pid = btn.getAttribute('data-remove-temp');
-          removeTempCartItem(pid);
-        });
-      });
-      return;
-    }
-
-    // logged-in: fetch cart items joined with products relation
-    if (!window.supabase) { node.innerHTML = '<div style="padding:20px;color:#666;">Service unavailable</div>'; return; }
-    const { data: cartItems, error } = await window.supabase.from('cart_items').select('id, quantity, product_id, products(id,name,price,image_url)').eq('user_id', window.currentUser.id);
-    if (error) { node.innerHTML = '<div style="padding:20px;color:red;">Error loading cart</div>'; return; }
-    if (!cartItems || cartItems.length === 0) {
-      node.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">Your cart is empty.</div>';
-      if (subtotalNode) subtotalNode.textContent = 'RWF 0';
-      return;
-    }
-    node.innerHTML = '';
-    let subtotal = 0;
-    cartItems.forEach(ci => {
-      const prod = ci.products || { name: 'Product', price: 0, image_url: null };
-      const qty = Number(ci.quantity) || 0;
-      const total = (prod.price || 0) * qty;
-      subtotal += total;
-      const div = document.createElement('div');
-      div.className = 'cart-item';
-      div.style.cssText = 'display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;align-items:center;';
-      div.innerHTML = `
-        <img src="${prod.image_url || 'https://via.placeholder.com/80'}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;">
-        <div style="flex:1;">
-          <div style="font-weight:600;">${escapeHtml(prod.name)}</div>
-          <div style="color:#666;">RWF ${prod.price || 0} × ${qty} = RWF ${total}</div>
-        </div>
-        <div>
-          <button data-remove-db-id="${ci.id}" data-prodid="${escapeHtml(String(prod.id))}" style="padding:6px 10px;border-radius:6px;background:#c62828;color:#fff;border:none;cursor:pointer;">Remove</button>
-        </div>`;
-      node.appendChild(div);
-    });
-    if (subtotalNode) subtotalNode.textContent = `RWF ${subtotal}`;
-    // bind remove DB buttons
-    node.querySelectorAll('[data-remove-db-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const dbId = btn.getAttribute('data-remove-db-id');
-        const productId = btn.getAttribute('data-prodid');
-        try {
-          const { error: delErr } = await window.supabase.from('cart_items').delete().eq('id', dbId);
-          if (delErr) throw delErr;
-          updateProductCardIcon(productId, false);
-          if (typeof updateCartBadge === 'function') updateCartBadge();
-          if (typeof renderCart === 'function') renderCart();
-        } catch (e) {
-          console.error('remove cart item db', e);
-        }
-      });
-    });
-
-  } catch (e) {
-    console.error('renderCart error', e);
-    node.innerHTML = '<div style="text-align:center;padding:20px;color:#c62828;">Error loading cart</div>';
-    if (subtotalNode) subtotalNode.textContent = 'RWF 0';
-  }
-}
-
-/* ------------------------------
-   updateCartBadge
-   ------------------------------ */
-async function updateCartBadge() {
-  const badge = document.getElementById('cart-badge');
-  if (!badge) return;
-  let count = 0;
-  try {
-    if (window.currentUser && window.currentUser.id && window.supabase) {
-      const { data, error } = await window.supabase.from('cart_items').select('quantity').eq('user_id', window.currentUser.id);
-      if (!error && Array.isArray(data)) count = data.reduce((s,i) => s + (Number(i.quantity) || 0), 0);
-    } else {
-      const t = getTempCart();
-      count = Array.isArray(t) ? t.reduce((s,i) => s + (Number(i.quantity) || 0), 0) : 0;
-    }
-  } catch (e) {
-    console.error('updateCartBadge error', e);
-  }
-  badge.textContent = count;
-  badge.style.display = count > 0 ? 'inline-block' : 'none';
-}
-
-/* ------------------------------
-   UI wiring: open/close/toggle
-   ------------------------------ */
-function openCart() {
-  const panel = document.getElementById('cart-panel');
-  const backdrop = document.getElementById('cart-backdrop');
-  if (!panel || !backdrop) return;
-  panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); backdrop.hidden = false;
-  if (typeof renderCart === 'function') renderCart();
-}
-function closeCart() {
-  const panel = document.getElementById('cart-panel');
-  const backdrop = document.getElementById('cart-backdrop');
-  if (!panel || !backdrop) return;
-  panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true'); backdrop.hidden = true;
-}
-function toggleCart() {
-  const panel = document.getElementById('cart-panel');
-  if (!panel) return;
-  if (panel.classList.contains('open')) closeCart(); else openCart();
-}
-window.openCart = openCart;
-window.closeCart = closeCart;
-window.toggleCart = toggleCart;
-
-/* ------------------------------
-   Checkout / Clear handlers
-   - checkout: only redirect to checkout.html if user is authenticated
-   - clear: clears DB cart for signed-in user OR local cart for guests
-   ------------------------------ */
-async function handleCheckout(e) {
-  if (e && typeof e.preventDefault === 'function') e.preventDefault();
-  try {
-    if (!window.supabase || typeof window.supabase.auth?.getUser !== 'function') {
-      alert('Auth not ready. Try again.');
-      return;
-    }
-    const { data: ud } = await window.supabase.auth.getUser().catch(()=>({ data: { user: null } }));
-    const user = ud?.user || null;
-    if (!user) {
-      if (confirm('Please sign in to checkout. Sign in now?')) {
-        const modal = document.getElementById('modal'); if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
-      }
-      return;
-    }
-    // user signed in → go to checkout
-    window.location.href = 'checkout.html';
-  } catch (err) {
-    console.error('handleCheckout error', err);
-    alert('Unable to proceed to checkout: ' + (err.message || err));
-  }
-}
-
-async function handleClearCart() {
-  if (!confirm('Clear all items from cart?')) return;
-  try {
-    if (window.currentUser && window.currentUser.id && window.supabase) {
-      const { error } = await window.supabase.from('cart_items').delete().eq('user_id', window.currentUser.id);
-      if (error) throw error;
-      if (typeof renderCart === 'function') renderCart();
-      if (typeof updateCartBadge === 'function') updateCartBadge();
-      if (typeof showMessage === 'function') showMessage('Cart cleared', 'success');
-      return;
-    }
-    // guest
-    clearTempCart();
-    if (typeof renderCart === 'function') renderCart();
-    if (typeof updateCartBadge === 'function') updateCartBadge();
-    if (typeof showMessage === 'function') showMessage('Cart cleared', 'success');
-  } catch (e) {
-    console.error('handleClearCart err', e);
-    if (typeof showMessage === 'function') showMessage('Failed to clear cart', 'error');
-  }
-}
-
-/* ------------------------------
-   initializeCart: attach UI listeners (safe - won't fail if some elements missing)
-   ------------------------------ */
-let cartToggleMobile, cartToggleDesktop, cartBadge, cartPanel, cartBackdrop, cartClose, cartItemsNode, cartSubtotalNode, checkoutBtn, clearCartBtn;
-
-// ====== CART INITIALIZATION & FIXES (Replace existing initializeCart/checkout/clear handlers) ======
-
-/*
-  This block:
-  - Ensures event handlers are only attached once (prevents multiple confirms)
-  - Opens/closes cart reliably from nav icons
-  - Clear cart confirms once and clears guest or signed-in cart properly
-  - Checkout requires sign-in and only redirects after sign-in (no premature redirect)
-  - Hooks into Supabase auth state changes to complete pending actions
-*/
-
-(function cartInitGuarded() {
-  // guard so we replace only once
-  if (document.body.dataset.cartInit === '1') return;
-  document.body.dataset.cartInit = '1';
-
-  const TEMP_CART_KEY = window.TEMP_CART_KEY || 'temp_cart_v1';
-
-  // Elements (may be null on some pages — handlers are defensive)
-  const cartToggleDesktop = document.getElementById('cart-toggle-desktop');
-  const cartToggleMobile = document.getElementById('cart-toggle-mobile');
-  const cartBadge = document.getElementById('cart-badge');
-  const cartPanel = document.getElementById('cart-panel');
-  const cartBackdrop = document.getElementById('cart-backdrop');
-  const cartClose = document.getElementById('cart-close');
-  const checkoutButton = document.getElementById('checkout');
-  const clearCartButton = document.getElementById('clear-cart');
-
-  // safe toggle functions (exported for other pages)
-  window.toggleCart = window.toggleCart || function () {
-    const p = document.getElementById('cart-panel'), b = document.getElementById('cart-backdrop');
-    if (!p || !b) return;
-    if (p.classList.contains('open')) {
-      p.classList.remove('open'); p.setAttribute('aria-hidden','true'); b.hidden = true;
-    } else {
-      p.classList.add('open'); p.setAttribute('aria-hidden','false'); b.hidden = false;
-      if (typeof renderCart === 'function') renderCart();
-    }
-  };
-  window.openCart = window.openCart || function () {
-    const p = document.getElementById('cart-panel'), b = document.getElementById('cart-backdrop');
-    if (!p || !b) return;
-    p.classList.add('open'); p.setAttribute('aria-hidden','false'); b.hidden = false;
-    if (typeof renderCart === 'function') renderCart();
-  };
-  window.closeCart = window.closeCart || function () {
-    const p = document.getElementById('cart-panel'), b = document.getElementById('cart-backdrop');
-    if (!p || !b) return;
-    p.classList.remove('open'); p.setAttribute('aria-hidden','true'); b.hidden = true;
-  };
-
-  // Attach nav toggles (defensive: prevents default anchor behavior)
-  function attachToggle(el) {
-    if (!el) return;
-    // if we already attached, skip
-    if (el.dataset.cartToggleAttached === '1') return;
-    el.dataset.cartToggleAttached = '1';
-    el.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      window.toggleCart();
-    }, { passive: false });
-  }
-
-  attachToggle(cartToggleDesktop);
-  attachToggle(cartToggleMobile);
-  // also attach to any .cart-btn elements (defensive)
-  document.querySelectorAll('.cart-btn').forEach(attachToggle);
-  if (cartBadge) {
-    if (cartBadge.dataset.attached !== '1') {
-      cartBadge.dataset.attached = '1';
-      cartBadge.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); window.toggleCart(); }, { passive: false });
-    }
-  }
-
-  // Close handlers: only attach once
-  if (cartClose && !cartClose.dataset.closeAttached) {
-    cartClose.dataset.closeAttached = '1';
-    cartClose.addEventListener('click', (e) => { e.preventDefault(); window.closeCart(); }, { passive: false });
-  }
-  if (cartBackdrop && !cartBackdrop.dataset.backdropAttached) {
-    cartBackdrop.dataset.backdropAttached = '1';
-    cartBackdrop.addEventListener('click', (e) => { e.preventDefault(); window.closeCart(); }, { passive: false });
-  }
-
-  // ===== Clear Cart (single confirm, works for guest or signed-in) =====
-  async function handleClearCartOnce(e) {
-    if (e && e.preventDefault) e.preventDefault();
-
-    // single confirm
-    if (!confirm('Clear all items from cart?')) return;
-
-    try {
-      // if signed in -> delete from DB
-      const userResp = window.supabase ? await window.supabase.auth.getUser() : null;
-      const user = userResp?.data?.user;
-      if (user && window.supabase) {
-        const { error } = await window.supabase.from('cart_items').delete().eq('user_id', user.id);
-        if (error) throw error;
-      } else {
-        // guest -> clear local temp cart
-        try { localStorage.removeItem(TEMP_CART_KEY); } catch (err) { console.error('clear temp cart failed', err); }
-      }
-
-      // refresh UI
-      if (typeof renderCart === 'function') renderCart().catch(()=>{});
-      if (typeof updateCartBadge === 'function') updateCartBadge().catch(()=>{});
-      if (typeof showMessage === 'function') showMessage('Cart cleared', 'success', 1500);
-    } catch (err) {
-      console.error('handleClearCart error', err);
-      alert('Clear cart failed: ' + (err?.message || err));
-    }
-  }
-
-  if (clearCartButton && !clearCartButton.dataset.clearAttached) {
-    clearCartButton.dataset.clearAttached = '1';
-    clearCartButton.addEventListener('click', handleClearCartOnce, { passive: false });
-  }
-
-  // ===== Checkout handling (prevent premature redirect, request sign-in if necessary) =====
-  // Use a flag to remember the user's intent to checkout after login
-  window.__pendingCheckout = false;
-
-  async function handleCheckoutClick(e) {
-    if (e && e.preventDefault) e.preventDefault();
-
-    // check auth
-    if (window.supabase) {
-      try {
-        const { data } = await window.supabase.auth.getUser();
-        const user = data?.user;
-        if (!user) {
-          // not signed in -> show modal and set pending
-          window.__pendingCheckout = true;
-          const modal = document.getElementById('modal');
-          if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
-          if (typeof showMessage === 'function') showMessage('Please sign in to continue to checkout', 'info', 2500);
-          return;
-        }
-        // signed in -> go to checkout
-        window.location.href = 'checkout.html';
-      } catch (err) {
-        console.error('Checkout auth check failed', err);
-        alert('Unable to check authentication: ' + (err.message || err));
-      }
-    } else {
-      // no supabase available, treat as guest: ask them to sign in
-      window.__pendingCheckout = true;
-      const modal = document.getElementById('modal');
-      if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
-      if (typeof showMessage === 'function') showMessage('Please sign in to continue to checkout', 'info', 2500);
-    }
-  }
-
-  if (checkoutButton && !checkoutButton.dataset.checkoutAttached) {
-    checkoutButton.dataset.checkoutAttached = '1';
-    checkoutButton.addEventListener('click', handleCheckoutClick, { passive: false });
-  }
-
-  // ===== Supabase auth state hook: complete pending checkout after sign-in & sync temp cart =====
-  // This is defensive: only registers if supabase object with onAuthStateChange exists
-  try {
-    if (window.supabase && typeof window.supabase.auth?.onAuthStateChange === 'function') {
-      window.supabase.auth.onAuthStateChange((event, session) => {
-        // when user signs in, if there was a pending checkout intent -> go to checkout page
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          // try syncing temp cart into DB
-          if (typeof window.syncTempCartToDatabase === 'function') {
-            window.syncTempCartToDatabase().catch(e => console.warn('syncTempCartToDatabase failed:', e));
-          }
-          // update badge
-          if (typeof updateCartBadge === 'function') updateCartBadge().catch(()=>{});
-          // if user intended to checkout, do it now
-          if (window.__pendingCheckout) {
-            window.__pendingCheckout = false;
-            // short delay to let UI settle
-            setTimeout(()=>{ window.location.href = 'checkout.html'; }, 300);
-          }
-        }
-      });
-    }
-  } catch (e) {
-    console.warn('Auth state hook setup failed', e);
-  }
-
-  // Initial badge + cart render attempt
-  if (typeof updateCartBadge === 'function') updateCartBadge().catch(()=>{});
-  if (typeof renderCart === 'function' && cartPanel && cartPanel.classList.contains('open')) renderCart().catch(()=>{});
-
-})(); // end cartInitGuarded
-
-
-/* handler used above for product listing cart icons */
-async function onProductCartIconClick(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  const wrapper = e.currentTarget;
-  const pid = wrapper.getAttribute('data-product-id');
-  if (!pid) return;
-  // toggle: if already in-cart -> remove, else add
-  // check temp cart or server cart quickly
-  const temp = getTempCart();
-  const inTemp = temp.some(t => String(t.product_id) === String(pid));
-  if (!window.currentUser || !window.currentUser.id) {
-    // guest toggle
-    if (inTemp) {
-      removeTempCartItem(pid);
-      updateProductCardIcon(pid, false);
-      if (typeof showMessage === 'function') showMessage('Removed from local cart', 'info');
-    } else {
-      addToTempCart(pid, 1);
-      updateProductCardIcon(pid, true);
-      if (typeof showMessage === 'function') showMessage('Added to local cart', 'success');
-    }
-    return;
-  }
-
-  // user logged in -> query DB to see if product present
-  try {
-    const { data: existing } = await window.supabase.from('cart_items').select('id, quantity').eq('user_id', window.currentUser.id).eq('product_id', pid).maybeSingle();
-    if (existing && existing.id) {
-      // remove entry
-      await window.supabase.from('cart_items').delete().eq('id', existing.id);
-      updateProductCardIcon(pid, false);
-      if (typeof updateCartBadge === 'function') updateCartBadge();
-      if (typeof showMessage === 'function') showMessage('Removed from cart', 'info');
-    } else {
-      // insert
-      await window.supabase.from('cart_items').insert([{ user_id: window.currentUser.id, product_id: pid, quantity:1, added_at: new Date().toISOString() }]);
-      updateProductCardIcon(pid, true);
-      if (typeof updateCartBadge === 'function') updateCartBadge();
-      if (typeof showMessage === 'function') showMessage('Added to cart', 'success');
-    }
-  } catch (e) {
-    console.error('onProductCartIconClick error', e);
-    if (typeof showMessage === 'function') showMessage('Cart operation failed', 'error');
-  }
-}
-
-/* ------------------------------
-   bootstrap on DOM ready
-   ------------------------------ */
-document.addEventListener('DOMContentLoaded', () => {
-  try {
-    initializeCart();
-  } catch (e) {
-    console.error('initializeCart failed', e);
-  }
-  // try to mark product icons already in temp cart
-  try {
-    const tempIds = getTempCart().map(i => String(i.product_id));
-    tempIds.forEach(pid => updateProductCardIcon(pid, true));
-  } catch {}
+// Fallback: if app didn't init for some reason, try on window.load (keeps previous behavior)
+window.addEventListener('load', () => {
+  if (!initializeApp._ran) initializeApp();
 });
 
-// export helpers for other pages
-window.addToTempCart = addToTempCart;
-window.getTempCart = getTempCart;
-window.saveTempCart = saveTempCart;
-window.syncTempCartToDatabase = syncTempCartToDatabase;
-window.renderCart = renderCart;
-window.updateCartBadge = updateCartBadge;
 
+// ==============================================
+// 8. START THE APP
+// ==============================================
 
-// ====== Defensive cart-toggle wiring (paste at end of script.js or before </body>) ======
-(function ensureCartToggleAttached() {
-  function debugLog(...args) {
-    if (window && window.console) console.log('[CART-TOGGLE]', ...args);
-  }
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
+}
 
-  function safeToggle() {
-    if (typeof toggleCart === 'function') {
-      debugLog('Calling toggleCart()');
-      toggleCart();
-      return;
-    }
-    // fallback to open/close if toggle missing
-    if (typeof openCart === 'function') {
-      debugLog('toggleCart missing, calling openCart()');
-      openCart();
-      return;
-    }
-    debugLog('No toggle/open functions found on window');
-  }
+// Also run on page load as fallback
+window.addEventListener('load', () => {
+  if (!supabase) initializeApp();
+});
 
-  function bindOnce(el) {
-    // remove previous click handlers we added earlier to avoid duplicates
-    if (!el) return;
-    el.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      safeToggle();
-    }, { passive: false });
-  }
+// ---------------------------
+// Utility: refresh product card icons based on current cart
+// ---------------------------
+async function refreshProductInCartStates() {
+  const inCartSet = new Set();
 
-  function attach() {
-    const sel = '#cart-toggle-desktop, #cart-toggle-mobile, .cart-btn, .cart-toggle';
-    const nodes = document.querySelectorAll(sel);
-    if (!nodes || nodes.length === 0) {
-      debugLog('No cart toggle DOM nodes found for selector:', sel);
+  try {
+    // temp/local cart
+    if (typeof getTempCart === 'function') {
+      const temp = getTempCart() || [];
+      (temp || []).forEach(i => { if (i?.product_id != null) inCartSet.add(String(i.product_id)); });
     } else {
-      debugLog('Found cart toggle nodes:', nodes.length);
-      nodes.forEach(bindOnce);
+      const raw = localStorage.getItem('echad_temp_cart') || localStorage.getItem('tempCart') || '[]';
+      JSON.parse(raw || '[]').forEach(i => { if (i?.product_id != null) inCartSet.add(String(i.product_id)); });
     }
 
-    // Also attach to cart-badge so clicking the number opens cart
-    const badge = document.getElementById('cart-badge');
-    if (badge) badge.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); safeToggle(); }, { passive: false });
-
-    // Safety: if cart panel is present but hidden, ensure panel exists
-    const panel = document.getElementById('cart-panel');
-    if (!panel) debugLog('Warning: #cart-panel element not found in DOM');
-    else debugLog('#cart-panel found');
+    // db cart for signed-in user
+    if (currentUser && typeof supabase !== 'undefined' && supabase) {
+      try {
+        const { data } = await supabase.from('cart_items').select('product_id').eq('user_id', currentUser.id);
+        (data || []).forEach(it => inCartSet.add(String(it.product_id)));
+      } catch (e) {
+        // ignore DB errors — we still use temp cart
+      }
+    }
+  } catch (e) {
+    console.warn('refreshProductInCartStates error', e);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', attach);
+  // Toggle class on all product cards
+  document.querySelectorAll('.cart-icon-wrapper').forEach(wrapper => {
+    const pid = wrapper.getAttribute('data-product-id');
+    const icon = wrapper.querySelector('.cart-icon');
+    if (!icon) return;
+    if (pid != null && inCartSet.has(String(pid))) icon.classList.add('in-cart');
+    else icon.classList.remove('in-cart');
+  });
+}
+
+// ---------------------------
+// addToCart (keep DB logic, but update icons after change)
+// ---------------------------
+async function addToCart(productId, quantity = 1) {
+  const pid = String(productId);
+  if (currentUser && supabase) {
+    try {
+      const { data: existing } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('product_id', productId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('cart_items')
+          .update({ quantity: (existing.quantity || 0) + Number(quantity) })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('cart_items')
+          .insert([{
+            user_id: currentUser.id,
+            product_id: productId,
+            quantity: Number(quantity),
+            added_at: new Date().toISOString()
+          }]);
+      }
+    } catch (error) {
+      console.error('Error adding to cart (DB):', error);
+      showMessage('Failed to add to cart', 'error');
+      return;
+    }
   } else {
-    attach();
+    // Guest: store product_id as string
+    const cart = getTempCart();
+    const existingItem = cart.find(item => String(item.product_id) === pid);
+    if (existingItem) existingItem.quantity = Number(existingItem.quantity || 0) + Number(quantity);
+    else cart.push({ product_id: pid, quantity: Number(quantity) });
+    saveTempCart(cart);
   }
 
-  // Extra debug: expose a quick tester
-  window.__cartToggleTester = function() {
-    debugLog('tester calling safeToggle()');
-    safeToggle();
-  };
-})();
+  // Update UI
+  await loadCart();
+  await updateCartBadge();
+  // refresh product card icons across pages
+  try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
+  showMessage('Added to cart!', 'success');
+}
 
-// --- Safe initializeCart wrapper (paste somewhere after cartInitGuarded IIFE in script.js) ---
-window.initializeCart = window.initializeCart || function() {
-  // if the guarded init already ran, just return
-  if (document.body.dataset.cartInit === '1') {
-    // ensure badge/render update if possible
-    if (typeof updateCartBadge === 'function') updateCartBadge().catch?.(()=>{});
-    if (typeof renderCart === 'function') {
-      try { renderCart(); } catch (e) {}
+// ---------------------------
+// removeFromCart (also updates icons)
+// ---------------------------
+async function removeFromCart(productId) {
+  const pid = String(productId);
+  if (currentUser && supabase) {
+    try {
+      await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('product_id', productId);
+    } catch (error) {
+      console.error('Error removing from cart (DB):', error);
     }
-    return;
+  } else {
+    const cart = getTempCart().filter(item => String(item.product_id) !== pid);
+    saveTempCart(cart);
   }
 
-  // If the main guarded initializer hasn't run for some reason, run minimal attach logic:
-  document.body.dataset.cartInit = '1';
+  await loadCart();
+  await updateCartBadge();
+  try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
+  showMessage('Removed from cart', 'success');
+}
 
-  // Attach nav toggles defensively (same idea as the attachToggle in cartInitGuarded)
-  const sel = '#cart-toggle-desktop, #cart-toggle-mobile, .cart-btn, .cart-toggle';
-  document.querySelectorAll(sel).forEach(el => {
-    if (!el) return;
-    if (el.dataset.cartToggleAttached === '1') return;
-    el.dataset.cartToggleAttached = '1';
-    el.addEventListener('click', (ev) => {
-      ev.preventDefault(); ev.stopPropagation();
-      if (typeof window.toggleCart === 'function') window.toggleCart();
-    }, { passive:false });
+// ---------------------------
+// updateCartBadge (adds numeric badge and adjacent qty text)
+// ---------------------------
+async function updateCartBadge() {
+  const badges = document.querySelectorAll('#cart-badge');
+  let totalItems = 0;
+
+  if (currentUser && supabase) {
+    try {
+      const { data } = await supabase
+        .from('cart_items')
+        .select('quantity')
+        .eq('user_id', currentUser.id);
+      if (Array.isArray(data)) totalItems = data.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    } catch (error) {
+      console.error('Error updating badge (DB):', error);
+    }
+  } else {
+    const cart = getTempCart();
+    if (Array.isArray(cart)) totalItems = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  }
+
+  badges.forEach(badge => {
+    badge.textContent = totalItems;
+    badge.style.display = totalItems > 0 ? 'flex' : 'none';
+    if (totalItems > 0) badge.classList.add('show'); else badge.classList.remove('show');
+
+    // Ensure a small text "(N)" beside the badge for clarity
+    const parent = badge.parentElement;
+    if (!parent) return;
+    let qtyText = parent.querySelector('.cart-qty-text');
+    if (totalItems > 0) {
+      if (!qtyText) {
+        qtyText = document.createElement('span');
+        qtyText.className = 'cart-qty-text';
+        qtyText.style.marginLeft = '8px';
+        qtyText.style.fontWeight = '700';
+        qtyText.style.fontSize = '14px';
+        parent.appendChild(qtyText);
+      }
+      qtyText.textContent = `(${totalItems})`;
+      qtyText.style.display = 'inline';
+    } else {
+      if (qtyText) qtyText.style.display = 'none';
+    }
   });
 
-  // ensure badge updated
-  if (typeof updateCartBadge === 'function') updateCartBadge().catch?.(()=>{});
-};
-
-
-
-
-
-
-
-
+  // Also keep product icons in sync (useful if updateBadge called after external change)
+  try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
+}
