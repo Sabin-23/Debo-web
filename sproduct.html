@@ -13,7 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    /* Page layout */
+    /* Page layout (kept same as before) */
     body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial; background: #fff8fb; color:#2a0a20; margin:0; padding:0; }
     #header { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; background:linear-gradient(180deg,#fff,#fff0f8); }
     #header h4 { margin:0; color:#2a0a20; }
@@ -21,20 +21,9 @@
     #navbar li a { color:#2a0a20; text-decoration:none; padding:6px 8px; }
     .badge { display:inline-block; min-width:20px; font-size:12px; padding:2px 6px; border-radius:999px; background:#ff9db1; color:#fff; margin-left:6px; }
 
-    /* Container */
     .product-detail-container { max-width:1200px; margin:36px auto; padding:12px; }
-    .product-detail {
-      display:grid;
-      grid-template-columns: 1fr 480px; /* left: info, right: image */
-      gap:32px;
-      background:transparent;
-      backdrop-filter: blur(4px);
-      padding:28px;
-      border-radius:12px;
-      align-items:start;
-    }
+    .product-detail { display:grid; grid-template-columns: 1fr 480px; gap:32px; background:transparent; backdrop-filter: blur(4px); padding:28px; border-radius:12px; align-items:start; }
 
-    /* Left column (info) */
     .product-info h1 { font-size:28px; margin:0 0 8px; color:#2a0a20; }
     .product-price-large { font-size:28px; color:#ff9db1; font-weight:700; margin:12px 0; }
     .product-description { color:#555; line-height:1.6; margin:12px 0 18px; }
@@ -42,90 +31,82 @@
     .product-stock.in { background:#e8f5e9; color:#2e7d32; }
     .product-stock.out { background:#ffecec; color:#c62828; }
 
-    /* Quantity controls */
     .quantity-selector { display:flex; gap:12px; align-items:center; margin-top:14px; }
     .quantity-controls { display:flex; align-items:center; border:1px solid #f2d9e6; border-radius:8px; overflow:hidden; }
-    .quantity-controls button {
-      width: 40px;
-      height: 40px;
-      border: 2px solid #ddd;
-      background: white;
-      cursor: pointer;
-      font-size: 22px;
-      color: #000;
-      border-radius: 6px;
-      transition: all 0.2s ease;
-    }
-    
-    .quantity-controls button:hover {
-      border-color: #ff9db1;
-    }
-    
-    .quantity-controls button:active {
-      background: #f8f8f8;
-      color: #000;
-    }
-    
-    .quantity-controls button:focus {
-      outline: none;
-      color: #000;
-    }
-
-    .quantity-controls button:disabled { opacity:0.5; cursor:not-allowed; }
+    .quantity-controls button { width: 40px; height: 40px; border: 2px solid #ddd; background: white; cursor: pointer; font-size: 22px; color: #000; border-radius: 6px; transition: all 0.2s ease; }
     .quantity-controls input { width:80px; height:44px; border:0; text-align:center; font-weight:700; font-size:16px; }
 
-    /* Action buttons */
     .action-buttons { display:flex; gap:12px; margin-top:18px; }
     .btn-add-cart { background:#ff9db1; color:#fff; padding:12px 18px; border-radius:10px; border:0; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:8px; }
     .btn-buy-now { background:#333; color:#fff; padding:12px 18px; border-radius:10px; border:0; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:8px; }
-    .btn-add-cart[disabled], .btn-buy-now[disabled] { opacity:0.55; cursor:not-allowed; }
 
-    /* Right column (image) */
     .product-image-wrap { background:rgba(255,255,255,0.7); padding:12px; border-radius:12px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.9); }
     .product-image-large { width:100%; height:auto; max-height:640px; object-fit:cover; border-radius:10px; display:block; }
 
-    /* Cart styles kept minimal (cart panel is in script.js CSS) */
     .back-link { display:inline-block; margin-top:18px; color:#ff9db1; text-decoration:none; font-weight:600; }
     .back-link:hover { text-decoration:underline; }
 
-    /* Responsive */
     @media (max-width:960px) {
       .product-detail { grid-template-columns: 1fr; gap:18px; padding:18px; }
-      .product-image-wrap { order:-1; } /* image above on mobile */
+      .product-image-wrap { order:-1; }
     }
-    .back-link-top {
-  display: inline-block;
-  color: #ff9db1;
-  font-weight: 600;
-  text-decoration: none;
-  margin-bottom: 15px;
-  transition: color 0.2s ease;
-}
-
-.back-link-top:hover {
-  color: #ff6b93;
-  text-decoration: underline;
-}
-
   </style>
 </head>
 <body>
 
-  <section id="header">
-    <h4>ECHAD</h4>
-    <div>
-      <ul id="navbar">
-        <li><a href="index.html">Home</a></li>
-        <li><a class="active" href="shop.html">Shop</a></li>
-        <li><a href="About.html">About</a></li>
-        <li><a href="contact.html">Contact</a></li>
-        <li>
-          <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart"><i class="fa-solid fa-bag-shopping"></i><span id="cart-badge" class="badge">0</span></a>
-        </li>
-        <li><button id="openModal">Sign-in/Register</button></li>
-      </ul>
-    </div>
-  </section>
+    <section id="header">
+        <h4>ECHAD</h4>
+
+        <div>
+            <ul id="navbar">
+                <li><a href="index.html">Home</a></li>
+                <li><a class="active" href="shop.html">Shop</a></li>
+                <li><a href="About.html">About</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li>
+                    <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                        <span id="cart-badge" class="badge">0</span>
+                    </a>
+                </li>
+                <button id="openModal">Sign-in/Register</button>
+                <div class="modal" id="modal">
+                    <div class="auth-container">
+                        <h2 id="form-title">Sign In</h2>
+
+                        <!-- Sign In Form -->
+                        <form id="signin-form" class="active">
+                            <input type="email" placeholder="Email" required />
+                            <input type="password" placeholder="Password" required />
+                            <button type="submit">Sign In</button>
+                            <a href="#" id="forgotPasswordLink" style="font-size:13px;color:#ff9db1;text-decoration:none;">Forgot password?</a>
+                        </form>
+
+                        <!-- Register Form -->
+                        <form id="register-form">
+                            <input type="text" placeholder="Full Name" required />
+                            <input type="email" placeholder="Email" required />
+                            <input type="password" placeholder="Password" required />
+                            <input type="password" placeholder="Confirm Password" required />
+                            <button type="submit">Register</button>
+                        </form>
+
+                        <p class="toggle-text">
+                            Don't have an account? <span id="toggle">Register</span>
+                        </p>
+                        <button id="closeModal">Close</button>
+                    </div>
+                </div>
+                <a href="#" id="close"><i class="far fa-times-circle"></i></a>
+            </ul>
+            <div id="mobile">
+                <a href="#" id="cart-toggle-mobile" class="cart-btn" aria-label="Open cart">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span id="cart-badge" class="badge">0</span>
+                </a>
+                <i id="bar" class="fas fa-outdent"></i>
+            </div>
+    </section>
 
   <div class="product-detail-container">
     <a href="shop.html" class="back-link">← Back to Shop</a>
@@ -142,7 +123,6 @@
     </div>
   </div>
 
-  <!-- cart panel is present in your site HTML (script.js expects #cart-panel/#cart-backdrop), keep as-is -->
   <aside id="cart-panel" class="cart-panel" aria-hidden="true">
     <div class="cart-header">
       <h3>Your Cart</h3>
@@ -165,50 +145,21 @@
   <!-- your main cart/product script -->
   <script src="script.js"></script>
 
-  <!-- page-specific logic -->
   <script>
-
-      // --- Initialize Supabase Client ---
-
-    // ensure the global supabase client is available (without forcing createClient if it's the client already)
-  (async function ensureClientForPage(){
-    // attempt to use helper defined in script.js
-    if (typeof ensureSupabaseClient === 'function') {
-      const client = ensureSupabaseClient();
-      if (!client) {
-        // last resort: try to wait a little for script.js to init it
-        for (let i=0;i<6;i++){
-          await new Promise(r => setTimeout(r, 150));
-          if (typeof ensureSupabaseClient === 'function') {
-            const c2 = ensureSupabaseClient();
-            if (c2) break;
-          }
-        }
-      }
-    }
-  })();
-
-
-
-    console.log('[SPRODUCT] PAGE LOADED');
-
-        // small helpers
+    // helpers
     function escapeHtml(text){ const d=document.createElement('div'); d.textContent = text == null ? '' : String(text); return d.innerHTML; }
     function getProductIdFromURL(){ return new URLSearchParams(window.location.search).get('id'); }
 
-    // wait for the cart functions to exist (but not forever)
+    // Wait helpers for cart funcs (small)
     function waitForCartFns(max = 60, interval = 100) {
       return new Promise(resolve => {
         let tries = 0;
         const id = setInterval(() => {
           tries++;
-          // functions we may call from script.js
-          const ready = (typeof window.addToCartFromSupabase === 'function') ||
-                        (typeof window.addToTempCart === 'function');
-          const toggleReady = (typeof window.toggleCart === 'function') || (typeof window.openCart === 'function');
+          const ready = (typeof window.addToCart === 'function') || (typeof window.addToTempCart === 'function') || (typeof window.addToCartFromSupabase === 'function');
           if (ready || tries >= max) {
             clearInterval(id);
-            resolve({ ready, toggleReady });
+            resolve({ ready });
           }
         }, interval);
       });
@@ -221,26 +172,14 @@
       const id = getProductIdFromURL();
       if (!id) { loading.style.display = 'none'; error.style.display = 'block'; return; }
 
-      // ensure initializeCart is run (it's safe to call if already run)
-      if (typeof initializeCart === 'function') try { initializeCart(); } catch(e){ console.warn('init cart failed',e); }
+      // ensure cart system initialized (script.js does this)
+      if (typeof initializeCart === 'function') initializeCart();
+      await waitForCartFns(40, 100);
 
-      // wire nav cart icons (prevent anchor default that adds "/#")
-      ['cart-toggle-desktop','cart-toggle-mobile'].forEach(i=>{
-        const el=document.getElementById(i);
-        if (el) el.addEventListener('click', (e)=>{ e.preventDefault(); if (typeof toggleCart==='function') toggleCart(); else if (typeof openCart==='function') openCart(); else {
-          const panel=document.getElementById('cart-panel'), backdrop=document.getElementById('cart-backdrop');
-          if (panel && backdrop) { panel.classList.toggle('open'); panel.setAttribute('aria-hidden', panel.classList.contains('open') ? 'false' : 'true'); backdrop.hidden = !backdrop.hidden; if (typeof renderCart==='function') renderCart(); }
-        }});
-      });
-
-      // wait short while for window.supabase to be available
-      if (!window.supabase) {
-        // still try to wait a bit
-        await new Promise(r => setTimeout(r, 200));
-      }
+      // wait a short while for window.supabase to be available
+      if (!window.supabase) { await new Promise(r => setTimeout(r, 200)); }
 
       try {
-        // fetch product (use maybeSingle to avoid throwing if not found)
         const { data: product, error } = await window.supabase
           .from('products')
           .select('*')
@@ -251,7 +190,6 @@
         if (error) { console.error('Fetch product error', error); error.style.display='block'; error.querySelector('p').textContent='Error: '+(error.message||error); return; }
         if (!product) { error.style.display='block'; return; }
 
-        // render page layout
         container.style.display = 'block';
         const inStock = !!(product.stock && product.stock > 0);
 
@@ -267,7 +205,7 @@
                 <div style="font-weight:700;">Quantity</div>
                 <div class="quantity-controls" style="margin-left:8px;">
                   <button id="qty-decrease" ${!inStock?'disabled':''}>−</button>
-                  <input id="quantity-input" type="number" value="1" min="1" max="${product.stock || 1}" readonly />
+                  <input id="quantity-input" type="number" value="1" min="1" max="${product.stock || 1}" />
                   <button id="qty-increase" ${!inStock?'disabled':''}>+</button>
                 </div>
               </div>
@@ -286,7 +224,7 @@
           </div>
         `;
 
-        // small interactions
+        // interactions
         const qtyInput = document.getElementById('quantity-input');
         document.getElementById('qty-increase').addEventListener('click', ()=> {
           const max = Number(qtyInput.max || 1);
@@ -298,22 +236,18 @@
           if (cur > 1) qtyInput.value = cur-1;
         });
 
-        // ensure cart functions are available (wait a little)
-        const { ready } = await waitForCartFns(40, 100);
-
-        // add to cart behavior
+        // Add to Cart: use unified API addToCart(productId, qty)
         document.getElementById('btn-add-cart').addEventListener('click', async () => {
           const qty = Number(qtyInput.value || 1);
           try {
-            if (typeof window.addToCartFromSupabase === 'function') {
-              // call addToCartFromSupabase qty times for now (script.js add increases by 1)
-              for (let i=0;i<qty;i++) await window.addToCartFromSupabase(product.id);
+            if (typeof window.addToCart === 'function') {
+              await window.addToCart(product.id, qty);
               if (typeof updateCartBadge === 'function') updateCartBadge();
               if (typeof showMessage === 'function') showMessage('Added to cart', 'success');
             } else if (typeof window.addToTempCart === 'function') {
               window.addToTempCart(product.id, qty);
-              if (typeof updateCartBadge === 'function') updateCartBadge();
-              if (typeof showMessage === 'function') showMessage('Added to local cart', 'success');
+              updateCartBadge && updateCartBadge();
+              showMessage && showMessage('Added to local cart', 'success');
             } else {
               alert('Cart not available right now');
             }
@@ -323,80 +257,27 @@
           }
         });
 
-        // buy now: add to cart then either go to checkout (if signed-in) or open sign-in modal and set pending flag
+        // Buy Now: add item then call global handleCheckoutClick() which will require sign-in if needed
         document.getElementById('btn-buy-now').addEventListener('click', async () => {
           const qty = Number(qtyInput.value || 1);
           try {
-            // add to cart (server or temp)
-            if (typeof window.addToCartFromSupabase === 'function') {
-              await window.addToCartFromSupabase(product.id, qty);
+            if (typeof window.addToCart === 'function') {
+              await window.addToCart(product.id, qty);
             } else if (typeof window.addToTempCart === 'function') {
               window.addToTempCart(product.id, qty);
             } else {
               alert('Cart not available right now');
               return;
             }
-        
             if (typeof updateCartBadge === 'function') updateCartBadge();
-        
-            // check auth; if user signed in -> go to checkout; otherwise show modal and set pending flag
-            let signedIn = false;
-            try {
-              if (window.supabase && typeof window.supabase.auth?.getUser === 'function') {
-                const { data } = await window.supabase.auth.getUser();
-                if (data?.user) signedIn = true;
-              } else if (window.currentUser && window.currentUser.id) {
-                signedIn = true;
-              }
-            } catch (err) { console.warn('auth check failed', err); }
-        
-            if (signedIn) {
-              window.location.href = 'checkout.html';
-            } else {
-              window.__pendingCheckout = true;
-              const modal = document.getElementById('modal');
-              if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
-              if (typeof showMessage === 'function') showMessage('Please sign in to proceed to checkout', 'info', 2500);
-            }
+            // now trigger checkout flow
+            if (typeof window.handleCheckoutClick === 'function') window.handleCheckoutClick();
+            else window.location.href = 'checkout.html';
           } catch (err) {
             console.error('Buy now failed', err);
             alert('Failed to process Buy Now.');
           }
         });
-
-
-        // Protect checkout button inside cart to go to checkout.html (override existing handler)
-        const checkoutBtn = document.getElementById('checkout');
-        if (checkoutBtn) {
-          checkoutBtn.removeEventListener && checkoutBtn.removeEventListener('click', null); // safe attempt
-          checkoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            // go to checkout page
-            window.location.href = 'checkout.html';
-          });
-        }
-
-        // Ensure clear-cart button works even if script.js didn't hook a handler
-        const clearBtn = document.getElementById('clear-cart');
-        if (clearBtn) {
-          clearBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            if (!confirm('Clear all items from cart?')) return;
-            if (typeof handleClearCart === 'function') {
-              try { await handleClearCart(); } catch(err){ console.warn('handleClearCart error',err); }
-            } else {
-              // fallback local
-              if (typeof clearTempCart === 'function') clearTempCart();
-              if (typeof updateCartBadge === 'function') updateCartBadge();
-              if (typeof renderCart === 'function') renderCart();
-              showMessage && showMessage('Cart cleared', 'success');
-            }
-          });
-        }
-
-        // ensure close X works
-        const cartClose = document.getElementById('cart-close');
-        if (cartClose) cartClose.addEventListener('click', (e)=>{ e.preventDefault(); if (typeof closeCart==='function') closeCart(); else { const p=document.getElementById('cart-panel'), b=document.getElementById('cart-backdrop'); if (p && b){ p.classList.remove('open'); p.setAttribute('aria-hidden','true'); b.hidden=true; } }});
 
       } catch (err) {
         console.error('Product page critical error:', err);
@@ -406,7 +287,6 @@
       }
     }
 
-    // init when DOM ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', loadProductDetail);
     } else {
@@ -415,7 +295,3 @@
   </script>
 </body>
 </html>
-
-
-
-
