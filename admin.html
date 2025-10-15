@@ -28,12 +28,16 @@
     th,td{padding:12px;text-align:left;border-bottom:1px solid #fff1f6}
     th{background:#fff6fb;font-weight:600;color:#333}
     td{background:#fff}
-    .product-card{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;background:#fff;border:1px solid #ffe6f0;width:220px}
+    .product-card{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;background:#fff;border:1px solid #ffe6f0;width:260px}
     .products-grid{display:flex;flex-wrap:wrap;gap:12px}
     .log{font-family:monospace;background:#fff6fb;padding:8px;border-radius:6px;border:1px solid #ffe6f0;font-size:13px;max-height:140px;overflow:auto}
     .tab-panel{display:none}
     .tab-panel.active{display:block}
     .featured-checkbox { transform: translateY(1px); margin-right:6px; }
+    .stock-controls { display:flex; gap:8px; align-items:center; margin-top:6px; }
+    .stock-controls button { width:80px; height:36px; border-radius:8px; border:1px solid #f2d9e6; background:#fff; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+    .stock-input { width:50px; padding:8px; border-radius:8px; border:1px solid #eee; text-align:center; }
+    .save-stock-btn { padding:8px 10px; border-radius:8px; border:none; background-color:#ff9db1; cursor:pointer; }
     @media (max-width:900px) {
       .sidebar{ position: fixed; left: -260px; top: 0; height: 100%; z-index: 1000; transition: left 0.3s ease; }
       .sidebar.active{ left: 0px; }
@@ -41,6 +45,10 @@
       #mobile{ display: flex; top: 12px; z-index: 1500; cursor: pointer; font-size: 22px; color: #ff6fb5; }
       #mobile i{ color: #1a1a1a; font-size: 24px; padding-left: 6px; }
     }
+
+    /* small helpers */
+    .small-muted { font-size:13px;color:#666 }
+    .inline-row { display:flex; gap:8px; align-items:center; }
   </style>
 </head>
 <body>
@@ -105,20 +113,13 @@
               <div id="descError" style="color:#b71c1c;font-size:13px;margin-top:4px;display:none;">
                 Description must be less than 25 characters.
               </div>
-
               <script>
               function checkDescLength() {
                 const t = document.getElementById('prodDesc');
                 const err = document.getElementById('descError');
-
-                if (t.value.length >= t.maxLength) {
-                  err.style.display = 'block';
-                } else {
-                  err.style.display = 'none';
-                }
+                if (t.value.length >= t.maxLength) err.style.display = 'block'; else err.style.display = 'none';
               }
               </script>
-
             </div>
 
             <!-- NEW: Featured checkbox -->
@@ -172,40 +173,44 @@
   </main>
 
   <script>
-    const mobileBar = document.getElementById('bar');
-    const sidebar = document.querySelector('.sidebar');
-
-    mobileBar.addEventListener('click', () => {
-      sidebar.classList.toggle('active');
-    });
-
-    // Hide sidebar automatically when clicking a nav button on mobile
-    document.querySelectorAll('.nav button[data-tab]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (window.innerWidth <= 900) sidebar.classList.remove('active');
-      });
-    });
-
     const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
     const BUCKET = 'product-images';
-    
     let supabase = null;
-    
-    function showMessage(msg, type) {
+
+    // init client immediately so other functions can rely on it
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+      console.error('Supabase init error:', e);
+    }
+
+    // UI utils
+    function showMessage(msg, type = 'success') {
       const msgBox = document.getElementById('messageBox');
+      if (!msgBox) return;
       msgBox.textContent = msg;
       msgBox.style.display = 'block';
       msgBox.style.color = (type === 'success') ? 'green' : 'red';
       msgBox.style.background = (type === 'success') ? '#e8f5e9' : '#ffecec';
       setTimeout(() => msgBox.style.display = 'none', 5000);
     }
-    
-    // Tab system
+
+    // mobile sidebar toggle
+    const mobileBar = document.getElementById('bar');
+    const sidebar = document.querySelector('.sidebar');
+    if (mobileBar) mobileBar.addEventListener('click', () => sidebar.classList.toggle('active'));
+    document.querySelectorAll('.nav button[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (window.innerWidth <= 900) sidebar.classList.remove('active');
+      });
+    });
+
+    // Tab system — showTab now uses supabase (safe)
     (function() {
       const tabButtons = document.querySelectorAll('.nav button[data-tab]');
       const panels = document.querySelectorAll('.tab-panel');
-      
+
       function showTab(name) {
         tabButtons.forEach(b => b.classList.remove('active'));
         const btn = document.querySelector(`.nav button[data-tab="${name}"]`);
@@ -213,77 +218,27 @@
         panels.forEach(p => p.classList.remove('active'));
         const panel = document.getElementById('tab-' + name);
         if (panel) panel.classList.add('active');
+
+        // load content for tab
         if (name === 'users') loadProfiles();
         if (name === 'products') loadProducts();
         if (name === 'orders') loadOrders();
       }
-      
+
       tabButtons.forEach(btn => {
         btn.addEventListener('click', () => showTab(btn.getAttribute('data-tab')));
       });
-      
-      showTab('orders');
+
+      // show orders by default AFTER supabase init complete (we already created client above)
+      // but ensure DOM is ready
+      document.addEventListener('DOMContentLoaded', () => {
+        showTab('orders');
+      });
     })();
-    
-    // Init supabase client
-    try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch (e) {
-      console.error('Supabase init error:', e);
-    }
 
-    // -- Helpful utilities for featured-limit enforcement --
-    // Count featured products (server count)
-    async function countFeatured() {
-      if (!supabase) throw new Error('Supabase not initialized');
-      const res = await supabase
-        .from('products')
-        .select('id', { head: true, count: 'exact' })
-        .eq('featured_products', true);
-      if (res.error) throw res.error;
-      return res.count || 0;
-    }
-
-    async function ensureCanSetFeaturedOrShowError() {
-      try {
-        const cnt = await countFeatured();
-        if (cnt >= 4) {
-          showMessage('Cannot mark as featured — limit of 4 featured products reached.', 'error');
-          return false;
-        }
-        return true;
-      } catch (err) {
-        console.error('Error checking featured count', err);
-        showMessage('Error checking featured count: ' + (err.message || err), 'error');
-        return false;
-      }
-    }
-    
-    // show a short inline message next to a checkbox input (auto-removes)
-    function showCheckboxReason(checkboxEl, message, duration = 4000) {
-      try {
-        // find a sensible container for message (prefer the label or parent)
-        const container = checkboxEl.closest('label') || checkboxEl.parentElement || checkboxEl;
-        // remove any existing reason element
-        const existing = container.querySelector('.checkbox-reason');
-        if (existing) existing.remove();
-
-        const reason = document.createElement('div');
-        reason.className = 'checkbox-reason';
-        reason.textContent = message;
-        container.appendChild(reason);
-
-        // fade out then remove
-        setTimeout(() => reason.classList.add('fadeOut'), Math.max(2000, duration - 700));
-        setTimeout(() => { if (reason && reason.remove) reason.remove(); }, duration);
-      } catch (err) {
-        console.warn('showCheckboxReason failed', err);
-      }
-    }
-
-
+    // helpers
     function escapeHtml(str) {
-      if (!str) return '';
+      if (!str && str !== 0) return '';
       return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[s]));
     }
 
@@ -292,7 +247,7 @@
       const date = new Date(dateString);
       return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
     }
-    
+
     function extractPathFromUrl(url) {
       if (!url) return null;
       const marker = `/storage/v1/object/public/${BUCKET}/`;
@@ -300,222 +255,9 @@
       return i === -1 ? null : url.slice(i + marker.length);
     }
 
-    // Load Profiles
-    async function loadProfiles() {
-      const loading = document.getElementById('profilesLoading');
-      const table = document.getElementById('profilesTable');
-      const tbody = document.getElementById('profilesTableBody');
-      const empty = document.getElementById('profilesEmpty');
-      
-      loading.style.display = 'block';
-      table.style.display = 'none';
-      empty.style.display = 'none';
-      
-      if (!supabase) {
-        loading.innerHTML = '<div style="color:#c62828;">Supabase not initialized</div>';
-        return;
-      }
-      
-      try {
-        const { data: profiles, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        loading.style.display = 'none';
-        
-        if (error) throw error;
-        if (!profiles || profiles.length === 0) {
-          empty.style.display = 'block';
-          return;
-        }
-        
-        tbody.innerHTML = '';
-        
-        profiles.forEach(profile => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${escapeHtml(profile.full_name || 'N/A')}</td>
-            <td>${escapeHtml(profile.email || 'N/A')}</td>
-            <td>${escapeHtml(profile.phone || 'N/A')}</td>
-            <td>
-              <span style="padding:4px 8px;border-radius:12px;font-size:12px;background:${profile.is_admin ? '#ff9db1' : '#e0e0e0'};color:${profile.is_admin ? '#fff' : '#666'};">
-                ${profile.is_admin ? 'Yes' : 'No'}
-              </span>
-            </td>
-            <td style="font-size:12px;color:#666;">${formatDate(profile.created_at)}</td>
-          `;
-          tbody.appendChild(row);
-        });
-        
-        table.style.display = 'table';
-      } catch (err) {
-        console.error('Load profiles error:', err);
-        loading.innerHTML = '<div style="color:#c62828;">Error: ' + err.message + '</div>';
-      }
-    }
-    
-    // Load Products
-    async function loadProducts() {
-      const grid = document.getElementById('productsGrid');
-      grid.innerHTML = '<div style="padding:20px;color:#666;">Loading products...</div>';
-      
-      if (!supabase) {
-        grid.innerHTML = '<div class="muted">Supabase not initialized</div>';
-        return;
-      }
-      
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        grid.innerHTML = '';
-        if (!data || data.length === 0) {
-          grid.innerHTML = '<div class="muted">No products yet.</div>';
-          return;
-        }
-        
-        data.forEach(p => {
-          const card = document.createElement('div');
-          card.className = 'product-card';
-          
-          // Use !! to ensure boolean
-          const isFeatured = !!p.featured_products;
-          
-          card.innerHTML = `
-            <img src="${p.image_url || 'https://via.placeholder.com/180/ffe6f0/ff6fb5?text=No+Img'}" 
-                 style="width:180px;height:180px;object-fit:cover;border-radius:8px;"/>
-            <strong>${escapeHtml(p.name || '')}</strong>
-            <div style="font-size:13px;color:#333;min-height:36px;">${escapeHtml(p.description || '')}</div>
-            <div>RWF ${p.price || 0}</div>
-            <div>Stock: ${p.stock || 0}</div>
-
-            <!-- Featured checkbox added to each product card -->
-            <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
-              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" class="featured-checkbox" data-id="${escapeHtml(String(p.id))}" ${isFeatured ? 'checked' : ''} />
-                <span style="font-size:13px;">Featured</span>
-              </label>
-              <div style="margin-left:auto;">
-                <button class="danger" data-id="${p.id}" data-img="${p.image_url || ''}">Delete</button>
-              </div>
-            </div>
-          `;
-          
-          // Delete handler
-          const delBtn = card.querySelector('button.danger');
-          delBtn.onclick = async () => {
-            if (!confirm('Delete this product?')) return;
-            
-            const productId = delBtn.getAttribute('data-id');
-            const imageUrl = delBtn.getAttribute('data-img');
-            
-            try {
-              if (imageUrl) {
-                const path = extractPathFromUrl(imageUrl);
-                if (path) {
-                  await supabase.storage.from(BUCKET).remove([path]);
-                }
-              }
-              
-              const { error: dbErr } = await supabase
-                .from('products')
-                .delete()
-                .eq('id', productId);
-              
-              if (dbErr) throw dbErr;
-              
-              showMessage('Product deleted!', 'success');
-              loadProducts();
-            } catch (err) {
-              showMessage('Delete failed: ' + err.message, 'error');
-            }
-          };
-
-          // Featured checkbox live-update handler with limit enforcement
-          const featuredCheckbox = card.querySelector('.featured-checkbox');
-          if (featuredCheckbox) {
-            featuredCheckbox.addEventListener('change', async (e) => {
-              const checked = !!e.target.checked;
-              const prodId = e.target.getAttribute('data-id');
-
-              // Trying to mark as featured
-              if (checked) {
-                // Try server RPC first (atomic) - if it fails, fallback to client check + update
-                try {
-                  const { error: rpcError } = await supabase.rpc('set_featured_product', { p_id: prodId, p_featured: true });
-                  if (rpcError) throw rpcError;
-                  showMessage('Product marked as featured (server)', 'success');
-                  return;
-                } catch (rpcErr) {
-                  // RPC failed or doesn't exist -> fallback
-                  console.warn('RPC failed (fallback):', rpcErr?.message || rpcErr);
-                  const ok = await ensureCanSetFeaturedOrShowError();
-                  if (!ok) {
-                    // Revert visually and show inline reason
-                    e.target.checked = false;
-                    showCheckboxReason(e.target, 'Cannot mark featured — limit of 4 featured products reached.');
-                    return;
-                  }
-
-                  // proceed with normal update
-                  try {
-                    const { error } = await supabase
-                      .from('products')
-                      .update({ featured_products: true })
-                      .eq('id', prodId);
-
-                    if (error) throw error;
-                    showMessage('Product marked as featured', 'success');
-                  } catch (err) {
-                    console.error('Featured update error:', err);
-                    // Revert and show inline reason
-                    e.target.checked = false;
-                    showCheckboxReason(e.target, 'Failed to update featured flag — change reverted.');
-                  }
-                }
-              } else {
-                // Unmarking - try RPC first, fallback to normal update
-                try {
-                  const { error: rpcError } = await supabase.rpc('set_featured_product', { p_id: prodId, p_featured: false });
-                  if (rpcError) throw rpcError;
-                  showMessage('Product unmarked as featured (server)', 'success');
-                  return;
-                } catch (rpcErr) {
-                  // fallback to normal update
-                  try {
-                    const { error } = await supabase
-                      .from('products')
-                      .update({ featured_products: false })
-                      .eq('id', prodId);
-
-                    if (error) throw error;
-                    showMessage('Product unmarked as featured', 'success');
-                  } catch (err) {
-                    console.error('Featured unmark error:', err);
-                    // Revert visually and show inline reason
-                    e.target.checked = true;
-                    showCheckboxReason(e.target, 'Failed to unmark as featured — change reverted.');
-                  }
-                }
-              }
-            });
-
-          }
-          
-          grid.appendChild(card);
-        });
-      } catch (err) {
-        console.error('Load products error:', err);
-        grid.innerHTML = '<div class="muted">Error: ' + err.message + '</div>';
-      }
-    }
-
-    // Robust loadOrders()
+    // ----------------------------
+    // ORDERS
+    // ----------------------------
     async function loadOrders() {
       const container = document.getElementById('ordersList');
       if (!container) return;
@@ -528,7 +270,6 @@
 
       try {
         const { data: ordersRaw, error: ordErr } = await supabase.from('orders').select('*');
-
         if (ordErr) throw ordErr;
         if (!ordersRaw || ordersRaw.length === 0) {
           container.innerHTML = '<div class="muted" style="padding:12px;color:#666;">No orders yet.</div>';
@@ -542,7 +283,7 @@
         if (userIds.length > 0) {
           const { data: profiles, error: profErr } = await supabase
             .from('profiles')
-            .select('id, full_name, email')
+            .select('id, full_name, email, phone')
             .in('id', userIds);
 
           if (profErr) console.warn('Failed to fetch profiles:', profErr);
@@ -583,7 +324,7 @@
               <div>
                 <div style="font-weight:700;">Order #${escapeHtml(String(o.id))}</div>
                 <div style="font-size:13px;color:#666;">By: ${escapeHtml(userName)} • ${escapeHtml(created)}</div>
-	          <div style="font-size:13px;color:#666;">Phone number: ${escapeHtml(phoneNumber)}</div>
+                <div style="font-size:13px;color:#666;">Phone number: ${escapeHtml(phoneNumber)}</div>
               </div>
               <div style="text-align:right;">
                 <div style="font-weight:700;">RWF ${escapeHtml(String(o.amount || 0))}</div>
@@ -642,21 +383,331 @@
       }
     }
 
-    // Upload Product
+    // ----------------------------
+    // PRODUCTS (with stock controls)
+    // ----------------------------
+    async function loadProducts() {
+      const grid = document.getElementById('productsGrid');
+      if (!grid) return;
+      grid.innerHTML = '<div style="padding:20px;color:#666;">Loading products...</div>';
+
+      if (!supabase) {
+        grid.innerHTML = '<div class="muted">Supabase not initialized</div>';
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        grid.innerHTML = '';
+        if (!data || data.length === 0) {
+          grid.innerHTML = '<div class="muted">No products yet.</div>';
+          return;
+        }
+
+        data.forEach(p => {
+          const isFeatured = !!p.featured_products;
+          const prodId = escapeHtml(String(p.id));
+          const card = document.createElement('div');
+          card.className = 'product-card';
+
+          card.innerHTML = `
+            <img src="${p.image_url || 'https://via.placeholder.com/180/ffe6f0/ff6fb5?text=No+Img'}" 
+                 style="width:180px;height:180px;object-fit:cover;border-radius:8px;"/>
+            <strong>${escapeHtml(p.name || '')}</strong>
+            <div style="font-size:13px;color:#333;min-height:36px;">${escapeHtml(p.description || '')}</div>
+            <div>RWF ${p.price || 0}</div>
+            <div class="small-muted" style="margin-top:6px;">Stock: <span class="stock-value" data-id="${prodId}">${p.stock || 0}</span></div>
+
+            <div class="stock-controls" style="margin-top:8px;">
+              <button class="dec-stock" title="Decrease stock" data-id="${prodId}"><i class="fa-solid fa-minus"></i></button>
+              <input class="stock-input" type="number" min="0" value="${p.stock || 0}" data-id="${prodId}" />
+              <button class="inc-stock" title="Increase stock" data-id="${prodId}"><i class="fa-solid fa-plus"></i></button>
+              <button class="save-stock-btn" data-id="${prodId}">Save</button>
+            </div>
+
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" class="featured-checkbox" data-id="${escapeHtml(String(p.id))}" ${isFeatured ? 'checked' : ''} />
+                <span style="font-size:13px;">Featured</span>
+              </label>
+              <div style="margin-left:auto;">
+                <button class="danger delete-product" data-id="${prodId}" data-img="${p.image_url || ''}">Delete</button>
+              </div>
+            </div>
+          `;
+
+          grid.appendChild(card);
+        });
+
+        // attach event listeners AFTER elements exist
+        attachProductControlHandlers();
+
+      } catch (err) {
+        console.error('Load products error:', err);
+        grid.innerHTML = '<div class="muted">Error: ' + escapeHtml(err.message || String(err)) + '</div>';
+      }
+    }
+
+    function attachProductControlHandlers() {
+      // Increment
+      document.querySelectorAll('.inc-stock').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = btn.getAttribute('data-id');
+          const input = document.querySelector(`.stock-input[data-id="${id}"]`);
+          let val = Number(input.value || 0);
+          val = val + 1;
+          input.value = val;
+          // optimistic UI: update displayed stock value
+          updateStockOnUI(id, val);
+        });
+      });
+
+      // Decrement
+      document.querySelectorAll('.dec-stock').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = btn.getAttribute('data-id');
+          const input = document.querySelector(`.stock-input[data-id="${id}"]`);
+          let val = Number(input.value || 0);
+          val = Math.max(0, val - 1);
+          input.value = val;
+          updateStockOnUI(id, val);
+        });
+      });
+
+      // Save button (persist to DB)
+      document.querySelectorAll('.save-stock-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = btn.getAttribute('data-id');
+          const input = document.querySelector(`.stock-input[data-id="${id}"]`);
+          const newStock = Math.max(0, parseInt(input.value || 0, 10));
+          btn.disabled = true;
+          btn.textContent = 'Saving...';
+          try {
+            const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id);
+            if (error) throw error;
+            // update visible stock
+            updateStockOnUI(id, newStock);
+            showMessage('Stock updated', 'success');
+          } catch (err) {
+            console.error('Update stock error:', err);
+            showMessage('Failed to update stock: ' + (err.message || err), 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+          }
+        });
+      });
+
+      // Save on input blur (auto-save small feature)
+      document.querySelectorAll('.stock-input').forEach(input => {
+        let timer = null;
+        input.addEventListener('blur', async (e) => {
+          const id = input.getAttribute('data-id');
+          const value = Math.max(0, parseInt(input.value || 0, 10));
+          // auto-save
+          try {
+            const { error } = await supabase.from('products').update({ stock: value }).eq('id', id);
+            if (error) throw error;
+            updateStockOnUI(id, value);
+            showMessage('Stock saved', 'success');
+          } catch (err) {
+            console.error('Auto-save stock failed', err);
+            showMessage('Auto-save failed: ' + (err.message || err), 'error');
+          }
+        });
+
+        // allow Enter to save
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            input.blur(); // triggers blur auto-save
+          }
+        });
+      });
+
+      // Delete product handler
+      document.querySelectorAll('.delete-product').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          if (!confirm('Delete this product?')) return;
+          const productId = btn.getAttribute('data-id');
+          const imageUrl = btn.getAttribute('data-img');
+          try {
+            if (imageUrl) {
+              const path = extractPathFromUrl(imageUrl);
+              if (path) await supabase.storage.from(BUCKET).remove([path]);
+            }
+            const { error } = await supabase.from('products').delete().eq('id', productId);
+            if (error) throw error;
+            showMessage('Product deleted', 'success');
+            loadProducts();
+          } catch (err) {
+            console.error('Delete product failed', err);
+            showMessage('Delete failed: ' + (err.message || err), 'error');
+          }
+        });
+      });
+
+      // Featured checkbox handlers (re-use earlier logic)
+      document.querySelectorAll('.featured-checkbox').forEach(cb => {
+        cb.addEventListener('change', async (e) => {
+          const checked = !!e.target.checked;
+          const prodId = e.target.getAttribute('data-id');
+          if (checked) {
+            try {
+              const { error: rpcError } = await supabase.rpc('set_featured_product', { p_id: prodId, p_featured: true });
+              if (rpcError) throw rpcError;
+              showMessage('Product marked as featured (server)', 'success');
+              return;
+            } catch (rpcErr) {
+              try {
+                const ok = await countFeatured() < 4;
+                if (!ok) {
+                  e.target.checked = false;
+                  showMessage('Cannot mark featured — limit of 4 reached.', 'error');
+                  return;
+                }
+                const { error } = await supabase.from('products').update({ featured_products: true }).eq('id', prodId);
+                if (error) throw error;
+                showMessage('Product marked as featured', 'success');
+              } catch (err) {
+                console.error('Featured update fallback error', err);
+                e.target.checked = false;
+                showMessage('Failed to update featured', 'error');
+              }
+            }
+          } else {
+            try {
+              const { error: rpcError } = await supabase.rpc('set_featured_product', { p_id: prodId, p_featured: false });
+              if (rpcError) throw rpcError;
+              showMessage('Product unmarked as featured (server)', 'success');
+              return;
+            } catch (rpcErr) {
+              try {
+                const { error } = await supabase.from('products').update({ featured_products: false }).eq('id', prodId);
+                if (error) throw error;
+                showMessage('Product unmarked as featured', 'success');
+              } catch (err) {
+                console.error('Featured unmark fallback error', err);
+                e.target.checked = true;
+                showMessage('Failed to unmark featured', 'error');
+              }
+            }
+          }
+        });
+      });
+    }
+
+    // -- Helpful utilities for featured-limit enforcement --
+    // Count featured products (server count)
+    async function countFeatured() {
+      if (!supabase) throw new Error('Supabase not initialized');
+      const res = await supabase
+        .from('products')
+        .select('id', { head: true, count: 'exact' })
+        .eq('featured_products', true);
+      if (res.error) throw res.error;
+      return res.count || 0;
+    }
+
+    async function ensureCanSetFeaturedOrShowError() {
+      try {
+        const cnt = await countFeatured();
+        if (cnt >= 4) {
+          showMessage('Cannot mark as featured — limit of 4 featured products reached.', 'error');
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.error('Error checking featured count', err);
+        showMessage('Error checking featured count: ' + (err.message || err), 'error');
+        return false;
+      }
+    }
+
+    // helper to reflect stock in the small text and input fields
+    function updateStockOnUI(prodId, newStock) {
+      const valEls = document.querySelectorAll(`.stock-value[data-id="${prodId}"]`);
+      valEls.forEach(el => el.textContent = newStock);
+      const inputs = document.querySelectorAll(`.stock-input[data-id="${prodId}"]`);
+      inputs.forEach(i => i.value = newStock);
+    }
+
+    // ----------------------------
+    // PROFILES
+    // ----------------------------
+    async function loadProfiles() {
+      const loading = document.getElementById('profilesLoading');
+      const table = document.getElementById('profilesTable');
+      const tbody = document.getElementById('profilesTableBody');
+      const empty = document.getElementById('profilesEmpty');
+
+      loading.style.display = 'block';
+      table.style.display = 'none';
+      empty.style.display = 'none';
+
+      if (!supabase) {
+        loading.innerHTML = '<div style="color:#c62828;">Supabase not initialized</div>';
+        return;
+      }
+
+      try {
+        const { data: profiles, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        loading.style.display = 'none';
+
+        if (error) throw error;
+        if (!profiles || profiles.length === 0) {
+          empty.style.display = 'block';
+          return;
+        }
+
+        tbody.innerHTML = '';
+
+        profiles.forEach(profile => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${escapeHtml(profile.full_name || 'N/A')}</td>
+            <td>${escapeHtml(profile.email || 'N/A')}</td>
+            <td>${escapeHtml(profile.phone || 'N/A')}</td>
+            <td>
+              <span style="padding:4px 8px;border-radius:12px;font-size:12px;background:${profile.is_admin ? '#ff9db1' : '#e0e0e0'};color:${profile.is_admin ? '#fff' : '#666'};">
+                ${profile.is_admin ? 'Yes' : 'No'}
+              </span>
+            </td>
+            <td style="font-size:12px;color:#666;">${formatDate(profile.created_at)}</td>
+          `;
+          tbody.appendChild(row);
+        });
+
+        table.style.display = 'table';
+      } catch (err) {
+        console.error('Load profiles error:', err);
+        loading.innerHTML = '<div style="color:#c62828;">Error: ' + escapeHtml(err.message || String(err)) + '</div>';
+      }
+    }
+
+    // ----------------------------
+    // Upload Product (unchanged logic, reuses supabase)
+    // ----------------------------
     const uploadFileInput = document.getElementById('fileInput');
     const uploadPreview = document.getElementById('previewImg');
     let uploadSelectedFile = null;
-    
+
     uploadFileInput.addEventListener('change', e => {
       const f = e.target.files[0];
       uploadSelectedFile = f || null;
-      if (!f) {
-        uploadPreview.src = '';
-        return;
-      }
-      uploadPreview.src = URL.createObjectURL(f);
+      uploadPreview.src = f ? URL.createObjectURL(f) : '';
     });
-    
+
     document.getElementById('clearForm').addEventListener('click', () => {
       document.getElementById('prodName').value = '';
       document.getElementById('prodPrice').value = '';
@@ -668,67 +719,62 @@
       uploadPreview.src = '';
       document.getElementById('uploadStatus').textContent = 'Cleared';
     });
-    
+
     document.getElementById('productForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
       const name = document.getElementById('prodName').value.trim();
       const price = parseInt(document.getElementById('prodPrice').value || 0, 10);
       const qty = parseInt(document.getElementById('prodQty').value || 0, 10);
       const desc = document.getElementById('prodDesc').value.trim();
       const featured = !!document.getElementById('prodFeatured').checked;
       const statusEl = document.getElementById('uploadStatus');
-      
-      if (!name) {
-        alert('Product name required');
-        return;
-      }
-      if (!uploadSelectedFile) {
-        alert('Please select an image');
-        return;
-      }
 
-      // If admin wants to mark new product as featured, check limit first (client-side)
+      if (!name) { alert('Product name required'); return; }
+      if (!uploadSelectedFile) { alert('Please select an image'); return; }
+
+      // Check featured limit
       if (featured) {
-        const ok = await ensureCanSetFeaturedOrShowError();
-        if (!ok) {
-          // show inline reason next to the upload checkbox so admin understands why the form is blocked
-          showCheckboxReason(document.getElementById('prodFeatured'), 'Cannot mark featured — limit of 4 featured products reached.');
-          return;
+        try {
+          const cntRes = await supabase.from('products').select('id', { head: true, count: 'exact' }).eq('featured_products', true);
+          const cnt = cntRes.count || 0;
+          if (cnt >= 4) {
+            showMessage('Cannot mark as featured — limit of 4 featured products reached.', 'error');
+            return;
+          }
+        } catch (err) {
+          console.warn('Featured count check failed:', err);
         }
       }
 
-      
       statusEl.textContent = 'Uploading...';
-      
       try {
         if (!supabase) throw new Error('Supabase not initialized');
-        
+
         const { data: userData, error: userErr } = await supabase.auth.getUser();
         if (userErr || !userData.user) {
           alert('You must be signed in');
           statusEl.textContent = 'Auth required';
           return;
         }
-        
+
         const user = userData.user;
         const file = uploadSelectedFile;
         const ext = (file.name || '').split('.').pop();
         const fileName = `prod_${Date.now()}.${ext || 'png'}`;
-        
+
         statusEl.textContent = 'Uploading image...';
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from(BUCKET)
           .upload(fileName, file, { contentType: file.type, upsert: false });
-        
+
         if (uploadError) {
           statusEl.textContent = 'Upload failed: ' + uploadError.message;
           return;
         }
-        
+
         const pubRes = supabase.storage.from(BUCKET).getPublicUrl(fileName);
         const publicUrl = pubRes?.data?.publicUrl || pubRes?.publicURL || null;
-        
+
         statusEl.textContent = 'Saving to database...';
         const { data: insertData, error: insertErr } = await supabase
           .from('products')
@@ -741,40 +787,42 @@
             owner: user.id,
             featured_products: featured
           }]);
-        
+
         if (insertErr) {
           statusEl.textContent = 'Database error: ' + insertErr.message;
           await supabase.storage.from(BUCKET).remove([fileName]);
           return;
         }
-        
-        // If you prefer stronger enforcement, create the RPC/trigger on the DB side.
+
         statusEl.textContent = 'Product added successfully!';
         showMessage('Product added!', 'success');
         document.getElementById('clearForm').click();
-        
-        if (document.getElementById('tab-products').classList.contains('active')) {
-          loadProducts();
-        }
-        
+        if (document.getElementById('tab-products').classList.contains('active')) loadProducts();
       } catch (err) {
         console.error('Upload error:', err);
-        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.textContent = 'Error: ' + (err.message || err);
       }
     });
-    
+
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', async () => {
-      try {
-        if (supabase) await supabase.auth.signOut();
-      } catch (e) {
-        console.warn('Signout error:', e);
-      }
+      try { if (supabase) await supabase.auth.signOut(); } catch (e) { console.warn('Signout error:', e); }
       window.location.href = 'index.html';
     });
 
-    // Initial load of products/orders when appropriate
-    // (already wired in the tab system)
+    // initial load: orders is shown by tab system but ensure we call loadOrders now that supabase is initialized
+    (function initOnLoad() {
+      // make sure DOM is ready
+      document.addEventListener('DOMContentLoaded', async () => {
+        // small delay to let client init above settle
+        setTimeout(() => {
+          // load orders immediately (and products/profiles will load on tab click)
+          loadOrders();
+          // also prefetch products so increment UI is snappy
+          loadProducts();
+        }, 120);
+      });
+    })();
   </script>
 </body>
 </html>
