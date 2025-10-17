@@ -1413,19 +1413,19 @@ function showMessage(text, type = 'info') {
   }, 3000);
 }
 
-function setupMobileMenu() {
-  const bar = document.getElementById('bar');
-  const close = document.getElementById('close');
-  const nav = document.getElementById('navbar');
+
+const bar = document.getElementById('bar');
+const close = document.getElementById('close');
+const nav = document.getElementById('navbar');
   
-  if (bar) {
-    bar.addEventListener('click', () => nav.classList.add('active'));
-  }
-  
-  if (close) {
-    close.addEventListener('click', () => nav.classList.remove('active'));
-  }
+if (bar) {
+  bar.addEventListener('click', () => nav.classList.add('active'));
 }
+  
+if (close) {
+  close.addEventListener('click', () => nav.classList.remove('active'));
+}
+
 
 // ---------------------------
 // App initializer (fixes missing initializeApp error)
@@ -1444,7 +1444,7 @@ function initializeApp() {
     try { setupAuth(); } catch(e){ console.warn('setupAuth() failed or already ran:', e); }
 
     // Mobile menu handlers
-    try { setupMobileMenu(); } catch(e){ /* non-fatal */ }
+    
 
     // If cart UI exists in this script, initialize it (safe noop if not present)
     if (typeof initializeCartUI === 'function') {
@@ -1658,4 +1658,5 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+
 
