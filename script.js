@@ -1445,8 +1445,7 @@ function initializeApp() {
     try { setupAuth(); } catch(e){ console.warn('setupAuth() failed or already ran:', e); }
 
     // Mobile menu handlers
-    
-
+    try { setupMobileMenu(); } catch(e){ /* non-fatal */ }
     // If cart UI exists in this script, initialize it (safe noop if not present)
     if (typeof initializeCartUI === 'function') {
       try { initializeCartUI(); } catch(e){ console.warn('initializeCartUI failed:', e); }
@@ -1659,6 +1658,7 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+
 
 
 
