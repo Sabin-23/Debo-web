@@ -1,3 +1,16 @@
+const bar = document.getElementById('bar');
+const close = document.getElementById('close');
+const nav = document.getElementById('navbar');
+  
+if (bar) {
+  bar.addEventListener('click', () => nav.classList.add('active'));
+}
+  
+if (close) {
+  close.addEventListener('click', () => nav.classList.remove('active'));
+}
+
+
 // ==============================
 // AUTH + PROFILE + SETTINGS (NO CART)
 // Paste this to replace the corrupted auth/profile part in script.js
@@ -1658,5 +1671,6 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+
 
 
