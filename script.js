@@ -1427,6 +1427,10 @@ function setupMobileMenu{
   }
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+  setupMobileMenu();
+});
+
 // ---------------------------
 // App initializer (fixes missing initializeApp error)
 // ---------------------------
@@ -1658,6 +1662,7 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+
 
 
 
