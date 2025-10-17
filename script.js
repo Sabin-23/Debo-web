@@ -1418,11 +1418,11 @@ function setupMobileMenu() {
   const close = document.getElementById('close');
   const nav = document.getElementById('navbar');
   
-  if (bar && nav) {
+  if (bar) {
     bar.addEventListener('click', () => nav.classList.add('active'));
   }
   
-  if (close && nav) {
+  if (close) {
     close.addEventListener('click', () => nav.classList.remove('active'));
   }
 }
@@ -1658,3 +1658,4 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+
