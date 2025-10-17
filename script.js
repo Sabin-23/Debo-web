@@ -1413,19 +1413,19 @@ function showMessage(text, type = 'info') {
   }, 3000);
 }
 
-
-const bar = document.getElementById('bar');
-const close = document.getElementById('close');
-const nav = document.getElementById('navbar');
-  
-if (bar) {
-  bar.addEventListener('click', () => nav.classList.add('active'));
+function setupMobileMenu{
+  const bar = document.getElementById('bar');
+  const close = document.getElementById('close');
+  const nav = document.getElementById('navbar');
+    
+  if (bar && nav) {
+    bar.addEventListener('click', () => nav.classList.add('active'));
+  }
+    
+  if (close && nav) {
+    close.addEventListener('click', () => nav.classList.remove('active'));
+  }
 }
-  
-if (close) {
-  close.addEventListener('click', () => nav.classList.remove('active'));
-}
-
 
 // ---------------------------
 // App initializer (fixes missing initializeApp error)
@@ -1658,6 +1658,7 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+
 
 
 
