@@ -19,6 +19,8 @@
     #header h4 { margin:0; color:#2a0a20; }
     #navbar { list-style:none; display:flex; gap:12px; align-items:center; margin:0; padding:0; }
     #navbar li a { color:#2a0a20; text-decoration:none; padding:6px 8px; }
+    #mobile{ display: none; align-items: center; }
+    #close{ display: none; }
     .badge { display:inline-block; min-width:20px; font-size:12px; padding:2px 6px; border-radius:999px; background:#ff9db1; color:#fff; margin-left:6px; }
 
     .product-detail-container { max-width:1200px; margin:36px auto; padding:12px; }
@@ -47,6 +49,8 @@
     .back-link:hover { text-decoration:underline; }
 
     @media (max-width:960px) {
+      #mobile{ display: flex; align-items: center; }
+      #mobile i{ color: #1a1a1a; font-size: 24px; padding-left: 20px; }
       .product-detail { grid-template-columns: 1fr; gap:18px; padding:18px; }
       .product-image-wrap { order:-1; }
     }
@@ -295,3 +299,4 @@
   </script>
 </body>
 </html>
+
