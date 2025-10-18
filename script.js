@@ -1413,20 +1413,19 @@ function showMessage(text, type = 'info') {
   }, 3000);
 }
 
-function setupMobileMenu{
+function setupMobileMenu() {
   const bar = document.getElementById('bar');
   const close = document.getElementById('close');
   const nav = document.getElementById('navbar');
-    
+  
   if (bar && nav) {
     bar.addEventListener('click', () => nav.classList.add('active'));
   }
-    
+  
   if (close && nav) {
     close.addEventListener('click', () => nav.classList.remove('active'));
   }
 }
-
 
 // ---------------------------
 // App initializer (fixes missing initializeApp error)
@@ -1446,6 +1445,7 @@ function initializeApp() {
 
     // Mobile menu handlers
     try { setupMobileMenu(); } catch(e){ /* non-fatal */ }
+
     // If cart UI exists in this script, initialize it (safe noop if not present)
     if (typeof initializeCartUI === 'function') {
       try { initializeCartUI(); } catch(e){ console.warn('initializeCartUI failed:', e); }
@@ -1658,12 +1658,3 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
-
-
-
-
-
-
-
-
-
