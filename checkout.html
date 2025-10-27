@@ -57,6 +57,33 @@
       font-weight:700;
       color: #111;
     }
+    /* Ensure text color stays visible when tab is focused/active */
+    .pay-tab,
+    .pay-tab * {
+      color: inherit; /* make children follow .pay-tab color */
+    }
+
+    /* Override any browser focus/active color changes and give a visible focus ring */
+    .pay-tab:focus,
+    .pay-tab:active {
+      color: #111;               /* force readable color */
+      outline: none;             /* remove default outline (only if we supply a replacement) */
+      background: linear-gradient(180deg, #fffafc, #fff);
+      box-shadow: 0 8px 30px rgba(255,125,167,0.06);
+    }
+
+    /* Provide an accessible focus ring so keyboard users still see focus */
+    .pay-tab:focus-visible {
+      box-shadow: 0 8px 30px rgba(255,125,167,0.06), 0 0 0 3px rgba(255,157,177,0.18);
+      border-color: rgba(255,157,177,0.35);
+    }
+
+    /* Remove mobile tap highlight which can make text look odd on touch devices */
+    .pay-tab {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+
     .pay-tab i {
       width:42px;height:42px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
       background:var(--glass); color:var(--accent-strong); font-size:18px;
@@ -86,9 +113,9 @@
       width:100%; padding:10px 12px; border-radius:8px; border:1px solid #eee; font-size:14px;
     }
 
-    .btn-row { display:flex; gap:10px; margin-top:12px; align-items:center; }
+    .btn-row { display:flex; gap:10px; margin-top:12px; align-items:center;}
     .btn-primary {
-      padding:11px 14px; border-radius:10px; background:var(--success); color:white; border: none; cursor:pointer; font-weight:800;
+      padding:11px 14px; border-radius:10px; background:var(--success); color:white; border: none; cursor:pointer; font-weight:800;text-decoration: none;
     }
     .btn-secondary {
       padding:10px 12px; border-radius:10px; background:#fff; border:1px solid #eee; cursor:pointer;
@@ -163,7 +190,7 @@
   <div class="checkout-container">
     <!-- left: vertical tabs -->
     <aside class="panel-card">
-      <h3 style="margin-bottom:10px;">How would you like to pay?</h3>
+      <h3 style="margin-bottom:10px;">Payment Methods</h3>
       <div class="pay-tabs" id="payTabs">
         <button class="pay-tab" data-tab="mtn"><i class="fa-solid fa-mobile-screen-button"></i>
           <div>
@@ -188,8 +215,8 @@
 
         <button class="pay-tab" data-tab="cash"><i class="fa-solid fa-money-bill-wave"></i>
           <div>
-            Cash / Agents
-            <div class="meta">Pay on delivery / at agent</div>
+            Cash
+            <div class="meta">Pay on delivery</div>
           </div>
         </button>
 
@@ -217,12 +244,11 @@
           </div>
         </div>
 
-        <label class="small-label" style="margin-top:12px;">MTN number (optional)</label>
+        <label class="small-label" style="margin-top:12px;">MTN number (required)</label>
         <input id="mtnPhone" class="input" type="tel" placeholder="e.g. 0789xxxxxx">
 
         <div class="btn-row">
-          <button id="payMtnBtn" class="btn-primary">Pay <span id="mtnAmount">RWF 0</span></button>
-          <button class="btn-secondary" id="mtnHelp">How to pay</button>
+          <a href="index.html" id="payMtnBtn" class="btn-primary">Pay <span id="mtnAmount">RWF 0</span></a>
         </div>
       </div>
 
@@ -239,12 +265,11 @@
           </div>
         </div>
 
-        <label class="small-label" style="margin-top:12px;">Airtel number (optional)</label>
+        <label class="small-label" style="margin-top:12px;">Airtel number (required)</label>
         <input id="airtelPhone" class="input" type="tel" placeholder="e.g. 0789xxxxxx">
 
         <div class="btn-row">
-          <button id="payAirtelBtn" class="btn-primary">Pay <span id="airtelAmount">RWF 0</span></button>
-          <button class="btn-secondary">Help</button>
+          <a href="index.html" id="payAirtelBtn" class="btn-primary">Pay <span id="airtelAmount">RWF 0</span></a>
         </div>
       </div>
 
@@ -261,8 +286,7 @@
         </div>
 
         <div class="btn-row">
-          <button id="payCardBtn" class="btn-primary">Pay <span id="cardAmount">RWF 0</span></button>
-          <button class="btn-secondary">Save card</button>
+          <a href="index.html" id="payCardBtn" class="btn-primary">Pay <span id="cardAmount">RWF 0</span></a>
         </div>
       </div>
 
@@ -272,13 +296,13 @@
         <p class="muted">Pay the courier or an agent on delivery.</p>
 
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
-          <label><input type="radio" name="cashOpt" value="agent" checked> Pay via local agent</label>
-          <label><input type="radio" name="cashOpt" value="courier"> Pay courier on delivery</label>
+          <label> Pay courier on delivery</label>
         </div>
 
         <div class="btn-row">
-          <button id="checkoutCashBtn" class="btn-primary">Checkout (Cash) — <span id="cashAmount">RWF 0</span></button>
-          <button class="btn-secondary">Contact us</button>
+          <a href="contact.html" id="checkoutCashBtn" class="btn-primary">
+            Checkout (Cash) — <span id="cashAmount">RWF 0</span>
+          </a>
         </div>
       </div>
 
@@ -303,8 +327,7 @@
         </div>
 
         <div class="btn-row">
-          <button id="bankNoticeBtn" class="btn-primary">I've paid — Notify</button>
-          <button class="btn-secondary">Copy accounts</button>
+          <a href="contact.html" id="bankNoticeBtn" class="btn-primary">Payment successful? <br> Click here to let us know.</a>
         </div>
       </div>
     </section>
@@ -350,7 +373,7 @@
 
   <script src="script.js"></script>
 
-  <!-- Minimal JS to wire tabs -> reuses your checkout logic and functions already added earlier -->
+  <!-- Minimal JS to wire tabs + validate + create orders in Supabase -->
   <script>
     (function(){
       // Tab switching (mirrors admin.html behaviour)
@@ -379,30 +402,46 @@
         document.getElementById('total').textContent = `RWF ${total}`;
       }
 
-      // attempt to reuse page logic: load cart and update UI (same as previous checkout logic)
+      // helper: wait for supabase init
+      async function waitForSupabase(maxAttempts = 60, delay = 150) {
+        let tries = 0;
+        while((typeof window.supabase === 'undefined' || !window.supabase) && tries < maxAttempts) {
+          await new Promise(r => setTimeout(r, delay));
+          tries++;
+        }
+        return !!window.supabase;
+      }
+
+      // get current session user (tries window.currentUser first)
+      async function getSessionUser() {
+        if (window.currentUser) return window.currentUser;
+        if (!window.supabase) return null;
+        try {
+          const { data } = await window.supabase.auth.getSession();
+          return data?.session?.user || null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // load cart summary into "Your Order" panel and compute totals
       async function loadCartSummary() {
+        await waitForSupabase();
         if (!window.supabase) {
-          // wait a bit — script.js should create supabase
-          setTimeout(loadCartSummary, 200);
+          document.getElementById('orderItems').innerHTML = '<div class="muted">Unable to reach backend</div>';
+          updateAmounts(0);
           return;
         }
 
-        let sessionUser = window.currentUser || null;
-        if (!sessionUser) {
-          try {
-            const { data } = await window.supabase.auth.getSession();
-            sessionUser = data?.session?.user || null;
-          } catch(e){ sessionUser = null; }
-        }
-
-        if (!sessionUser) {
+        const user = await getSessionUser();
+        if (!user) {
           document.getElementById('orderItems').innerHTML = '<div class="muted">Sign in to view cart</div>';
           updateAmounts(0);
           return;
         }
 
         try {
-          const { data: cart } = await window.supabase.from('cart_items').select('*').eq('user_id', sessionUser.id);
+          const { data: cart } = await window.supabase.from('cart_items').select('*').eq('user_id', user.id);
           if (!cart || cart.length === 0) {
             document.getElementById('orderItems').innerHTML = '<div class="muted">Your cart is empty.</div>';
             updateAmounts(0);
@@ -412,7 +451,7 @@
           const ids = cart.map(ci => ci.product_id);
           const { data: products } = await window.supabase.from('products').select('*').in('id', ids);
           const pmap = {};
-          (products||[]).forEach(p=>pmap[p.id]=p);
+          (products||[]).forEach(p=> pmap[p.id] = p);
 
           let subtotal = 0;
           const html = cart.map(ci => {
@@ -424,7 +463,7 @@
               <div class="order-line">
                 <img src="${p.image_url || 'https://via.placeholder.com/80'}" alt="${(p.name||'Product')}">
                 <div class="order-meta">
-                  <h4>${(p.name||'Product')}</h4>
+                  <h4>${escapeHtml(p.name || 'Product')}</h4>
                   <p>Qty: ${qty} • RWF ${price}</p>
                 </div>
                 <div style="font-weight:800;">RWF ${price * qty}</div>
@@ -439,13 +478,229 @@
         }
       }
 
-      // Try to init once script.js loaded supabase
+      // small helper to escape HTML
+      function escapeHtml(text) {
+        const d = document.createElement('div');
+        d.textContent = text == null ? '' : String(text);
+        return d.innerHTML;
+      }
+
+      // small UI helper for loading state
+      function setButtonLoading(btn, isLoading, textWhenDone) {
+        if (!btn) return;
+        if (isLoading) {
+          btn.dataset.orig = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span> Processing...`;
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = textWhenDone || btn.dataset.orig || btn.innerHTML;
+        }
+      }
+
+      // Validations
+      function normalizePhone(v) {
+        if (!v) return '';
+        return v.replace(/\D/g,'');
+      }
+      function validatePhone(v) {
+        const n = normalizePhone(v);
+        // require 9-12 digits (Rwanda phone numbers around 9, plus country codes possible)
+        return /^\d{9,12}$/.test(n);
+      }
+      function validateCard(name, number, exp, cvc) {
+        if (!name || !number || !exp || !cvc) return false;
+        const num = number.replace(/\s+/g,'');
+        if (!/^\d{12,19}$/.test(num)) return false;
+        if (!/^\d{3,4}$/.test(cvc)) return false;
+        if (!/^\d{2}\s*\/\s*\d{2}$/.test(exp)) return false;
+        return true;
+      }
+
+      // Create orders rows from cart_items for current user
+      async function createOrdersForCart(paymentMethod, meta = {}) {
+        await waitForSupabase();
+        if (!window.supabase) {
+          alert('Backend not ready');
+          return false;
+        }
+
+        const user = await getSessionUser();
+        if (!user) {
+          const modal = document.getElementById('modal');
+          if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
+          showMessage && showMessage('Please sign in to complete checkout', 'info');
+          return false;
+        }
+
+        // fetch cart
+        let cart;
+        try {
+          const { data } = await window.supabase.from('cart_items').select('*').eq('user_id', user.id);
+          cart = data || [];
+        } catch (err) {
+          console.error('fetch cart fail', err);
+          showMessage && showMessage('Failed to read cart', 'error');
+          return false;
+        }
+
+        if (!cart || cart.length === 0) {
+          showMessage && showMessage('Your cart is empty', 'info');
+          return false;
+        }
+
+        // fetch product prices
+        const productIds = cart.map(c => c.product_id);
+        let products;
+        try {
+          const { data } = await window.supabase.from('products').select('*').in('id', productIds);
+          products = data || [];
+        } catch (err) {
+          console.error('fetch products fail', err);
+          showMessage && showMessage('Failed to read products', 'error');
+          return false;
+        }
+
+        const pmap = {};
+        products.forEach(p => { pmap[p.id] = p; });
+
+        const now = new Date().toISOString();
+        const inserts = cart.map(ci => {
+          const p = pmap[ci.product_id] || {};
+          const qty = Number(ci.quantity || 1);
+          const price = Number(p.price || 0);
+          return {
+            user_id: user.id,
+            created_at: now,
+            product_id: ci.product_id,
+            quantity: qty,
+            payment_status: false,
+            amount: price * qty,
+            payment_method: paymentMethod
+          };
+        });
+
+        try {
+          const { error } = await window.supabase.from('orders').insert(inserts);
+          if (error) throw error;
+
+          // clear the cart_items for this user
+          const { error: delErr } = await window.supabase.from('cart_items').delete().eq('user_id', user.id);
+          if (delErr) console.warn('Failed to clear cart after order creation', delErr);
+
+          // UI updates
+          window.refreshCheckoutSummary && window.refreshCheckoutSummary();
+          if (typeof updateCartBadge === 'function') updateCartBadge();
+          showMessage && showMessage('Order placed (placeholder). We will complete payment integration later.', 'success', 5000);
+          return true;
+        } catch (err) {
+          console.error('create orders fail', err);
+          showMessage && showMessage('Failed to create order', 'error', 4000);
+          return false;
+        }
+      }
+
+      // Attach event handlers with validation
+      document.getElementById('payMtnBtn')?.addEventListener('click', async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const btn = this;
+        const phone = document.getElementById('mtnPhone')?.value || '';
+        if (!validatePhone(phone)) {
+          showMessage && showMessage('Enter a valid MTN phone number (digits only)', 'error');
+          return;
+        }
+        setButtonLoading(btn, true);
+        const ok = await createOrdersForCart('MTN Mobile Money', { phone: normalizePhone(phone) });
+        setButtonLoading(btn, false, `Pay ${document.getElementById('mtnAmount')?.textContent || ''}`);
+        await loadCartSummary();
+        if (ok) {
+          // navigate only after success
+          window.location.assign('index.html');
+        }
+      });
+
+      document.getElementById('payAirtelBtn')?.addEventListener('click', async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const btn = this;
+        const phone = document.getElementById('airtelPhone')?.value || '';
+        if (!validatePhone(phone)) {
+          showMessage && showMessage('Enter a valid Airtel phone number (digits only)', 'error');
+          return;
+        }
+        setButtonLoading(btn, true);
+        const ok = await createOrdersForCart('Airtel Money', { phone: normalizePhone(phone) });
+        setButtonLoading(btn, false, `Pay ${document.getElementById('airtelAmount')?.textContent || ''}`);
+        await loadCartSummary();
+        if (ok) {
+          window.location.assign('index.html');
+        }
+      });
+
+      document.getElementById('payCardBtn')?.addEventListener('click', async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const btn = this;
+        const name = document.getElementById('cardName')?.value || '';
+        const number = document.getElementById('cardNumber')?.value || '';
+        const exp = document.getElementById('cardExp')?.value || '';
+        const cvc = document.getElementById('cardCVC')?.value || '';
+
+        if (!validateCard(name, number, exp, cvc)) {
+          showMessage && showMessage('Enter valid card details (UI-only check).', 'error');
+          return;
+        }
+
+        setButtonLoading(btn, true);
+        const ok = await createOrdersForCart('Card', { cardName: name.slice(0,80) });
+        setButtonLoading(btn, false, `Pay ${document.getElementById('cardAmount')?.textContent || ''}`);
+        await loadCartSummary();
+        if (ok) {
+          window.location.assign('index.html');
+        }
+      });
+
+      document.getElementById('checkoutCashBtn')?.addEventListener('click', async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const btn = this;
+        if (!confirm('You are being redirected to our contact page. Please call us and let us know your payment option')) return;
+        setButtonLoading(btn, true);
+        const ok = await createOrdersForCart('Cash / Agent');
+        setButtonLoading(btn, false, `Checkout (Cash) — ${document.getElementById('cashAmount')?.textContent || ''}`);
+        await loadCartSummary();
+        if (ok) {
+          window.location.assign('contact.html');
+        }
+      });
+
+      document.getElementById('bankNoticeBtn')?.addEventListener('click', async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const btn = this;
+        if (!confirm('You are being redirected to our contact page. Please call us and let us know your payment option')) return;
+        setButtonLoading(btn, true);
+        const ok = await createOrdersForCart('Bank Transfer');
+        setButtonLoading(btn, false, 'Done');
+        await loadCartSummary();
+        if (ok) {
+          window.location.assign('contact.html');
+        }
+      });
+
+
+      // initial load
       window.addEventListener('load', () => {
         setTimeout(loadCartSummary, 250);
       });
 
-      // expose for other scripts to refresh if needed
-      window.refreshCheckoutSummary = loadCartSummary;
+      // re-run on auth changes
+      if (window.supabase && window.supabase.auth) {
+        window.supabase.auth.onAuthStateChange(() => setTimeout(loadCartSummary, 250));
+      } else {
+        setInterval(()=> { if (window.currentUser) loadCartSummary(); }, 3500);
+      }
     })();
   </script>
 </body>
