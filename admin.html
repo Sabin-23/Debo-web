@@ -330,7 +330,7 @@
                 <div style="font-weight:700;">RWF ${escapeHtml(String(o.amount || 0))}</div>
                 <div style="margin-top:6px;">
                   <span title="Paid" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${o.payment_status ? '#2e7d32' : '#ff9800'};margin-right:7px;vertical-align:middle;"></span>
-                  <span style="font-size:13px;color:#666;margin-right:6px;">Paid</span>
+                  <span style="font-size:13px;color:#666;margin-right:6px;">Paid: ${escapeHtml(String(o.payment_method))} </span>
                 </div>
                 <div style="margin-top:6px;">
                   <span title="Done" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${o.done_order ? '#2e7d32' : '#ff9800'};margin-right:6px;vertical-align:middle;"></span>
