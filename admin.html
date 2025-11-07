@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Admin Dashboard - God's Only Store</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -544,7 +544,8 @@
         for (const o of orders) {
           const user = usersById[o.user_id];
           const product = productsById[o.product_id];
-          const userName = user?.full_name || 'Unknown User';
+          // Get payer name from metadata if available (for mobile money payments)
+          const payerName = o.metadata?.payer_name || user?.full_name || 'Unknown User';
           const phoneNumber = user?.phone || 'No phone number registered'
           const prodName = product?.name || 'Unknown Product';
           const img = product?.image_url || 'https://via.placeholder.com/100/ffe6f0/ff6fb5?text=No+Img';
@@ -565,7 +566,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <div>
                 <div style="font-weight:700;">Order #${escapeHtml(String(o.id))}</div>
-                <div style="font-size:13px;color:#666;">By: ${escapeHtml(userName)} • ${escapeHtml(created)}</div>
+                <div style="font-size:13px;color:#666;">By: ${escapeHtml(payerName)} • ${escapeHtml(created)}</div>
                 <div style="font-size:13px;color:#666;">Phone number: ${escapeHtml(phoneNumber)}</div>
               </div>
               <div style="text-align:right;">
@@ -1009,6 +1010,11 @@
       window.location.href = 'index.html';
     });
 
+    document.getElementById('logoutBtnMobile').addEventListener('click', async () => {
+      try { if (supabase) await supabase.auth.signOut(); } catch (e) { console.warn('Signout error:', e); }
+      window.location.href = 'index.html';
+    });
+
     (function initOnLoad() {
       document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => {
@@ -1020,6 +1026,5 @@
   </script>
 </body>
 </html>
-
 
 
