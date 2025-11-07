@@ -2,707 +2,521 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Checkout - God's Only Store</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>Checkout</title>
+  <meta name="theme-color" content="#fffafc" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Page-specific CSS (additions) -->
   <style>
-    :root {
-      --accent: #ff9db1;
-      --accent-strong: #ff69b4;
-      --muted: #666;
-      --panel-bg: #fff;
-      --success: #2e7d32;
-      --glass: rgba(255,240,243,0.6);
-      --card-border: rgba(0,0,0,0.04);
+    :root{
+      --bg:#fffafc; --card:#fff; --accent:#ff6f91; --muted:#666;
+      --success:#2e7d32; --danger:#c62828; --maxwidth:900px;
     }
-
-    /* Basic layout */
-    .checkout-container {
-      max-width: 1150px;
-      margin: 28px auto;
-      padding: 0 20px;
-      display: grid;
-      grid-template-columns: 220px 1fr 360px;
-      gap: 18px;
-      align-items: start;
+    html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:#111}
+    .wrap{max-width:var(--maxwidth);margin:18px auto;padding:16px}
+    .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,0.06)}
+    h1{margin:0;font-size:20px}
+    .ussd-container{margin-top:12px;display:flex;flex-direction:column;gap:12px}
+    .ussd-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .ussd{margin-top:0;padding:18px;border-radius:10px;font-weight:800;font-size:18px;text-align:center;background:linear-gradient(180deg,#fff,#fff8fb);border:1px solid rgba(0,0,0,0.04);word-break:break-all}
+    .copy-btn{background:none;border:none;color:var(--accent);font-size:18px;cursor:pointer;padding:8px;border-radius:6px;transition:background 0.2s}
+    .copy-btn:hover{background:rgba(255,111,145,0.1)}
+    .copy-btn.copied{color:var(--success)}
+    .hint{margin-top:8px;color:var(--muted);text-align:center;font-size:13px}
+    .total-row{margin-top:16px;background:#fff6f8;padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center}
+    .total-row .label{font-size:13px;color:var(--muted);font-weight:700}
+    .total-row .value{font-weight:900;font-size:18px}
+    
+    /* Form styling */
+    .form-group{margin-top:16px}
+    .form-label{display:block;margin-bottom:8px;font-weight:600;color:#333;font-size:14px}
+    .form-input{width:100%;padding:12px;border:1px solid #eee;border-radius:8px;font-size:15px;transition:border 0.2s}
+    .form-input:focus{outline:none;border-color:var(--accent)}
+    
+    .btns{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:space-between}
+    .btn{flex:1;min-width:120px;padding:14px;border-radius:10px;border:0;font-weight:800;font-size:15px;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px}
+    .primary{background:var(--accent);color:#fff;box-shadow:0 8px 20px rgba(255,111,145,0.12)}
+    .ghost{background:#fff;border:1px solid #eee;color:#222}
+    .dial{background:#fff3e6;border:1px solid #ffd2b3;color:#7a3e00}
+    .note{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+    #msg{margin-top:12px;text-align:center;font-weight:700;display:none}
+    .debug{font-family:monospace;font-size:12px;color:var(--danger);white-space:pre-wrap;margin-top:10px;display:none}
+    
+    /* Mobile improvements */
+    .mobile-warning {display:none; background:#fff3cd; border:1px solid #ffeaa7; border-radius:8px; padding:12px; margin:12px 0; text-align:center;}
+    
+    /* Loading spinner */
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
     }
-
-    /* cards */
-    .panel-card {
-      background: var(--panel-bg);
-      border-radius: 12px;
-      padding: 18px;
-      box-shadow: 0 10px 28px rgba(24,12,20,0.04);
-      border: 1px solid var(--card-border);
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
-
-    /* Left tabs (vertical) */
-    .pay-tabs { display:flex; flex-direction:column; gap:10px; }
-    .pay-tab {
-      display:flex;
-      gap:12px;
-      align-items:center;
-      padding:12px;
-      border-radius:10px;
-      background: linear-gradient(180deg,#fff,#fff);
-      border: 1px solid transparent;
-      cursor:pointer;
-      transition: all .16s ease;
-      text-align:left;
-      font-weight:700;
-      color: #111;
+    
+    @media (max-width:768px){
+      .btns{flex-direction:column;}
+      .btn{width:100%; margin-bottom:8px;}
+      .wrap{padding:8px;}
+      .card{padding:14px;}
+      .ussd{padding:14px; font-size:16px;}
+      .mobile-warning{display:block;}
+      .total-row{flex-direction:column; gap:8px; text-align:center;}
+      .ussd-header{flex-direction:column; gap:12px; align-items:center;}
+      .ussd-header h3{margin:0; font-size:16px;}
     }
-    /* Ensure text color stays visible when tab is focused/active */
-    .pay-tab,
-    .pay-tab * {
-      color: inherit; /* make children follow .pay-tab color */
+    
+    @media (max-width:520px){
+      .ussd{font-size:14px;padding:12px}
+      .btn{font-size:14px;padding:14px;border-radius:10px}
+      .total-row .value{font-size:16px}
+      .wrap{padding:6px}
+      h1{font-size:18px}
+      .form-input{font-size:16px; padding:14px}
     }
-
-    /* Override any browser focus/active color changes and give a visible focus ring */
-    .pay-tab:focus,
-    .pay-tab:active {
-      color: #111;               /* force readable color */
-      outline: none;             /* remove default outline (only if we supply a replacement) */
-      background: linear-gradient(180deg, #fffafc, #fff);
-      box-shadow: 0 8px 30px rgba(255,125,167,0.06);
-    }
-
-    /* Provide an accessible focus ring so keyboard users still see focus */
-    .pay-tab:focus-visible {
-      box-shadow: 0 8px 30px rgba(255,125,167,0.06), 0 0 0 3px rgba(255,157,177,0.18);
-      border-color: rgba(255,157,177,0.35);
-    }
-
-    /* Remove mobile tap highlight which can make text look odd on touch devices */
-    .pay-tab {
-      -webkit-tap-highlight-color: transparent;
-    }
-
-
-    .pay-tab i {
-      width:42px;height:42px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
-      background:var(--glass); color:var(--accent-strong); font-size:18px;
-    }
-    .pay-tab .meta { font-size:13px; color:var(--muted); font-weight:600; display:block; opacity:.9; margin-top:4px; }
-
-    .pay-tab.active {
-      border-color: rgba(255,157,177,0.35);
-      box-shadow: 0 8px 30px rgba(255,125,167,0.06);
-      background: linear-gradient(180deg, #fffafc, #fff);
-    }
-
-    /* Payment area (middle) */
-    .payment-area { min-height:320px; display:flex; flex-direction:column; gap:12px; }
-    .pay-panel { display:none; }
-    .pay-panel.active { display:block; }
-
-    .ussd-box {
-      display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px;
-      background: linear-gradient(180deg, rgba(255,248,250,1), #fff);
-      border: 1px solid rgba(255,230,238,0.7);
-    }
-    .ussd-badge { background:#fff0f3;padding:8px 10px;border-radius:8px;font-weight:800;color: #3a2240; }
-
-    .small-label { font-size:13px;color:var(--muted);margin-bottom:6px;display:block; }
-    .input, input[type="tel"], input[type="text"] {
-      width:100%; padding:10px 12px; border-radius:8px; border:1px solid #eee; font-size:14px;
-    }
-
-    .btn-row { display:flex; gap:10px; margin-top:12px; align-items:center;}
-    .btn-primary {
-      padding:11px 14px; border-radius:10px; background:var(--success); color:white; border: none; cursor:pointer; font-weight:800;text-decoration: none;
-    }
-    .btn-secondary {
-      padding:10px 12px; border-radius:10px; background:#fff; border:1px solid #eee; cursor:pointer;
-    }
-
-    /* Right order summary */
-    .order-items { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
-    .order-line {
-      display:flex; gap:12px; align-items:center; padding:12px; border-radius:8px; background:#fff; border:1px solid #fafafa;
-    }
-    .order-line img { width:72px; height:72px; object-fit:cover; border-radius:8px; }
-    .order-meta h4 { margin:0; font-size:15px; }
-    .order-meta p { margin:6px 0 0 0; color:var(--muted); font-size:13px; }
-
-    .summary-row { display:flex; justify-content:space-between; margin-top:12px; font-weight:800; font-size:16px; }
-
-    /* responsive */
-    @media (max-width: 980px) {
-      .checkout-container { grid-template-columns: 1fr; }
-      .pay-tabs { flex-direction:row; gap:8px; overflow:auto; }
-      .pay-tab { min-width:220px; flex:0 0 auto; }
-    }
-
-    /* small niceties */
-    .muted { color:var(--muted); font-size:13px; }
   </style>
 </head>
 <body>
-  <!-- header (keeps your nav/sign-in modal like other pages) -->
-  <section id="header">
-    <h4>God's Only Store</h4>
-    <div>
-      <ul id="navbar">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="shop.html">Shop</a></li>
-        <li><a href="About.html">About</a></li>
-        <li><a href="contact.html">Contact</a></li>
-        <li>
-          <a href="#" id="cart-toggle-desktop" class="cart-btn" aria-label="Open cart">
-            <i class="fa-solid fa-bag-shopping"></i>
-            <span id="cart-badge" class="badge">0</span>
-          </a>
-        </li>
-        <button id="openModal">Sign-in/Register</button>
+  <div class="wrap">
+    <div class="card" role="main" aria-labelledby="htitle">
+      <h1 id="htitle">Payments</h1>
 
-        <div class="modal" id="modal">
-          <div class="auth-container">
-            <h2 id="form-title">Sign In</h2>
-            <form id="signin-form" class="active">
-              <input type="email" placeholder="Email" required />
-              <input type="password" placeholder="Password" required />
-              <button type="submit">Sign In</button>
-              <a href="#" id="forgotPasswordLink" class="muted">Forgot password?</a>
-            </form>
-            <form id="register-form">
-              <input type="text" placeholder="Full Name" required />
-              <input type="email" placeholder="Email" required />
-              <input type="password" placeholder="Password" required />
-              <input type="password" placeholder="Confirm Password" required />
-              <button type="submit">Register</button>
-            </form>
-            <p class="toggle-text muted">Don't have an account? <span id="toggle" style="color:var(--accent);cursor:pointer;">Register</span></p>
-            <button id="closeModal" class="btn-secondary">Close</button>
-          </div>
+      <div class="mobile-warning">
+        📱 <strong>Mobile Tip:</strong> Tap "Dial USSD" to automatically open your phone dialer with payment code.
+      </div>
+
+      <div class="ussd-container">
+        <div class="ussd-header">
+          <h3>MTN Mobile Money Payment</h3>
+          <button id="copyUssdBtn" class="copy-btn" aria-label="Copy USSD code">
+            <i class="far fa-copy"></i> Copy
+          </button>
+        </div>
+        
+        <div id="ussdBox" class="ussd" aria-live="polite">
+          <span id="ussdCode">*182*1*1*0785115663*0#</span>
+        </div>
+        
+        <div class="hint">
+          <i class="fas fa-mobile-alt"></i> Tap <strong>"Dial USSD"</strong> below to open your phone dialer
         </div>
 
-      </ul>
+        <a id="dialBtn" class="btn dial" role="button" href="#">
+          <i class="fas fa-phone"></i> Dial USSD
+        </a>
+      </div>
+
+      <div class="form-group">
+        <label for="payerName" class="form-label">
+          <i class="fas fa-user"></i> Name as registered on your mobile money account
+        </label>
+        <input type="text" id="payerName" class="form-input" 
+               placeholder="Enter the name registered with your phone number" 
+               required>
+        <div class="hint" style="text-align:left; margin-top:4px;">
+          This helps us verify your payment. Must match your mobile money account name.
+        </div>
+      </div>
+
+      <div class="total-row" aria-live="polite" role="status">
+        <div class="label">Total to pay</div>
+        <div id="displayTotal" class="value">RWF 0</div>
+      </div>
+
+      <div class="btns" style="margin-top:14px">
+        <button id="doneBtn" class="btn primary" type="button">
+          <i class="fas fa-check-circle"></i> Done (I paid via MoMo)
+        </button>
+        <button id="codBtn" class="btn ghost" type="button">
+          <i class="fas fa-truck"></i> Pay on Delivery
+        </button>
+      </div>
+
+      <div id="msg" role="status" aria-live="assertive"></div>
+      <pre id="debug" class="debug" aria-hidden="true"></pre>
     </div>
-  </section>
-
-  <!-- MAIN CHECKOUT -->
-  <div class="checkout-container">
-    <!-- left: vertical tabs -->
-    <aside class="panel-card">
-      <h3 style="margin-bottom:10px;">Payment Methods</h3>
-      <div class="pay-tabs" id="payTabs">
-        <button class="pay-tab" data-tab="mtn"><i class="fa-solid fa-mobile-screen-button"></i>
-          <div>
-            MTN Mobile Money
-            <div class="meta">Fast, use USSD or enter phone</div>
-          </div>
-        </button>
-
-        <button class="pay-tab" data-tab="airtel"><i class="fa-solid fa-signal"></i>
-          <div>
-            Airtel Money
-            <div class="meta">Airtel momo</div>
-          </div>
-        </button>
-
-        <button class="pay-tab" data-tab="card"><i class="fa-solid fa-credit-card"></i>
-          <div>
-            Debit / Credit Card
-            <div class="meta">Card payment (UI only)</div>
-          </div>
-        </button>
-
-        <button class="pay-tab" data-tab="cash"><i class="fa-solid fa-money-bill-wave"></i>
-          <div>
-            Cash
-            <div class="meta">Pay on delivery</div>
-          </div>
-        </button>
-
-        <button class="pay-tab" data-tab="banks"><i class="fa-solid fa-university"></i>
-          <div>
-            Bank Accounts
-            <div class="meta">Transfer to bank</div>
-          </div>
-        </button>
-      </div>
-    </aside>
-
-    <!-- middle: payment form area (panels) -->
-    <section class="panel-card payment-area" id="paymentArea">
-      <!-- MTN -->
-      <div id="panel-mtn" class="pay-panel">
-        <h4>MTN Mobile Money</h4>
-        <p class="muted">Dial the USSD code shown or enter your MTN momo phone number to pay.</p>
-
-        <div class="ussd-box" style="margin-top:8px;">
-          <div class="ussd-badge">MTN</div>
-          <div>
-            <div style="font-weight:800;">*182*3*7*20311006246#</div>
-            <div class="muted" style="margin-top:6px;">You will be prompted to confirm PIN on your phone</div>
-          </div>
-        </div>
-
-        <label class="small-label" style="margin-top:12px;">MTN number (required)</label>
-        <input id="mtnPhone" class="input" type="tel" placeholder="e.g. 0789xxxxxx">
-
-        <div class="btn-row">
-          <a href="index.html" id="payMtnBtn" class="btn-primary">Pay <span id="mtnAmount">RWF 0</span></a>
-        </div>
-      </div>
-
-      <!-- Airtel -->
-      <div id="panel-airtel" class="pay-panel">
-        <h4>Airtel Money</h4>
-        <p class="muted">Dial the USSD or enter Airtel phone number.</p>
-
-        <div class="ussd-box" style="margin-top:8px;">
-          <div class="ussd-badge">AIRTEL</div>
-          <div>
-            <div style="font-weight:800;">*185*1*20311006246#</div>
-            <div class="muted" style="margin-top:6px;">You will be prompted to confirm PIN on your phone</div>
-          </div>
-        </div>
-
-        <label class="small-label" style="margin-top:12px;">Airtel number (required)</label>
-        <input id="airtelPhone" class="input" type="tel" placeholder="e.g. 0789xxxxxx">
-
-        <div class="btn-row">
-          <a href="index.html" id="payAirtelBtn" class="btn-primary">Pay <span id="airtelAmount">RWF 0</span></a>
-        </div>
-      </div>
-
-      <!-- Card -->
-      <div id="panel-card" class="pay-panel">
-        <h4>Debit / Credit Card</h4>
-        <p class="muted">Card form is UI-only for now. Press Pay to create order records.</p>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
-          <input id="cardName" class="input" placeholder="Name on card" />
-          <input id="cardNumber" class="input" placeholder="4242 4242 4242 4242" />
-          <input id="cardExp" class="input" placeholder="MM / YY" />
-          <input id="cardCVC" class="input" placeholder="CVC" />
-        </div>
-
-        <div class="btn-row">
-          <a href="index.html" id="payCardBtn" class="btn-primary">Pay <span id="cardAmount">RWF 0</span></a>
-        </div>
-      </div>
-
-      <!-- Cash -->
-      <div id="panel-cash" class="pay-panel">
-        <h4>Cash / Agents</h4>
-        <p class="muted">Pay the courier or an agent on delivery.</p>
-
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
-          <label> Pay courier on delivery</label>
-        </div>
-
-        <div class="btn-row">
-          <a href="contact.html" id="checkoutCashBtn" class="btn-primary">
-            Checkout (Cash) — <span id="cashAmount">RWF 0</span>
-          </a>
-        </div>
-      </div>
-
-      <!-- Banks -->
-      <div id="panel-banks" class="pay-panel">
-        <h4>Bank Accounts</h4>
-        <p class="muted">Transfer to any of the accounts below and notify us.</p>
-
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-          <div style="padding:10px;border-radius:8px;border:1px solid #f4f4f4;">
-            <div style="font-weight:800;">Bank of Kigali</div>
-            <div class="muted">Account: 20311006246 · God's Only Store Ltd</div>
-          </div>
-          <div style="padding:10px;border-radius:8px;border:1px solid #f4f4f4;">
-            <div style="font-weight:800;">Equity Bank</div>
-            <div class="muted">Account: 20311006247 · God's Only Store Ltd</div>
-          </div>
-          <div style="padding:10px;border-radius:8px;border:1px solid #f4f4f4;">
-            <div style="font-weight:800;">I&M Bank</div>
-            <div class="muted">Account: 20311006248 · God's Only Store Ltd</div>
-          </div>
-        </div>
-
-        <div class="btn-row">
-          <a href="contact.html" id="bankNoticeBtn" class="btn-primary">Payment successful? <br> Click here to let us know.</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- right: order summary (keeps your original site look) -->
-    <aside class="panel-card">
-      <h3>Your Order</h3>
-      <div id="orderItems" class="order-items">
-        <div class="muted">Loading cart…</div>
-      </div>
-
-      <div class="summary-row" style="margin-top:14px;">
-        <div>Subtotal</div>
-        <div id="subtotal">RWF 0</div>
-      </div>
-      <div class="summary-row" style="margin-top:8px;">
-        <div>Shipping</div>
-        <div id="shipping">RWF 0</div>
-      </div>
-      <div class="summary-row" style="margin-top:12px;font-size:18px;">
-        <div>Total</div>
-        <div id="total">RWF 0</div>
-      </div>
-    </aside>
   </div>
 
-  <!-- cart side panel (kept for compatibility) -->
-  <aside id="cart-panel" class="cart-panel" aria-hidden="true">
-    <div class="cart-header">
-      <h3>Your Cart</h3>
-      <button id="cart-close" aria-label="Close cart">✕</button>
-    </div>
-    <div id="cart-items" class="cart-items"></div>
-    <div class="cart-footer">
-      <div class="cart-totals"><div>Subtotal</div><div id="cart-subtotal">—</div></div>
-      <div class="cart-actions">
-        <button id="checkout" class="accent">Checkout</button>
-        <button id="clear-cart" class="secondary">Clear Cart</button>
-      </div>
-    </div>
-  </aside>
-  <div id="cart-backdrop" class="cart-backdrop" hidden></div>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="script.js"></script>
 
-  <!-- Minimal JS to wire tabs + validate + create orders in Supabase -->
   <script>
-    (function(){
-      // Tab switching (mirrors admin.html behaviour)
-      const tabs = document.querySelectorAll('.pay-tab');
-      const panels = document.querySelectorAll('.pay-panel');
+  (function(){
+    const MOMO_NUMBER = '0785115663';
+    const USSD_PREFIX = '*182*1*1*';
+    const ussdCodeEl = document.getElementById('ussdCode');
+    const displayTotalEl = document.getElementById('displayTotal');
+    const debugEl = document.getElementById('debug');
+    const msgEl = document.getElementById('msg');
+    const dialBtn = document.getElementById('dialBtn');
+    const doneBtn = document.getElementById('doneBtn');
+    const codBtn = document.getElementById('codBtn');
+    const copyUssdBtn = document.getElementById('copyUssdBtn');
+    const payerNameInput = document.getElementById('payerName');
 
-      function showTab(name) {
-        tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-        panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
-      }
+    function showMsg(text, type='info') {
+      msgEl.style.display = 'block';
+      msgEl.textContent = text;
+      msgEl.style.color = type === 'error' ? getComputedStyle(document.documentElement).getPropertyValue('--danger') : (type === 'success' ? getComputedStyle(document.documentElement).getPropertyValue('--success') : '#222');
+      setTimeout(()=> { msgEl.style.display = 'none'; }, 5000);
+    }
 
-      tabs.forEach(t => {
-        t.addEventListener('click', () => showTab(t.dataset.tab));
+    function showDebug(obj) {
+      debugEl.style.display = 'block';
+      debugEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+      console.debug('checkout debug:', obj);
+    }
+
+    // Wait for window.supabase to exist
+    function waitForSupabase(timeout = 5000) {
+      return new Promise(resolve => {
+        const start = Date.now();
+        (function check() {
+          if (window.supabase && typeof window.supabase.from === 'function') return resolve(true);
+          if (Date.now() - start >= timeout) return resolve(false);
+          setTimeout(check, 80);
+        })();
       });
+    }
 
-      // default tab
-      showTab('mtn');
+    async function getSessionUser() {
+      if (!window.supabase) return null;
+      try {
+        const { data } = await window.supabase.auth.getSession();
+        return data?.session?.user || null;
+      } catch (e) {
+        console.warn('auth.getSession failed', e);
+        return null;
+      }
+    }
 
-      // tiny helper to format amounts and update all pay buttons
-      function updateAmounts(total) {
-        document.getElementById('mtnAmount').textContent = `RWF ${total}`;
-        document.getElementById('airtelAmount').textContent = `RWF ${total}`;
-        document.getElementById('cardAmount').textContent = `RWF ${total}`;
-        document.getElementById('cashAmount').textContent = `RWF ${total}`;
-        document.getElementById('subtotal').textContent = `RWF ${total}`;
-        document.getElementById('total').textContent = `RWF ${total}`;
+    function formatCurrency(n){ return 'RWF ' + Number(n || 0).toLocaleString('en-US') }
+
+    // Get cart total
+    async function getCartTotal() {
+      const url = new URL(window.location.href);
+      const q = url.searchParams.get('total');
+      if (q !== null && q !== '') {
+        const n = Number(q);
+        if (!Number.isNaN(n)) return n;
       }
 
-      // helper: wait for supabase init
-      async function waitForSupabase(maxAttempts = 60, delay = 150) {
-        let tries = 0;
-        while((typeof window.supabase === 'undefined' || !window.supabase) && tries < maxAttempts) {
-          await new Promise(r => setTimeout(r, delay));
-          tries++;
-        }
-        return !!window.supabase;
-      }
-
-      // get current session user (tries window.currentUser first)
-      async function getSessionUser() {
-        if (window.currentUser) return window.currentUser;
-        if (!window.supabase) return null;
-        try {
-          const { data } = await window.supabase.auth.getSession();
-          return data?.session?.user || null;
-        } catch (e) {
-          return null;
-        }
-      }
-
-      // load cart summary into "Your Order" panel and compute totals
-      async function loadCartSummary() {
-        await waitForSupabase();
-        if (!window.supabase) {
-          document.getElementById('orderItems').innerHTML = '<div class="muted">Unable to reach backend</div>';
-          updateAmounts(0);
-          return;
-        }
-
-        const user = await getSessionUser();
-        if (!user) {
-          document.getElementById('orderItems').innerHTML = '<div class="muted">Sign in to view cart</div>';
-          updateAmounts(0);
-          return;
-        }
-
-        try {
-          const { data: cart } = await window.supabase.from('cart_items').select('*').eq('user_id', user.id);
-          if (!cart || cart.length === 0) {
-            document.getElementById('orderItems').innerHTML = '<div class="muted">Your cart is empty.</div>';
-            updateAmounts(0);
-            return;
+      // Try to get total from server cart
+      try {
+        const ready = await waitForSupabase();
+        if (ready && window.supabase) {
+          const user = await getSessionUser();
+          if (user) {
+            const { data: cart, error: cartErr } = await window.supabase.from('cart_items').select('*').eq('user_id', user.id);
+            if (!cartErr && Array.isArray(cart) && cart.length) {
+              const productIds = cart.map(c=>c.product_id);
+              const { data: products } = await window.supabase.from('products').select('id,price').in('id', productIds);
+              const map = {}; (products||[]).forEach(p=>map[p.id] = Number(p.price||0));
+              return cart.reduce((s,c)=> s + ((map[c.product_id]||0) * (Number(c.quantity||1))), 0);
+            }
           }
+        }
+      } catch(e){ console.warn('server cart read failed', e) }
 
-          const ids = cart.map(ci => ci.product_id);
-          const { data: products } = await window.supabase.from('products').select('*').in('id', ids);
-          const pmap = {};
-          (products||[]).forEach(p=> pmap[p.id] = p);
+      // Try local tempCart as fallback
+      try {
+        const tempCart = localStorage.getItem('echad_temp_cart');
+        if (tempCart) {
+          const t = JSON.parse(tempCart);
+          if (Array.isArray(t) && t.length) {
+            const ready = await waitForSupabase();
+            if (ready && window.supabase) {
+              const ids = t.map(i=>i.product_id);
+              const { data: products } = await window.supabase.from('products').select('id,price').in('id', ids);
+              const map = {}; (products||[]).forEach(p=>map[p.id] = Number(p.price||0));
+              return t.reduce((s,i)=> s + ((map[i.product_id]||0) * (Number(i.quantity||1))), 0);
+            }
+          }
+        }
+      } catch(e){ console.warn('tempCart parse failed', e) }
 
-          let subtotal = 0;
-          const html = cart.map(ci => {
-            const p = pmap[ci.product_id] || {};
-            const qty = Number(ci.quantity || 1);
-            const price = Number(p.price || 0);
-            subtotal += price * qty;
-            return `
-              <div class="order-line">
-                <img src="${p.image_url || 'https://via.placeholder.com/80'}" alt="${(p.name||'Product')}">
-                <div class="order-meta">
-                  <h4>${escapeHtml(p.name || 'Product')}</h4>
-                  <p>Qty: ${qty} • RWF ${price}</p>
-                </div>
-                <div style="font-weight:800;">RWF ${price * qty}</div>
-              </div>`;
-          }).join('');
-          document.getElementById('orderItems').innerHTML = html;
-          updateAmounts(subtotal);
-        } catch (err) {
-          console.error('checkout summary error', err);
-          document.getElementById('orderItems').innerHTML = '<div class="muted">Error loading cart</div>';
-          updateAmounts(0);
+      return 0;
+    }
+
+    function updateUssdDisplay(amount) {
+      const rounded = Math.round(Number(amount) || 0);
+      const ussd = `${USSD_PREFIX}${MOMO_NUMBER}*${rounded}#`;
+      ussdCodeEl.textContent = ussd;
+      displayTotalEl.textContent = formatCurrency(amount);
+      const tel = `tel:${encodeURIComponent(USSD_PREFIX + MOMO_NUMBER + '*' + rounded + '#')}`;
+      dialBtn.setAttribute('href', tel);
+      
+      // Handle desktop users clicking dial button
+      dialBtn.onclick = function(e){
+        if (!/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          e.preventDefault();
+          // Copy to clipboard and show alert for desktop users
+          copyToClipboard(ussd);
+          alert('USSD code copied to clipboard: ' + ussd + '\n\nDial this code on your phone to complete payment.');
         }
       }
+    }
 
-      // small helper to escape HTML
-      function escapeHtml(text) {
-        const d = document.createElement('div');
-        d.textContent = text == null ? '' : String(text);
-        return d.innerHTML;
-      }
-
-      // small UI helper for loading state
-      function setButtonLoading(btn, isLoading, textWhenDone) {
-        if (!btn) return;
-        if (isLoading) {
-          btn.dataset.orig = btn.innerHTML;
-          btn.disabled = true;
-          btn.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span> Processing...`;
-        } else {
-          btn.disabled = false;
-          btn.innerHTML = textWhenDone || btn.dataset.orig || btn.innerHTML;
-        }
-      }
-
-      // Validations
-      function normalizePhone(v) {
-        if (!v) return '';
-        return v.replace(/\D/g,'');
-      }
-      function validatePhone(v) {
-        const n = normalizePhone(v);
-        // require 9-12 digits (Rwanda phone numbers around 9, plus country codes possible)
-        return /^\d{9,12}$/.test(n);
-      }
-      function validateCard(name, number, exp, cvc) {
-        if (!name || !number || !exp || !cvc) return false;
-        const num = number.replace(/\s+/g,'');
-        if (!/^\d{12,19}$/.test(num)) return false;
-        if (!/^\d{3,4}$/.test(cvc)) return false;
-        if (!/^\d{2}\s*\/\s*\d{2}$/.test(exp)) return false;
-        return true;
-      }
-
-      // Create orders rows from cart_items for current user
-      async function createOrdersForCart(paymentMethod, meta = {}) {
-        await waitForSupabase();
-        if (!window.supabase) {
-          alert('Backend not ready');
-          return false;
-        }
-
-        const user = await getSessionUser();
-        if (!user) {
-          const modal = document.getElementById('modal');
-          if (modal) { modal.style.display = 'flex'; modal.classList.add('open'); }
-          showMessage && showMessage('Please sign in to complete checkout', 'info');
-          return false;
-        }
-
-        // fetch cart
-        let cart;
-        try {
-          const { data } = await window.supabase.from('cart_items').select('*').eq('user_id', user.id);
-          cart = data || [];
-        } catch (err) {
-          console.error('fetch cart fail', err);
-          showMessage && showMessage('Failed to read cart', 'error');
-          return false;
-        }
-
-        if (!cart || cart.length === 0) {
-          showMessage && showMessage('Your cart is empty', 'info');
-          return false;
-        }
-
-        // fetch product prices
-        const productIds = cart.map(c => c.product_id);
-        let products;
-        try {
-          const { data } = await window.supabase.from('products').select('*').in('id', productIds);
-          products = data || [];
-        } catch (err) {
-          console.error('fetch products fail', err);
-          showMessage && showMessage('Failed to read products', 'error');
-          return false;
-        }
-
-        const pmap = {};
-        products.forEach(p => { pmap[p.id] = p; });
-
-        const now = new Date().toISOString();
-        const inserts = cart.map(ci => {
-          const p = pmap[ci.product_id] || {};
-          const qty = Number(ci.quantity || 1);
-          const price = Number(p.price || 0);
-          return {
-            user_id: user.id,
-            created_at: now,
-            product_id: ci.product_id,
-            quantity: qty,
-            payment_status: false,
-            amount: price * qty,
-            payment_method: paymentMethod
-          };
-        });
-
-        try {
-          const { error } = await window.supabase.from('orders').insert(inserts);
-          if (error) throw error;
-
-          // clear the cart_items for this user
-          const { error: delErr } = await window.supabase.from('cart_items').delete().eq('user_id', user.id);
-          if (delErr) console.warn('Failed to clear cart after order creation', delErr);
-
-          // UI updates
-          window.refreshCheckoutSummary && window.refreshCheckoutSummary();
-          if (typeof updateCartBadge === 'function') updateCartBadge();
-          showMessage && showMessage('Order placed (placeholder). We will complete payment integration later.', 'success', 5000);
-          return true;
-        } catch (err) {
-          console.error('create orders fail', err);
-          showMessage && showMessage('Failed to create order', 'error', 4000);
-          return false;
-        }
-      }
-
-      // Attach event handlers with validation
-      document.getElementById('payMtnBtn')?.addEventListener('click', async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const btn = this;
-        const phone = document.getElementById('mtnPhone')?.value || '';
-        if (!validatePhone(phone)) {
-          showMessage && showMessage('Enter a valid MTN phone number (digits only)', 'error');
-          return;
-        }
-        setButtonLoading(btn, true);
-        const ok = await createOrdersForCart('MTN Mobile Money', { phone: normalizePhone(phone) });
-        setButtonLoading(btn, false, `Pay ${document.getElementById('mtnAmount')?.textContent || ''}`);
-        await loadCartSummary();
-        if (ok) {
-          // navigate only after success
-          window.location.assign('index.html');
-        }
+    // Copy USSD to clipboard
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        // Visual feedback
+        copyUssdBtn.classList.add('copied');
+        copyUssdBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => {
+          copyUssdBtn.classList.remove('copied');
+          copyUssdBtn.innerHTML = '<i class="far fa-copy"></i> Copy';
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        copyUssdBtn.classList.add('copied');
+        copyUssdBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => {
+          copyUssdBtn.classList.remove('copied');
+          copyUssdBtn.innerHTML = '<i class="far fa-copy"></i> Copy';
+        }, 2000);
       });
+    }
 
-      document.getElementById('payAirtelBtn')?.addEventListener('click', async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const btn = this;
-        const phone = document.getElementById('airtelPhone')?.value || '';
-        if (!validatePhone(phone)) {
-          showMessage && showMessage('Enter a valid Airtel phone number (digits only)', 'error');
-          return;
-        }
-        setButtonLoading(btn, true);
-        const ok = await createOrdersForCart('Airtel Money', { phone: normalizePhone(phone) });
-        setButtonLoading(btn, false, `Pay ${document.getElementById('airtelAmount')?.textContent || ''}`);
-        await loadCartSummary();
-        if (ok) {
-          window.location.assign('index.html');
-        }
-      });
-
-      document.getElementById('payCardBtn')?.addEventListener('click', async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const btn = this;
-        const name = document.getElementById('cardName')?.value || '';
-        const number = document.getElementById('cardNumber')?.value || '';
-        const exp = document.getElementById('cardExp')?.value || '';
-        const cvc = document.getElementById('cardCVC')?.value || '';
-
-        if (!validateCard(name, number, exp, cvc)) {
-          showMessage && showMessage('Enter valid card details (UI-only check).', 'error');
-          return;
-        }
-
-        setButtonLoading(btn, true);
-        const ok = await createOrdersForCart('Card', { cardName: name.slice(0,80) });
-        setButtonLoading(btn, false, `Pay ${document.getElementById('cardAmount')?.textContent || ''}`);
-        await loadCartSummary();
-        if (ok) {
-          window.location.assign('index.html');
-        }
-      });
-
-      document.getElementById('checkoutCashBtn')?.addEventListener('click', async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const btn = this;
-        if (!confirm('You are being redirected to our contact page. Please call us and let us know your payment option')) return;
-        setButtonLoading(btn, true);
-        const ok = await createOrdersForCart('Cash / Agent');
-        setButtonLoading(btn, false, `Checkout (Cash) — ${document.getElementById('cashAmount')?.textContent || ''}`);
-        await loadCartSummary();
-        if (ok) {
-          window.location.assign('contact.html');
-        }
-      });
-
-      document.getElementById('bankNoticeBtn')?.addEventListener('click', async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const btn = this;
-        if (!confirm('You are being redirected to our contact page. Please call us and let us know your payment option')) return;
-        setButtonLoading(btn, true);
-        const ok = await createOrdersForCart('Bank Transfer');
-        setButtonLoading(btn, false, 'Done');
-        await loadCartSummary();
-        if (ok) {
-          window.location.assign('contact.html');
-        }
-      });
-
-
-      // initial load
-      window.addEventListener('load', () => {
-        setTimeout(loadCartSummary, 250);
-      });
-
-      // re-run on auth changes
-      if (window.supabase && window.supabase.auth) {
-        window.supabase.auth.onAuthStateChange(() => setTimeout(loadCartSummary, 250));
+    // Set button loading state
+    function setButtonLoading(btn, isLoading, originalText) {
+      if (isLoading) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+        btn.dataset.originalText = originalText || btn.textContent;
       } else {
-        setInterval(()=> { if (window.currentUser) loadCartSummary(); }, 3500);
+        btn.disabled = false;
+        btn.textContent = originalText || btn.dataset.originalText || 'Submit';
       }
-    })();
+    }
+
+    async function createOrdersFromCart(paymentMethod) { 
+      const ready = await waitForSupabase();
+      if (!ready || !window.supabase) {
+        showMsg('Backend not ready', 'error');
+        showDebug('window.supabase not initialized by script.js');
+        return false;
+      }
+
+      const { data: sessionData } = await window.supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) {
+        showMsg('Please sign in to complete checkout', 'error');
+        const modal = document.getElementById('modal');
+        if (modal) {
+          modal.style.display = 'flex';
+          modal.classList.add('open');
+        }
+        return false;
+      }
+
+      // Validate payer name for mobile money payments
+      if (paymentMethod === 'MTN Mobile Money') {
+        const payerName = (payerNameInput.value || '').trim();
+        if (!payerName) {
+          showMsg('Please enter the name registered on your mobile money account', 'error');
+          payerNameInput.focus();
+          return false;
+        }
+      }
+
+      // Get cart items
+      const { data: cart, error: cartErr } = await window.supabase.from('cart_items').select('*').eq('user_id', user.id);
+      if (cartErr) { 
+        showDebug({ step:'fetch_cart_err', error:cartErr }); 
+        showMsg('Failed to read cart', 'error'); 
+        return false; 
+      }
+      
+      if (!Array.isArray(cart) || cart.length === 0) { 
+        showMsg('Your cart is empty', 'info'); 
+        return false; 
+      }
+
+      // Get product details (including stock)
+      const productIds = cart.map(c=>c.product_id);
+      // Select * is okay since we need the 'stock' column
+      const { data: products, error: prodErr } = await window.supabase.from('products').select('*').in('id', productIds);
+      if (prodErr) { 
+        showDebug({ step:'fetch_products_err', error:prodErr }); 
+        showMsg('Failed to load products', 'error'); 
+        return false; 
+      }
+      
+      const pmap = {};
+      (products||[]).forEach(p => { pmap[p.id] = p; });
+
+      const now = new Date().toISOString();
+      
+      const isPaid = paymentMethod === 'MTN Mobile Money';
+
+      // Create order inserts
+      const inserts = cart.map(ci => {
+        const p = pmap[ci.product_id] || {};
+        const qty = Number(ci.quantity || 1);
+        const price = Number(p.price || 0);
+        return {
+          user_id: user.id,
+          created_at: now,
+          product_id: ci.product_id,
+          quantity: qty,
+          payment_status: isPaid, 
+          amount: price * qty,
+          payment_method: paymentMethod,
+        };
+      });
+
+      // Insert into orders table
+      try {
+        const { error: insErr } = await window.supabase.from('orders').insert(inserts);
+        
+        if (insErr) {
+          showDebug({ step: 'insert_failed', table: 'orders', error: insErr });
+          
+          if (insErr.code === '23505') {
+            showMsg('Order already exists for these items', 'error');
+          } else if (insErr.code === '42501') {
+            showMsg('Permission denied - please contact support', 'error');
+          } else {
+            showMsg('Failed to place order: ' + (insErr.message || 'Unknown error'), 'error');
+          }
+          return false;
+        }
+
+        // =======================================================
+        // STOCK REDUCTION & CART CLEARANCE
+        // =======================================================
+        try {
+            const stockUpdates = cart.map(ci => {
+                const product = pmap[ci.product_id];
+                const purchasedQty = Number(ci.quantity);
+                const currentStock = Number(product?.stock || 0); 
+                const newStock = Math.max(0, currentStock - purchasedQty); 
+
+                return window.supabase
+                    .from('products')
+                    .update({ stock: newStock })
+                    .eq('id', ci.product_id);
+            });
+
+            // Wait for ALL stock updates to complete
+            const updateResults = await Promise.all(stockUpdates);
+            
+            // Check results for any errors
+            const updateFailed = updateResults.some(res => res.error);
+
+            if (updateFailed) {
+                // Log the specific errors for diagnosis
+                const errors = updateResults.map(res => res.error).filter(e => e !== null);
+                showDebug({ step: 'stock_update_failed_with_errors', errors: errors });
+                // If there's an error here, it's most likely an RLS policy issue on the 'products' table.
+                showMsg('Order placed. WARNING: Stock update failed. Check console/debug box for errors (e.g., RLS).', 'error');
+            }
+
+            // Clear cart items
+            await window.supabase.from('cart_items').delete().eq('user_id', user.id);
+
+            // Update cart badge if function exists
+            if (typeof updateCartBadge === 'function') {
+                updateCartBadge();
+            }
+
+            showMsg('Order placed successfully! Thank you!', 'success');
+            return true;
+            
+        } catch (e) {
+            showDebug({ step: 'post_insert_exception', error: e });
+            showMsg('Order placed, but failed to update stock or clear cart. Contact support.', 'error');
+            return true; 
+        }
+        
+      } catch (e) {
+        showDebug({ step: 'insert_exception', error: e });
+        showMsg('Unexpected error placing order', 'error');
+        return false;
+      }
+    }
+
+    // Attach UI handlers
+    function attachHandlers(total){
+      copyUssdBtn.addEventListener('click', () => {
+        const ussd = ussdCodeEl.textContent;
+        copyToClipboard(ussd);
+      });
+
+      doneBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        
+        const payerName = (payerNameInput.value || '').trim();
+        if (!payerName) {
+          showMsg('Please enter the name registered on your mobile money account', 'error');
+          payerNameInput.focus();
+          return;
+        }
+        
+        setButtonLoading(doneBtn, true, 'Done (I paid via MoMo)');
+        
+        const ok = await createOrdersFromCart('MTN Mobile Money'); 
+        
+        if (ok) {
+          setTimeout(() => window.location.href = 'index.html', 2000);
+        } else {
+          setButtonLoading(doneBtn, false, 'Done (I paid via MoMo)');
+        }
+      });
+
+      codBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        if (!confirm('Confirm order with Pay on Delivery?')) return;
+        
+        setButtonLoading(codBtn, true, 'Pay on Delivery');
+        const ok = await createOrdersFromCart('Cash');
+        
+        if (ok) {
+          setTimeout(() => window.location.href = 'index.html', 2000);
+        } else {
+          setButtonLoading(codBtn, false, 'Pay on Delivery');
+        }
+      });
+    }
+
+    // Initialize page
+    window.addEventListener('load', async ()=> {
+      try {
+        const ready = await waitForSupabase();
+        if (!ready) {
+          showMsg('Backend not ready — try reloading the page', 'error');
+          showDebug('window.supabase was not initialized by script.js within timeout.');
+          return;
+        }
+        
+        const total = await getCartTotal();
+        updateUssdDisplay(total);
+        attachHandlers(total);
+        
+        if (typeof updateCartBadge === 'function') {
+          setTimeout(updateCartBadge, 500);
+        }
+      } catch (error) {
+        console.error('Checkout initialization error:', error);
+        showMsg('Error initializing checkout', 'error');
+      }
+    });
+
+  })();
   </script>
 </body>
 </html>
-
