@@ -920,7 +920,7 @@ window.createUserProfile = createUserProfile;
 // Temp cart for non-logged-in users
 function getTempCart() {
   try {
-    const cart = localStorage.getItem('echad_temp_cart');
+    const cart = localStorage.getItem('God's Only Store_temp_cart');
     return cart ? JSON.parse(cart) : [];
   } catch (error) {
     console.error('Error reading temp cart:', error);
@@ -930,14 +930,14 @@ function getTempCart() {
 
 function saveTempCart(cart) {
   try {
-    localStorage.setItem('echad_temp_cart', JSON.stringify(cart));
+    localStorage.setItem('God's Only Store_temp_cart', JSON.stringify(cart));
   } catch (error) {
     console.error('Error saving temp cart:', error);
   }
 }
 
 function clearTempCart() {
-  localStorage.removeItem('echad_temp_cart');
+  localStorage.removeItem('God's Only Store_temp_cart');
 }
 
 // ==============================================
@@ -1504,7 +1504,7 @@ async function refreshProductInCartStates() {
       const temp = getTempCart() || [];
       (temp || []).forEach(i => { if (i?.product_id != null) inCartSet.add(String(i.product_id)); });
     } else {
-      const raw = localStorage.getItem('echad_temp_cart') || localStorage.getItem('tempCart') || '[]';
+      const raw = localStorage.getItem('God's Only Store_temp_cart') || localStorage.getItem('tempCart') || '[]';
       JSON.parse(raw || '[]').forEach(i => { if (i?.product_id != null) inCartSet.add(String(i.product_id)); });
     }
 
@@ -1658,3 +1658,4 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+
