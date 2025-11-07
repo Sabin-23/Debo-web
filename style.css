@@ -473,3 +473,377 @@ body.signin-page {
   #navbar.open { display:flex; }
   #mobile { display:flex; gap:8px; align-items:center; }
 }
+
+/* ==============================================
+   MOBILE SIDEBAR NAVIGATION
+   ============================================== */
+
+@media (max-width: 799px) {
+  /* Hide desktop navbar initially */
+  #navbar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    position: fixed;
+    top: 0;
+    right: -100%;
+    height: 100vh;
+    width: 280px;
+    background: linear-gradient(180deg, #ffcfcf 0%, #ffd5e5 100%);
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.3);
+    padding: 80px 0 30px 25px;
+    transition: right 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 9999;
+    overflow-y: auto;
+  }
+  
+  /* Active state - slide in from left */
+  #navbar.active {
+    right: 0;
+  }
+  
+  /* Menu items styling */
+  #navbar li {
+    margin-bottom: 25px;
+    width: 100%;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  
+  /* Animate menu items when sidebar opens */
+  #navbar.active li {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  
+  #navbar.active li:nth-child(1) { transition-delay: 0.1s; }
+  #navbar.active li:nth-child(2) { transition-delay: 0.15s; }
+  #navbar.active li:nth-child(3) { transition-delay: 0.2s; }
+  #navbar.active li:nth-child(4) { transition-delay: 0.25s; }
+  #navbar.active li:nth-child(5) { transition-delay: 0.3s; }
+  #navbar.active li:nth-child(6) { transition-delay: 0.35s; }
+  #navbar.active li:nth-child(7) { transition-delay: 0.4s; }
+  
+  #navbar li a {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  
+  /* Sign in button in mobile menu */
+  #navbar button {
+    margin-top: 10px;
+    padding: 12px 30px;
+    width: calc(100% - 25px);
+  }
+  
+  /* Close button */
+  #close {
+    display: block;
+    position: absolute;
+    top: 25px;
+    right: 25px;
+    color: #222;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 10000;
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+  
+  #close:hover {
+    transform: rotate(90deg);
+    color: #ff69b4;
+  }
+  
+  #close:active {
+    transform: rotate(90deg) scale(0.9);
+  }
+  
+  /* Mobile menu trigger */
+  #mobile {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  #mobile i {
+    color: #1a1a1a;
+    font-size: 26px;
+    cursor: pointer;
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+  
+  #mobile i:hover {
+    color: #ff69b4;
+    transform: scale(1.1);
+  }
+  
+  #mobile i:active {
+    transform: scale(0.95);
+  }
+  
+  /* Hide desktop cart in mobile navbar */
+  #navbar .cart-btn {
+    display: none;
+  }
+  
+  /* Hero section adjustments */
+  #hero {
+    height: 60vh;
+    padding: 0 40px;
+    background-position: top 30% right 30%;
+  }
+  
+  #hero h1, #hero h2, #hero h4, #hero button {
+    margin-left: auto;
+  }
+  
+  /* Features section */
+  #feature {
+    justify-content: center;
+  }
+  
+  #feature .fe-box {
+    margin: 12px 15px;
+  }
+}
+
+/* Backdrop overlay when menu is open */
+@media (max-width: 799px) {
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 9998;
+    pointer-events: none;
+  }
+  
+  body.menu-open::before {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  
+  /* Prevent body scroll when menu is open */
+  body.menu-open {
+    overflow: hidden;
+  }
+}
+
+/* Extra small phones */
+@media (max-width: 477px) {
+  .section-p1 {
+    padding: 20px;
+  }
+  
+  #header {
+    padding: 10px 20px;
+  }
+  
+  #navbar {
+    width: 75%;
+    max-width: 300px;
+    padding: 80px 0 30px 20px;
+  }
+  
+  h1 {
+    font-size: 38px;
+  }
+  
+  h2 {
+    font-size: 32px;
+  }
+  
+  #hero {
+    padding: 0 20px;
+    background-position: 55%;
+  }
+  
+  #feature {
+    justify-content: space-between;
+  }
+  
+  #feature .fe-box {
+    width: 155px;
+    margin: 0 0 15px 0;
+  }
+  
+  #product1 .pro {
+    width: 100%;
+  }
+  
+  #sm-banner .banner-box {
+    height: 40vh;
+  }
+  
+  #sm-banner .banner-box2 {
+    margin-top: 20px;
+  }
+  
+  #newsletter {
+    padding: 40px 20px;
+  }
+  
+  #newsletter .form {
+    width: 100%;
+  }
+  
+  #prodetails {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  #prodetails .single-pro-image {
+    width: 100%;
+    margin-right: 0;
+  }
+  
+  #prodetails .single-pro-details {
+    width: 100%;
+  }
+  
+  .about-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .about-media {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  
+  .about-media img {
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+  }
+  
+  .about-content {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .about-content h2 {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+  
+  .about-content p {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  
+  .about-values {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .about-cta {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .about-cta .btn {
+    width: 100%;
+  }
+}
+
+/* Smooth scrolling on mobile */
+@media (max-width: 799px) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+/* ==============================================
+   MOBILE POLISH & ANIMATIONS
+   ============================================== */
+
+/* Smooth sidebar shadow */
+@media (max-width: 799px) {
+  #navbar.active {
+    box-shadow: 
+      5px 0 15px rgba(0, 0, 0, 0.1),
+      10px 0 30px rgba(0, 0, 0, 0.15),
+      15px 0 50px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Menu items hover effect on mobile */
+@media (max-width: 799px) {
+  #navbar li a {
+    display: block;
+    padding: 12px 15px;
+    border-radius: 8px;
+    transition: background 0.2s ease, padding-left 0.2s ease;
+  }
+  
+  #navbar li a:hover,
+  #navbar li a.active {
+    background: rgba(255, 255, 255, 0.2);
+    padding-left: 20px;
+  }
+}
+
+/* Better touch feedback */
+@media (max-width: 799px) {
+  #mobile i,
+  #close,
+  #navbar button,
+  #navbar a {
+    -webkit-tap-highlight-color: rgba(255, 105, 180, 0.2);
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+@media (max-width: 799px) {
+  body {
+    overflow-x: hidden;
+  }
+  
+  body.menu-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* Nice gradient for mobile menu */
+@media (max-width: 799px) {
+  #navbar {
+    background: linear-gradient(180deg, 
+      #ffcfcf 0%, 
+      #ffd5e5 50%, 
+      #ffe0eb 100%
+    );
+  }
+  
+  /* Optional: Add pattern overlay */
+  #navbar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(255, 105, 180, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  #navbar > * {
+    position: relative;
+    z-index: 1;
+  }
+}
