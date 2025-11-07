@@ -1,3 +1,20 @@
+// Mobile performance optimizations
+if ('loading' in HTMLImageElement.prototype) {
+  const images = document.querySelectorAll('img[loading="lazy"]');
+  images.forEach(img => {
+    img.src = img.dataset.src;
+  });
+} else {
+  // Fallback for browsers that don't support lazy loading
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lazysizes/5.3.2/lazysizes.min.js';
+  document.body.appendChild(script);
+}
+
+// Reduce animations on low-end devices
+if (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4) {
+  document.documentElement.style.setProperty('--animation-duration', '0.1s');
+}
 // ==============================
 // AUTH + PROFILE + SETTINGS (NO CART)
 // Paste this to replace the corrupted auth/profile part in script.js
@@ -920,7 +937,7 @@ window.createUserProfile = createUserProfile;
 // Temp cart for non-logged-in users
 function getTempCart() {
   try {
-    const cart = localStorage.getItem('God's Only Store_temp_cart');
+    const cart = localStorage.getItem('echad_temp_cart');
     return cart ? JSON.parse(cart) : [];
   } catch (error) {
     console.error('Error reading temp cart:', error);
@@ -930,14 +947,14 @@ function getTempCart() {
 
 function saveTempCart(cart) {
   try {
-    localStorage.setItem('God's Only Store_temp_cart', JSON.stringify(cart));
+    localStorage.setItem('echad_temp_cart', JSON.stringify(cart));
   } catch (error) {
     console.error('Error saving temp cart:', error);
   }
 }
 
 function clearTempCart() {
-  localStorage.removeItem('God's Only Store_temp_cart');
+  localStorage.removeItem('echad_temp_cart');
 }
 
 // ==============================================
@@ -1413,19 +1430,100 @@ function showMessage(text, type = 'info') {
   }, 3000);
 }
 
+// ==============================================
+// MOBILE SIDEBAR MENU (LEFT SLIDE)
+// ==============================================
+
 function setupMobileMenu() {
   const bar = document.getElementById('bar');
   const close = document.getElementById('close');
   const nav = document.getElementById('navbar');
+  const body = document.body;
   
+  // Open menu from left
   if (bar && nav) {
-    bar.addEventListener('click', () => nav.classList.add('active'));
+    bar.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      nav.classList.add('active');
+      body.classList.add('menu-open');
+    });
   }
   
+  // Close menu
   if (close && nav) {
-    close.addEventListener('click', () => nav.classList.remove('active'));
+    close.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu();
+    });
   }
+  
+  // Close menu when clicking on backdrop
+  body.addEventListener('click', (e) => {
+    if (nav && nav.classList.contains('active')) {
+      const isClickInsideNav = nav.contains(e.target);
+      const isClickOnBar = bar && bar.contains(e.target);
+      
+      if (!isClickInsideNav && !isClickOnBar) {
+        closeMenu();
+      }
+    }
+  });
+  
+  // Close menu when clicking on any navigation link
+  if (nav) {
+    const navLinks = nav.querySelectorAll('a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        // Only close if it's not the cart toggle
+        if (!link.classList.contains('cart-btn')) {
+          setTimeout(() => {
+            closeMenu();
+          }, 200);
+        }
+      });
+    });
+  }
+  
+  // Close menu function
+  function closeMenu() {
+    if (nav) nav.classList.remove('active');
+    body.classList.remove('menu-open');
+  }
+  
+  // Close menu on escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && nav && nav.classList.contains('active')) {
+      closeMenu();
+    }
+  });
+  
+  // Handle window resize
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (window.innerWidth > 799 && nav) {
+        closeMenu();
+      }
+    }, 250);
+  });
 }
+
+// Initialize mobile menu
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupMobileMenu);
+} else {
+  setupMobileMenu();
+}
+
+// Also call it on window load as backup
+window.addEventListener('load', () => {
+  if (typeof setupMobileMenu === 'function') {
+    setupMobileMenu();
+  }
+});
 
 // ---------------------------
 // App initializer (fixes missing initializeApp error)
@@ -1504,7 +1602,7 @@ async function refreshProductInCartStates() {
       const temp = getTempCart() || [];
       (temp || []).forEach(i => { if (i?.product_id != null) inCartSet.add(String(i.product_id)); });
     } else {
-      const raw = localStorage.getItem('God's Only Store_temp_cart') || localStorage.getItem('tempCart') || '[]';
+      const raw = localStorage.getItem('echad_temp_cart') || localStorage.getItem('tempCart') || '[]';
       JSON.parse(raw || '[]').forEach(i => { if (i?.product_id != null) inCartSet.add(String(i.product_id)); });
     }
 
@@ -1658,4 +1756,59 @@ async function updateCartBadge() {
   // Also keep product icons in sync (useful if updateBadge called after external change)
   try { await refreshProductInCartStates(); } catch (e) { /* ignore */ }
 }
+// ==============================================
+// MOBILE MENU FIX
+// ==============================================
 
+function setupMobileMenu() {
+  const bar = document.getElementById('bar');
+  const close = document.getElementById('close');
+  const nav = document.getElementById('navbar');
+  const body = document.body;
+  
+  if (bar && nav) {
+    bar.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      nav.classList.add('active');
+      body.style.overflow = 'hidden'; // Prevent scrolling when menu is open
+    });
+  }
+  
+  if (close && nav) {
+    close.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      nav.classList.remove('active');
+      body.style.overflow = ''; // Restore scrolling
+    });
+  }
+  
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (nav && nav.classList.contains('active')) {
+      if (!nav.contains(e.target) && e.target !== bar) {
+        nav.classList.remove('active');
+        body.style.overflow = '';
+      }
+    }
+  });
+  
+  // Close menu when clicking on a link
+  if (nav) {
+    const navLinks = nav.querySelectorAll('a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        nav.classList.remove('active');
+        body.style.overflow = '';
+      });
+    });
+  }
+}
+
+// Call this function when the page loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupMobileMenu);
+} else {
+  setupMobileMenu();
+}
