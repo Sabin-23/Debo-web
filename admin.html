@@ -565,7 +565,7 @@
           card.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <div>
-                <div style="font-weight:700;">Order #${escapeHtml(String(o.id))}</div>
+                <div style="font-weight:700;">Order #${escapeHtml(String(o.order_number))}</div>
                 <div style="font-size:13px;color:#666;">By: ${escapeHtml(payerName)} • ${escapeHtml(created)}</div>
                 <div style="font-size:13px;color:#666;">Phone number: ${escapeHtml(phoneNumber)}</div>
               </div>
@@ -1026,5 +1026,6 @@
   </script>
 </body>
 </html>
+
 
 
