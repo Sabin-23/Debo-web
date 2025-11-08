@@ -565,10 +565,10 @@ body.signin-page {
   #close {
     display: block;
     position: absolute;
-    top: -15px;
+    top: -22px;
     right: 55px;
     color: #222;
-    font-size: 28px;
+    font-size: 24px;
     cursor: pointer;
     z-index: 10000;
     transition: transform 0.2s ease, color 0.2s ease;
@@ -870,3 +870,4 @@ body.signin-page {
     z-index: 1;
   }
 }
+
