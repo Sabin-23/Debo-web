@@ -58,27 +58,50 @@ button:active { opacity: 0.8; }
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   transition: all 0.3s ease-in-out;
-  z-index: -1;
+  z-index: 10000 !important;
   display: flex; align-items: center; justify-content: center;
 }
 .modal.open {
   opacity: 1; visibility: visible; pointer-events: auto; z-index: 999;
 }
-#navbar .modal .auth-container {
+.modal .auth-container {
   background: #fff; width: 350px; padding: 2rem; border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.15); text-align: center; margin: 2rem auto;
 }
-#navbar .modal .auth-container form { display: none; flex-direction: column; gap: 15px; }
-#navbar .modal .auth-container form.active { display: flex; }
-#navbar .modal .auth-container input {
+.modal .auth-container form { display: none; flex-direction: column; gap: 15px; }
+.modal .auth-container form.active { display: flex; }
+.modal .auth-container input {
   padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; width: 100%;
 }
-#navbar .modal .auth-container button {
+.modal .auth-container button {
   padding: 12px; background: #ff69b4; border: none; border-radius: 8px; color: white;
   font-size: 1rem; cursor: pointer; transition: 0.3s;
 }
-#navbar .modal .auth-container .toggle-text { margin-top: 15px; font-size: 0.9rem; color: #555; }
-#navbar .modal .auth-container .toggle-text span { color: #ff69b4; cursor: pointer; font-weight: bold; }
+.modal .auth-container .toggle-text { margin-top: 15px; font-size: 0.9rem; color: #555; }
+.modal .auth-container .toggle-text span { color: #ff69b4; cursor: pointer; font-weight: bold; }
+
+/* Ensure the modal is always full-screen and on top */
+.modal-overlay {
+    position: fixed; /* Crucial: pins it to the viewport */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Use a high z-index to ensure it is above the side menu */
+    z-index: 9999; 
+    background-color: rgba(0, 0, 0, 0.5); 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Ensure the side menu doesn't interfere */
+@media (max-width: 799px) {
+    #navbar.active {
+        /* The side menu's z-index must be lower than the modal's z-index */
+        z-index: 999; /* Make sure this is less than the modal's 9999 */
+    }
+}
 
 /* Navbar links */
 #navbar li {
@@ -245,7 +268,7 @@ button.normal{ font-size: 14px; font-weight: 600; padding: 15px 30px; color: #00
   #navbar li{ margin-bottom: 25px; }
   #mobile{ display: flex; align-items: center; }
   #mobile i{ color: #1a1a1a; font-size: 24px; padding-left: 20px; }
-  #close{ display: initial; position: absolute; top: 30px; left: 30px; color: #222; font-size: 24px; }
+  #close{ display: initial; position: absolute; top: 30px; left: 180px; color: #222; font-size: 24px; }
   #navbar .cart-btn{ display: none; }
   #hero { height: 60vh; padding: 0 80px; background-position: top 30% right 30%; }
   #hero h1, #hero h2{ margin-left: auto; }
@@ -542,8 +565,8 @@ body.signin-page {
   #close {
     display: block;
     position: absolute;
-    top: 25px;
-    right: 25px;
+    top: -15px;
+    right: 55px;
     color: #222;
     font-size: 28px;
     cursor: pointer;
