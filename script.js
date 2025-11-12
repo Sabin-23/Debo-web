@@ -753,14 +753,15 @@ function updateUIForLoggedInUser(user) {
   const isAdmin = currentUserProfile?.is_admin === true;
   const adminBadge = isAdmin ? '<span style="background:#ff9db1;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-left:8px;">Admin</span>' : '';
 
+  // Create user menu HTML - MOVED OUTSIDE NAVBAR
   const userMenuHTML = `
-    <li id="userMenuContainer" style="position:relative;list-style:none;">
+    <div id="userMenuContainer" style="position:relative;list-style:none;">
       <button id="userAvatarBtn" aria-label="Open user menu" 
         style="width:48px;height:48px;border-radius:50%;background:${UI.avatarPink};color:#fff;border:3px solid #fff;cursor:pointer;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(255,125,167,0.12);">
         ${initial}
       </button>
 
-      <div id="userDropdown" style="display:none;position:absolute;top:60px;right:0;background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,0.12);width:220px;z-index:1000;">
+      <div id="userDropdown" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,0.12);width:90%;max-width:300px;z-index:10002;padding:0;">
         <div style="padding:14px 16px;border-radius:14px 14px 0 0;background:linear-gradient(180deg,rgba(255,249,250,1),#fff);">
           <div style="display:flex;align-items:center;flex-wrap:wrap;">
             <p style="margin:0;font-weight:800;color:#221;font-size:15px;line-height:1.4;">${displayName}</p>
@@ -788,10 +789,18 @@ function updateUIForLoggedInUser(user) {
           </button>
         </div>
       </div>
-    </li>
+    </div>
   `;
 
   openModalBtn.outerHTML = userMenuHTML;
+
+  // Add backdrop for mobile dropdown
+  if (!document.getElementById('userDropdownBackdrop')) {
+    const backdrop = document.createElement('div');
+    backdrop.id = 'userDropdownBackdrop';
+    backdrop.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:10001;display:none;';
+    document.body.appendChild(backdrop);
+  }
 
   setTimeout(() => {
     attachUserMenuHandlers();
@@ -801,47 +810,77 @@ function updateUIForLoggedInUser(user) {
 function attachUserMenuHandlers() {
   const avatarBtn = document.getElementById('userAvatarBtn');
   const dropdown = document.getElementById('userDropdown');
+  const backdrop = document.getElementById('userDropdownBackdrop');
   const viewProfileBtn = document.getElementById('viewProfileBtn');
   const logoutBtn = document.getElementById('logoutBtn');
   const adminPanelBtn = document.getElementById('adminPanelBtn');
 
+  function closeDropdown() {
+    if (dropdown) {
+      dropdown.style.display = 'none';
+    }
+    if (backdrop) {
+      backdrop.style.display = 'none';
+    }
+  }
+
+  function openDropdown() {
+    if (dropdown) {
+      dropdown.style.display = 'block';
+      dropdown.style.opacity = '0';
+      dropdown.style.transform = 'translate(-50%, -50%) scale(0.9)';
+      
+      setTimeout(() => {
+        dropdown.style.transition = 'opacity 160ms ease, transform 160ms ease';
+        dropdown.style.opacity = '1';
+        dropdown.style.transform = 'translate(-50%, -50%) scale(1)';
+      }, 8);
+    }
+    if (backdrop) {
+      backdrop.style.display = 'block';
+      backdrop.style.opacity = '0';
+      setTimeout(() => {
+        backdrop.style.transition = 'opacity 160ms ease';
+        backdrop.style.opacity = '1';
+      }, 8);
+    }
+  }
+
   if (avatarBtn && dropdown) {
     avatarBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      if (!dropdown) return;
       if (dropdown.style.display === 'none' || dropdown.style.display === '') {
-        dropdown.style.display = 'block';
-        dropdown.style.opacity = '0';
-        dropdown.style.transform = 'translateY(-6px)';
-        setTimeout(() => {
-          dropdown.style.transition = 'opacity 160ms ease, transform 160ms ease';
-          dropdown.style.opacity = '1';
-          dropdown.style.transform = 'translateY(0)';
-        }, 8);
+        openDropdown();
       } else {
-        dropdown.style.transition = 'opacity 120ms ease, transform 120ms ease';
-        dropdown.style.opacity = '0';
-        dropdown.style.transform = 'translateY(-6px)';
-        setTimeout(() => { dropdown.style.display = 'none'; }, 140);
+        closeDropdown();
       }
     });
   }
 
-  if (adminPanelBtn) adminPanelBtn.addEventListener('click', function() { if (dropdown) dropdown.style.display = 'none'; window.location.href = 'admin.html'; });
-  if (viewProfileBtn) viewProfileBtn.addEventListener('click', function() { if (dropdown) dropdown.style.display = 'none'; openProfileSettings(); });
-  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+  if (backdrop) {
+    backdrop.addEventListener('click', closeDropdown);
+  }
 
-  document.addEventListener('click', function(event) {
-    const dd = document.getElementById('userDropdown');
-    const av = document.getElementById('userAvatarBtn');
-    if (!dd) return;
-    if (event.target !== dd && !dd.contains(event.target) && event.target !== av && !av?.contains(event.target)) {
-      if (dd.style.display === 'block') {
-        dd.style.transition = 'opacity 120ms ease, transform 120ms ease';
-        dd.style.opacity = '0';
-        dd.style.transform = 'translateY(-6px)';
-        setTimeout(() => { dd.style.display = 'none'; }, 140);
-      }
+  if (adminPanelBtn) adminPanelBtn.addEventListener('click', function() { 
+    closeDropdown();
+    window.location.href = 'admin.html'; 
+  });
+  
+  if (viewProfileBtn) viewProfileBtn.addEventListener('click', function() { 
+    closeDropdown();
+    openProfileSettings(); 
+  });
+  
+  if (logoutBtn) logoutBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    closeDropdown();
+    handleLogout(e);
+  });
+
+  // Close on escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeDropdown();
     }
   });
 }
@@ -1157,7 +1196,6 @@ async function removeFromCart(productId) {
   showMessage('Removed from cart', 'success');
 }
 
-// ---- Replace syncTempCartToDatabase (string/number-safe merge) ----
 async function syncTempCartToDatabase() {
   if (!currentUser || !supabase) return;
 
@@ -1176,22 +1214,33 @@ async function syncTempCartToDatabase() {
     for (const tmp of tempCart) {
       const tmpPidStr = String(tmp.product_id);
       const tmpQty = Number(tmp.quantity || 0);
+
+      // find existing by string compare (works across number/string stored values)
       const existing = existingItems.find(e => String(e.product_id) === tmpPidStr);
 
       if (existing) {
+        // update quantity
         await supabase
           .from('cart_items')
           .update({ quantity: (existing.quantity || 0) + tmpQty })
           .eq('id', existing.id);
       } else {
-        await supabase
+        // decide whether to insert numeric id or string id
+        const maybeNum = Number(tmpPidStr);
+        const pidToInsert = (Number.isInteger(maybeNum) && String(maybeNum) === tmpPidStr) ? maybeNum : tmpPidStr;
+
+        const { data: insertData, error: insertError } = await supabase
           .from('cart_items')
           .insert([{
             user_id: currentUser.id,
-            product_id: tmpPidStr,
+            product_id: pidToInsert,
             quantity: tmpQty,
             added_at: new Date().toISOString()
           }]);
+
+        if (insertError) {
+          console.warn('syncTempCartToDatabase: insert error for product', tmpPidStr, insertError);
+        }
       }
     }
 
@@ -1203,7 +1252,7 @@ async function syncTempCartToDatabase() {
   }
 }
 
-// ---- Replace loadCart (robust id handling & product fetch) ----
+
 async function loadCart() {
   const cartItemsContainer = document.getElementById('cart-items');
   const subtotalEl = document.getElementById('cart-subtotal');
@@ -1212,14 +1261,18 @@ async function loadCart() {
 
   let cartItems = [];
 
-  // get cart items
+  // 1) get cart items from DB (if logged in) or temp localStorage (guests)
   if (currentUser && supabase) {
     try {
       const { data, error } = await supabase
         .from('cart_items')
         .select('*')
         .eq('user_id', currentUser.id);
-      if (!error && Array.isArray(data)) cartItems = data;
+      if (error) {
+        console.warn('loadCart: cart_items select error:', error);
+      } else if (Array.isArray(data)) {
+        cartItems = data;
+      }
     } catch (err) {
       console.error('Error reading DB cart in loadCart:', err);
     }
@@ -1227,6 +1280,7 @@ async function loadCart() {
     cartItems = getTempCart();
   }
 
+  // empty cart UI
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     cartItemsContainer.innerHTML = `
       <div style="padding:40px 20px;text-align:center;color:#666;">
@@ -1238,67 +1292,115 @@ async function loadCart() {
     return;
   }
 
-  // Build numeric productIds for query (deduped)
-  const productIds = Array.from(new Set(cartItems.map(i => {
-    const val = i.product_id;
-    const n = Number(val);
-    return Number.isNaN(n) ? null : n;
-  }).filter(x => x !== null)));
+  // Build deduped string IDs (this covers UUIDs and numeric strings)
+  const idStrings = Array.from(new Set(cartItems.map(i => String(i.product_id))));
 
-  // If no valid numeric IDs, render fallback (guest items might be strings; still try fetching by strings)
-  try {
-    let products = [];
-    if (productIds.length > 0) {
-      const { data } = await supabase
+  let products = [];
+
+  // Try bulk fetch using string IDs (works for UUIDs and string IDs)
+  if (idStrings.length > 0) {
+    try {
+      const { data, error } = await supabase
         .from('products')
         .select('*')
-        .in('id', productIds);
-      products = Array.isArray(data) ? data : [];
-    }
-
-    // if product list is empty but we have cartItems (maybe IDs are strings), do a fallback fetch per-id
-    if (products.length === 0) {
-      // attempt to fetch by filtering string ids individually (safe, small sets)
-      const fetched = [];
-      for (const it of cartItems) {
-        const pid = String(it.product_id);
-        // try numeric first
-        const numeric = Number(pid);
-        let qRes = null;
-        if (!Number.isNaN(numeric)) {
-          const { data } = await supabase.from('products').select('*').eq('id', numeric).maybeSingle();
-          if (data) { fetched.push(data); continue; }
-        }
-        // try by string equality on some string id field (unlikely) - skip
+        .in('id', idStrings);
+      if (error) {
+        // permission / RLS or other error — log it so you can see it in console
+        console.warn('loadCart: products bulk select (string ids) error:', error);
+      } else {
+        products = Array.isArray(data) ? data : [];
       }
-      products = fetched;
+    } catch (err) {
+      console.warn('loadCart: products bulk fetch (string ids) failed:', err);
     }
+  }
 
-    // render
+  // If nothing returned, try a numeric bulk fetch (handles integer id columns)
+  if (products.length === 0) {
+    const numericIds = idStrings.map(s => Number(s)).filter(n => !Number.isNaN(n));
+    if (numericIds.length > 0) {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', numericIds);
+        if (error) {
+          console.warn('loadCart: products bulk select (numeric ids) error:', error);
+        } else {
+          products = Array.isArray(data) ? data : [];
+        }
+      } catch (err) {
+        console.warn('loadCart: products bulk fetch (numeric ids) failed:', err);
+      }
+    }
+  }
+
+  // Final fallback: fetch per-id (try numeric eq then string eq)
+  if (products.length === 0) {
+    const fetched = [];
+    for (const sid of idStrings) {
+      const n = Number(sid);
+      // try numeric equality first (safe for integer id columns)
+      if (!Number.isNaN(n)) {
+        try {
+          const { data, error } = await supabase.from('products').select('*').eq('id', n).maybeSingle();
+          if (error) {
+            console.warn('loadCart: per-id numeric fetch error for', n, error);
+          } else if (data) {
+            fetched.push(data);
+            continue; // found, go next id
+          }
+        } catch (e) {
+          console.warn('loadCart: per-id numeric fetch exception for', n, e);
+        }
+      }
+      // try string equality (covers UUID/text ids)
+      try {
+        const { data, error } = await supabase.from('products').select('*').eq('id', sid).maybeSingle();
+        if (error) {
+          console.warn('loadCart: per-id string fetch error for', sid, error);
+        } else if (data) {
+          fetched.push(data);
+          continue;
+        }
+      } catch (e) {
+        console.warn('loadCart: per-id string fetch exception for', sid, e);
+      }
+    }
+    products = fetched;
+  }
+
+  // Render cart items (unchanged visual structure)
+  try {
     let subtotal = 0;
     const cartHTML = cartItems.map(item => {
-      // match by normalized string
       const product = (products || []).find(p => String(p.id) === String(item.product_id));
-      if (!product) return ''; // can't match this product row — skip (keeps container non-empty)
+      if (!product) return ''; // can't match this product row — leave a gap
+      
       const qty = Number(item.quantity || 0);
+      const stock = Number(product.stock || 0); // Get stock
       const itemTotal = Number(product.price || 0) * qty;
       subtotal += itemTotal;
 
+      // Add the disabling logic
+      const disableDecrease = qty <= 1;
+      const disableIncrease = qty >= stock || stock === 0; // Also disable if stock is 0
+
       return `
         <div class="cart-item" data-product-id="${product.id}" style="display:flex;gap:12px;padding:12px;border-bottom:1px solid #eee;align-items:center;">
-          <img src="${product.image_url || 'https://via.placeholder.com/80'}" alt="${product.name}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">
+          <img src="${product.image_url || 'https://via.placeholder.com/80'}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">
           <div style="flex:1;padding:0 12px;">
             <h5 style="margin:0 0 4px;font-size:14px;">${product.name}</h5>
             <p style="margin:0;color:#666;font-size:13px;">RWF ${product.price}</p>
             <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
-              <button class="qty-btn decrease" onclick="changeQuantity('${product.id}', -1)" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;">−</button>
-              <input type="number" value="${qty}" min="1" onchange="setQuantity('${product.id}', this.value)" style="width:50px;text-align:center;padding:4px;border:1px solid #ddd;border-radius:4px;">
-              <button class="qty-btn increase" onclick="changeQuantity('${product.id}', 1)" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;">+</button>
+              <button class="qty-btn decrease" onclick="changeQuantity('${product.id}', -1)" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;" ${disableDecrease ? 'disabled' : ''}>−</button>
+              <input type="number" value="${qty}" min="1" max="${stock}" onchange="setQuantity('${product.id}', this.value, this.max)" style="width:60px;text-align:center;padding:4px;border:1px solid #ddd;border-radius:4px;">
+              <button class="qty-btn increase" onclick="changeQuantity('${product.id}', 1)" style="width:28px;height:28px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;" ${disableIncrease ? 'disabled' : ''}>+</button>
             </div>
           </div>
           <div style="text-align:right;">
             <p style="margin:0 0 8px;font-weight:700;">RWF ${itemTotal}</p>
-            <button onclick="removeItem('${product.id}')" style="padding:6px 12px;background:#ff9db1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">Remove</button>
+            <button onclick="removeItem('${product.id}')" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:12px;">Remove</button>
           </div>
         </div>
       `;
@@ -1310,13 +1412,13 @@ async function loadCart() {
       </div>
     `;
     if (subtotalEl) subtotalEl.textContent = `RWF ${subtotal}`;
-
   } catch (error) {
     console.error('Error rendering cart (loadCart):', error);
     cartItemsContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">Error loading cart</div>';
     if (subtotalEl) subtotalEl.textContent = 'RWF 0';
   }
 }
+
 
 // ---- Replace updateCartBadge (simple normalization) ----
 async function updateCartBadge() {
@@ -1388,8 +1490,17 @@ window.changeQuantity = async function(productId, change) {
   await updateCartItemQuantity(productId, newQty);
 };
 
-window.setQuantity = async function(productId, value) {
-  const newQty = Math.max(1, parseInt(value) || 1);
+window.setQuantity = async function(productId, value, maxStock) {
+  let newQty = Math.max(1, parseInt(value) || 1);
+  
+  // Check against the max stock from the input attribute
+  if (maxStock !== undefined) {
+    const max = parseInt(maxStock);
+    if (!Number.isNaN(max) && newQty > max) {
+      newQty = max; // Cap the quantity at the max stock
+    }
+  }
+  
   await updateCartItemQuantity(productId, newQty);
 };
 
@@ -1534,6 +1645,7 @@ function initializeApp() {
   initializeApp._ran = true;
 
   try {
+    setupCleanURLs();
     // Ensure supabase client exists
     ensureSupabaseClient();
 
@@ -1812,3 +1924,29 @@ if (document.readyState === 'loading') {
 } else {
   setupMobileMenu();
 }
+
+// Clean URLs - Remove .html extension
+function setupCleanURLs() {
+  // Update all internal links to remove .html
+  document.querySelectorAll('a[href]').forEach(link => {
+    const href = link.getAttribute('href');
+    if (href && href.endsWith('.html') && !href.startsWith('http')) {
+      link.setAttribute('href', href.replace('.html', ''));
+    }
+  });
+  
+  // Handle navigation without .html
+  window.addEventListener('click', function(e) {
+    const link = e.target.closest('a');
+    if (link && link.getAttribute('href') && !link.getAttribute('href').includes('.html') && 
+        !link.getAttribute('href').startsWith('http') && !link.getAttribute('href').startsWith('#')) {
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      window.location.href = href + '.html';
+    }
+  });
+}
+
+// Call this function in your initializeApp function
+// Add this line inside initializeApp():
+// setupCleanURLs();
