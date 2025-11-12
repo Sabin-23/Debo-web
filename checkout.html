@@ -311,21 +311,9 @@
         return false;
       }
 
-      const { data: sessionData } = await window.supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user) {
-        showMsg('Please sign in to complete checkout', 'error');
-        const modal = document.getElementById('modal');
-        if (modal) {
-          modal.style.display = 'flex';
-          modal.classList.add('open');
-        }
-        return false;
-      }
-
-      // Validate payer name for mobile money payments
+      let payerName = null;
       if (paymentMethod === 'MTN Mobile Money') {
-        const payerName = (payerNameInput.value || '').trim();
+        payerName = (payerNameInput.value || '').trim();
         if (!payerName) {
           showMsg('Please enter the name registered on your mobile money account', 'error');
           payerNameInput.focus();
@@ -333,119 +321,40 @@
         }
       }
 
-      // Get cart items
-      const { data: cart, error: cartErr } = await window.supabase.from('cart_items').select('*').eq('user_id', user.id);
-      if (cartErr) { 
-        showDebug({ step:'fetch_cart_err', error:cartErr }); 
-        showMsg('Failed to read cart', 'error'); 
-        return false; 
-      }
-      
-      if (!Array.isArray(cart) || cart.length === 0) { 
-        showMsg('Your cart is empty', 'info'); 
-        return false; 
-      }
-
-      // Get product details (including stock)
-      const productIds = cart.map(c=>c.product_id);
-      // Select * is okay since we need the 'stock' column
-      const { data: products, error: prodErr } = await window.supabase.from('products').select('*').in('id', productIds);
-      if (prodErr) { 
-        showDebug({ step:'fetch_products_err', error:prodErr }); 
-        showMsg('Failed to load products', 'error'); 
-        return false; 
-      }
-      
-      const pmap = {};
-      (products||[]).forEach(p => { pmap[p.id] = p; });
-
-      const now = new Date().toISOString();
-      
-      const isPaid = paymentMethod === 'MTN Mobile Money';
-
-      // Create order inserts
-      const inserts = cart.map(ci => {
-        const p = pmap[ci.product_id] || {};
-        const qty = Number(ci.quantity || 1);
-        const price = Number(p.price || 0);
-        return {
-          user_id: user.id,
-          created_at: now,
-          product_id: ci.product_id,
-          quantity: qty,
-          payment_status: isPaid, 
-          amount: price * qty,
-          payment_method: paymentMethod,
-        };
-      });
-
-      // Insert into orders table
+      // -----------------------------------------------------------------
+      // THIS IS THE NEW LOGIC
+      // -----------------------------------------------------------------
       try {
-        const { error: insErr } = await window.supabase.from('orders').insert(inserts);
-        
-        if (insErr) {
-          showDebug({ step: 'insert_failed', table: 'orders', error: insErr });
-          
-          if (insErr.code === '23505') {
-            showMsg('Order already exists for these items', 'error');
-          } else if (insErr.code === '42501') {
-            showMsg('Permission denied - please contact support', 'error');
-          } else {
-            showMsg('Failed to place order: ' + (insErr.message || 'Unknown error'), 'error');
+        // Call the SQL function we just made, named 'place_order'
+        const { data, error } = await window.supabase.rpc('place_order', {
+          payment_method: paymentMethod,
+          payer_name_momo: payerName
+        });
+
+        if (error) {
+          // A network error happened
+          throw new Error(error.message);
+        }
+
+        if (data && data.success === true) {
+          // SUCCESS! The server did all the work.
+          if (typeof updateCartBadge === 'function') {
+            updateCartBadge(); // Clear the (0) from the cart icon
           }
+          showMsg('Order placed successfully! Thank you!', 'success');
+          return true;
+        } else {
+          // The function ran but hit an error (like "Not enough stock")
+          const errorMsg = data.error || 'Unknown error placing order';
+          showMsg(errorMsg, 'error');
+          showDebug({ step: 'rpc_call_failed', response: data });
           return false;
         }
 
-        // =======================================================
-        // STOCK REDUCTION & CART CLEARANCE
-        // =======================================================
-        try {
-            const stockUpdates = cart.map(ci => {
-                const product = pmap[ci.product_id];
-                const purchasedQty = Number(ci.quantity);
-                const currentStock = Number(product?.stock || 0); 
-                const newStock = Math.max(0, currentStock - purchasedQty); 
-
-                return window.supabase
-                    .from('products')
-                    .update({ stock: newStock })
-                    .eq('id', ci.product_id);
-            });
-
-            // Wait for ALL stock updates to complete
-            const updateResults = await Promise.all(stockUpdates);
-            
-            // Check results for any errors
-            const updateFailed = updateResults.some(res => res.error);
-
-            if (updateFailed) {
-                // Log the specific errors for diagnosis
-                const errors = updateResults.map(res => res.error).filter(e => e !== null);
-                showDebug({ step: 'stock_update_failed_with_errors', errors: errors });
-                // If there's an error here, it's most likely an RLS policy issue on the 'products' table.
-                showMsg('Order placed. WARNING: Stock update failed. Check console/debug box for errors (e.g., RLS).', 'error');
-            }
-
-            // Clear cart items
-            await window.supabase.from('cart_items').delete().eq('user_id', user.id);
-
-            // Update cart badge if function exists
-            if (typeof updateCartBadge === 'function') {
-                updateCartBadge();
-            }
-
-            showMsg('Order placed successfully! Thank you!', 'success');
-            return true;
-            
-        } catch (e) {
-            showDebug({ step: 'post_insert_exception', error: e });
-            showMsg('Order placed, but failed to update stock or clear cart. Contact support.', 'error');
-            return true; 
-        }
-        
       } catch (e) {
-        showDebug({ step: 'insert_exception', error: e });
-        showMsg('Unexpected error placing order', 'error');
+        // A JavaScript error happened
+        showDebug({ step: 'rpc_exception', error: e });
+        showMsg('Unexpected error: ' + e.message, 'error');
         return false;
       }
     }
@@ -517,6 +426,45 @@
     });
 
   })();
+  // Add this to checkout.html to prevent empty cart access
+  document.addEventListener('DOMContentLoaded', async function() {
+    async function getCartItemCount() {
+      let totalItems = 0;
+      
+      // Check if user is logged in (you'll need to include your auth logic)
+      if (typeof currentUser !== 'undefined' && currentUser && typeof supabase !== 'undefined') {
+        try {
+          const { data } = await supabase
+            .from('cart_items')
+            .select('quantity')
+            .eq('user_id', currentUser.id);
+          if (Array.isArray(data)) {
+            totalItems = data.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+          }
+        } catch (error) {
+          console.error('Error getting cart item count:', error);
+        }
+      } else {
+        // Check temp cart for guests
+        try {
+          const cart = JSON.parse(localStorage.getItem('echad_temp_cart') || '[]');
+          if (Array.isArray(cart)) {
+            totalItems = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+          }
+        } catch (e) {
+          console.error('Error reading temp cart:', e);
+        }
+      }
+      
+      return totalItems;
+    }
+
+    const itemCount = await getCartItemCount();
+    if (itemCount === 0) {
+      alert('Your cart is empty! Redirecting to shop...');
+      window.location.href = 'shop.html';
+    }
+  });
   </script>
 </body>
 </html>
