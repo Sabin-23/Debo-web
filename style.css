@@ -871,3 +871,65 @@ body.signin-page {
   }
 }
 
+@media (max-width: 799px) {
+  /* Mobile user dropdown - centered on screen */
+  #userDropdown {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) scale(0.9) !important;
+    width: 90% !important;
+    max-width: 300px !important;
+    z-index: 10002 !important;
+    opacity: 0;
+    transition: all 0.2s ease !important;
+  }
+  
+  #userDropdown[style*="display: block"] {
+    opacity: 1 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
+  
+  /* User dropdown backdrop */
+  #userDropdownBackdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    z-index: 10001;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  #userDropdownBackdrop[style*="display: block"] {
+    opacity: 1;
+  }
+  
+  /* Ensure avatar button stays in header */
+  #userMenuContainer {
+    position: static !important;
+  }
+  
+  #userAvatarBtn {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+}
+/* Desktop user dropdown */
+@media (min-width: 800px) {
+  #userDropdown {
+    position: absolute !important;
+    top: 60px !important;
+    right: 0 !important;
+    left: auto !important;
+    transform: none !important;
+    width: 220px !important;
+  }
+  
+  #userDropdownBackdrop {
+    display: none !important;
+  }
+}
