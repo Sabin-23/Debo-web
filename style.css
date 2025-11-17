@@ -324,6 +324,27 @@ button.normal{ font-size: 14px; font-weight: 600; padding: 15px 30px; color: #00
   .map-placeholder { height: 180px; }
 }
 
+.category-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.cat-btns {
+  padding: 8px 16px;
+  border: none;
+  background: #eee;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.cat-btns.active {
+  background: #000;
+  color: white;
+}
+
 /* Cart Side Menu Styles (clean unified version) */
 .cart-panel {
   position: fixed;
@@ -933,3 +954,4 @@ body.signin-page {
     display: none !important;
   }
 }
+
