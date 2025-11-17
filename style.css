@@ -324,6 +324,13 @@ button.normal{ font-size: 14px; font-weight: 600; padding: 15px 30px; color: #00
   .map-placeholder { height: 180px; }
 }
 
+page-header h3{
+  font-size: 26px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+}
+
 .category-bar {
   display: flex;
   gap: 10px;
@@ -954,4 +961,5 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
