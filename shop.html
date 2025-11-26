@@ -431,9 +431,23 @@
     } else {
       loadShopProducts('All');
     }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get("category");
+
+      if (cat) {
+          // Find the correct category button
+          const btn = document.querySelector(`button[data-cat="${cat}"]`);
+  
+          // If found, trigger filtering
+          if (btn) btn.click();
+      }
+    });
   </script>
 </body>
 </html>
+
 
 
 
