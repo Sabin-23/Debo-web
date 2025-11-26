@@ -5,13 +5,127 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Shop - God's Only Store</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* Category Filter Buttons */
+  .filter-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    padding: 0 80px;
+    padding-top: 30px; /* Move up 40px */
+  }
+      
+  .filter-btn {
+    padding: 10px 20px;
+    border: 2px solid #ff9db1;
+    background: #fff;
+    color: #333;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+    
+  .filter-btn.active {
+    background: #ff9db1;
+    color: #fff;
+    border-color: #ff9db1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 157, 177, 0.3);
+  }
+      
+  .filter-btn:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+  }
+  
+  /* Product container adjustments */
+    #product1 {
+    padding-left: 50px !important; /* Move 30-50px left */
+    padding-right: 50px !important;
+  }
+  
+  #product1 .pro-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding-top: 20px;
+  }
+  
+  #product1 .pro {
+    width: 100%;
+    min-width: 200px;
+    margin: 0;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 1200px) {
+    #product1 .pro-container {
+    grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  @media (max-width: 900px) {
+    .filter-container {
+      padding: 0 40px;
+      margin-top: 20px;
+    }
+        
+    #product1 {
+    padding-left: 40px !important;
+    padding-right: 40px !important;
+    }
+        
+    #product1 .pro-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    }
+  }
+  
+  @media (max-width: 600px) {
+    .filter-container {
+      padding: 0 20px;
+      gap: 8px;
+      margin-top: 40px; /* Move up 10px on mobile */
+    }
+        
+    .filter-btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      }
+        
+    #product1 {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+    }
+        
+    #product1 .pro-container {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+        
+    #product1 .pro {
+      min-width: 150px;
+    }
+  }
+  
+  @media (max-width: 400px) {
+    #product1 .pro-container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+</style>
 </head>
 <body>
     <section id="header">
-        <h4>God's Only Store</h4>
+        <h3>God's Only Store</h3>
 
         <div>
           <ul id="navbar">
@@ -64,19 +178,14 @@
             </div>
     </section>
 
-  <section id="page-header">
-    <img src="download2.jpg" alt="">
-    <h3>Categories</h3>
-    <div class="category-bar">
-      <button class="cat-btns" data-category="all">All</button>
-      <button class="cat-btns" data-category="dress">Dresses</button>
-      <button class="cat-btns" data-category="shirt">Shirts</button>
-      <button class="cat-btns" data-category="top">Tops</button>
-      <button class="cat-btns" data-category="shoes">Shoes</button>
-    </div>
-
-    <div id="product-grid" class="product-grid"></div>
-  </section>
+  <!-- Category Filter Buttons -->
+  <div class="filter-container">
+    <button class="filter-btn active" onclick="filterProducts('All', this)">All</button>
+    <button class="filter-btn" onclick="filterProducts('Dresses', this)">Dresses</button>
+    <button class="filter-btn" onclick="filterProducts('Skirts', this)">Skirts</button>
+    <button class="filter-btn" onclick="filterProducts('Tops', this)">Tops</button>
+    <button class="filter-btn" onclick="filterProducts('Accessories', this)">Accessories</button>
+  </div>
 
   <section id="product1" class="section-p1">
     <div id="products-loading" style="text-align:center;padding:40px;">
@@ -92,44 +201,63 @@
     </div>
   </section>
 
-  <footer class="footer">
-    <div class="footer-container">
-      <div class="footer-section">
-        <h3>God's Only Store</h3>
-        <p>Your one-stop shop for fashion, beauty, and lifestyle essentials. Quality products, affordable prices.</p>
-      </div>
-      <div class="footer-section">
-        <h4>Quick Links</h4>
-        <ul>
-          <li><a href="index.html">Home</a></li>
-          <li><a href="shop.html">Shop</a></li>
-          <li><a href="About.html">About</a></li>
-          <li><a href="contact.html">Contact</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Customer Service</h4>
-        <ul>
-          <li><a href="#">FAQ</a></li>
-          <li><a href="#">Returns</a></li>
-          <li><a href="#">Shipping</a></li>
-          <li><a href="#">Privacy Policy</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Follow Us</h4>
-        <div class="socials">
-          <a href="#"><i class="fab fa-facebook"></i></a>
-          <a href="#"><i class="fab fa-instagram"></i></a>
-          <a href="#"><i class="fab fa-twitter"></i></a>
-          <a href="#"><i class="fab fa-youtube"></i></a>
+    <section id="newsletter" class="section-p1 section-m1">
+        <div class="newstext">
+            <h4>Sign Up For Newsletter</h4>
+            <p>Get E-mail updates about our latest shop and <span>special offers.</span></p>
+
         </div>
+        <div class="form">
+            <input type="text" placeholder="Your email address">
+            <button class="normal">Sign Up</button>
+        </div>
+    </section>
+
+  <footer class="footer">
+        
+      <div class="footer-container">
+        
+          <div class="footer-section">
+              <h3>God's Only Store</h3>
+              <p>Your one-stop shop for fashion, beauty, and lifestyle essentials. 
+              Quality products, affordable prices.</p>
+          </div>
+
+          <div class="footer-section">
+              <h4>Quick Links</h4>
+              <ul>
+                  <li><a href="#">Home</a></li>
+                  <li><a href="#">Shop</a></li>
+                  <li><a href="#">About</a></li>
+                  <li><a href="#">Contact</a></li>
+              </ul>
+          </div>
+
+          <div class="footer-section">
+              <h4>Customer Service</h4>
+              <ul> 
+                  <li><a href="#">FAQ</a></li>
+                  <li><a href="#">Returns</a></li>
+                  <li><a href="#">Shipping</a></li>
+                  <li><a href="#">Privacy Policy</a></li>
+              </ul>
+          </div>
+
+          <div class="footer-section">
+              <h4>Follow Us</h4>
+              <div class="socials">
+                  <a href="#"><i class="fab fa-facebook"></i></a>
+                  <a href="#"><i class="fab fa-instagram"></i></a>
+                  <a href="#"><i class="fab fa-twitter"></i></a>
+                  <a href="#"><i class="fab fa-youtube"></i></a>
+              </div>
+          </div>
+
       </div>
-    </div>
-    <div class="footer-bottom">
-      <p>&copy; 2025 God's Only Store. All Rights Reserved.</p>
-      <p>@whatis50</p>
-    </div>
+      <div class="footer-bottom">
+          <p>&copy; 2025 God's Only Store. All Rights Reserved.</p>
+          <p>@whatis50</p>
+      </div>
   </footer>
 
   <!-- Cart Panel -->
@@ -157,7 +285,22 @@
 
   <!-- Shop page specific script -->
   <script>
-    async function loadShopProducts() {
+    let currentFilter = 'All';
+
+    async function filterProducts(category, btnElement) {
+      // Update button states
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      if (btnElement) {
+        btnElement.classList.add('active');
+      }
+      
+      currentFilter = category;
+      await loadShopProducts(category);
+    }
+
+    async function loadShopProducts(category = 'All') {
       const loading = document.getElementById('products-loading');
       const container = document.getElementById('products-container');
       const empty = document.getElementById('products-empty');
@@ -181,10 +324,16 @@
       }
 
       try {
-        const { data: products, error } = await window.supabase
+        let query = window.supabase
           .from('products')
-          .select('*')
-          .order('created_at', { ascending: false });
+          .select('*');
+
+        // Apply category filter if not "All"
+        if (category !== 'All') {
+          query = query.eq('category', category);
+        }
+
+        const { data: products, error } = await query;
 
         loading.style.display = 'none';
 
@@ -192,13 +341,27 @@
 
         if (!products || products.length === 0) {
           empty.style.display = 'block';
+          empty.querySelector('p').textContent = category === 'All' 
+            ? 'No products available yet.' 
+            : `No products found in ${category}.`;
           return;
         }
 
-        container.style.display = 'flex';
+        // Shuffle products for "All" category to show random mix
+        let displayProducts = [...products];
+        if (category === 'All') {
+          displayProducts = displayProducts.sort(() => Math.random() - 0.5);
+        } else {
+          // Sort by created_at for specific categories
+          displayProducts = displayProducts.sort((a, b) => 
+            new Date(b.created_at) - new Date(a.created_at)
+          );
+        }
+
+        container.style.display = 'grid';
         container.innerHTML = '';
 
-        products.forEach(product => {
+        displayProducts.forEach(product => {
           const card = document.createElement('div');
           card.className = 'pro';
           
@@ -264,9 +427,9 @@
 
     // Load products when page is ready
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', loadShopProducts);
+      document.addEventListener('DOMContentLoaded', () => loadShopProducts('All'));
     } else {
-      loadShopProducts();
+      loadShopProducts('All');
     }
   </script>
 </body>
