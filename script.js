@@ -1,3 +1,6 @@
+const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
+
 // Mobile performance optimizations
 if ('loading' in HTMLImageElement.prototype) {
   const images = document.querySelectorAll('img[loading="lazy"]');
@@ -20,9 +23,6 @@ if (navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4) {
 // AUTH + PROFILE + SETTINGS (NO CART)
 // Paste this to replace the corrupted auth/profile part in script.js
 // ==============================
-
-const SUPABASE_URL = 'https://hlskxkqwymuxcjgswqnv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsc2t4a3F3eW11eGNqZ3N3cW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzQ1ODIsImV4cCI6MjA3MzAxMDU4Mn0.NdGjbd7Y1QorTF5BIqAduItcvbh1OdP1Y2qNYf0pILw';
 
 // Robust supabase client getter
 function ensureSupabaseClient() {
