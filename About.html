@@ -194,6 +194,29 @@
 
     <script src="script.js"></script>
     <script>
+        const bar = document.getElementById('bar');
+        const close = document.getElementById('close');
+        const nav = document.getElementById('navbar');
+        const body = document.body;
+          
+        if (bar && nav) {
+            bar.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            nav.classList.add('active');
+            body.style.overflow = 'hidden'; // Prevent scrolling when menu is open
+            });
+        }
+          
+        if (close && nav) {
+            close.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            nav.classList.remove('active');
+            body.style.overflow = ''; // Restore scrolling
+            });
+        }
+        
         const navDesktop = document.getElementById('cart-toggle-desktop');
         const navMobile = document.getElementById('cart-toggle-mobile');
         [navDesktop, navMobile].forEach(el => {
@@ -219,3 +242,4 @@
 </body>
 
 </html>
+
