@@ -202,6 +202,13 @@
         if (cartClose) {
             cartClose.addEventListener('click', closeCart);
         }
+        function closeCart() {
+        const panel = document.getElementById('cart-panel');
+        const backdrop = document.getElementById('cart-backdrop');
+          
+        if (panel) panel.classList.remove('open');
+        if (backdrop) backdrop.hidden = true;
+        }
         
         if (openBtn && modal) {
             openBtn.addEventListener('click', () => {
@@ -275,6 +282,7 @@
 </body>
 
 </html>
+
 
 
 
