@@ -281,10 +281,96 @@
   <div id="cart-backdrop" class="cart-backdrop" hidden></div>
 
   <!-- Main cart script -->
-  <script src="script.js"></script>
+  <script src="main.js"></script>
 
   <!-- Shop page specific script -->
   <script>
+    const openBtn = document.getElementById("openModal");
+        const closeBtn = document.getElementById("closeModal");
+        const modal = document.getElementById("modal");
+        const cartClose = document.getElementById('cart-close');
+        const backdrop = document.getElementById('cart-backdrop');
+        const cartToggleBtns = document.querySelectorAll('#cart-toggle-desktop, #cart-toggle-mobile');
+
+        cartToggleBtns.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openCart();
+            });
+        }
+        });
+
+        if (cartClose) {
+            cartClose.addEventListener('click', closeCart);
+        }
+        if (backdrop) {
+            backdrop.addEventListener('click', closeCart);
+        }
+        
+        function closeCart() {
+        const panel = document.getElementById('cart-panel');
+        const backdrop = document.getElementById('cart-backdrop');
+        if (panel) panel.classList.remove('open');
+        if (backdrop) backdrop.hidden = true;
+        }
+        
+        function openCart() {
+        const panel = document.getElementById('cart-panel');
+        const backdrop = document.getElementById('cart-backdrop');
+          
+        if (panel) panel.classList.add('open');
+        if (backdrop) backdrop.hidden = false;
+          
+        //loadCart();
+        }
+        
+        if (openBtn && modal) {
+            openBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+            modal.classList.add('open');
+            });
+        }
+        
+        if (closeBtn && modal) {
+            closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            modal.classList.remove('open');
+            });
+        }
+        
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('open');
+              }
+            });
+        }
+
+        
+        const bar = document.getElementById('bar');
+        const close = document.getElementById('close');
+        const nav = document.getElementById('navbar');
+        const body = document.body;
+          
+        if (bar && nav) {
+            bar.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            nav.classList.add('active');
+            body.style.overflow = 'hidden'; // Prevent scrolling when menu is open
+            });
+        }
+          
+        if (close && nav) {
+            close.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            nav.classList.remove('active');
+            body.style.overflow = ''; // Restore scrolling
+            });
+        }
     let currentFilter = 'All';
 
     async function filterProducts(category, btnElement) {
@@ -447,6 +533,7 @@
   </script>
 </body>
 </html>
+
 
 
 
