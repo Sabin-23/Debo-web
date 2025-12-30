@@ -198,6 +198,16 @@
         const closeBtn = document.getElementById("closeModal");
         const modal = document.getElementById("modal");
         const cartClose = document.getElementById('cart-close');
+        const backdrop = document.getElementById('cart-backdrop');
+
+        cartToggleBtns.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openCart();
+            });
+        }
+        });
 
         if (cartClose) {
             cartClose.addEventListener('click', closeCart);
@@ -276,6 +286,7 @@
 </body>
 
 </html>
+
 
 
 
