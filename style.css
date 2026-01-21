@@ -19,6 +19,7 @@ body { margin: 0; padding: 0px; width: 100%; }
 
 /* header Start*/
 #header{
+  display: none;
   background: transparent;   
   padding: 0;                
   height: 0;               
@@ -33,9 +34,7 @@ body { margin: 0; padding: 0px; width: 100%; }
   /*left: 0;*/
 }
 
-section:first-of-type{
-  padding-top: 120px;
-}
+
 
 #navbar{
   position: fixed;
@@ -151,6 +150,7 @@ button:active { opacity: 0.8; }
   background-size: cover;
   background-position: top 25% right 0;
   padding: 0 80px;
+  padding-top: 120px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -979,6 +979,7 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
 
 
