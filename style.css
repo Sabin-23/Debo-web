@@ -33,6 +33,10 @@ body { margin: 0; padding: 0; width: 100%; }
   /*left: 0;*/
 }
 
+.section:first-of-type{
+  padding-top: 120px;
+}
+
 #navbar{
   position: fixed;
   top: 24px;
@@ -975,6 +979,7 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
 
 
