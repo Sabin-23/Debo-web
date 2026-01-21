@@ -19,7 +19,7 @@ body { width: 100%; }
 
 /* header Start*/
 #header{
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
   background: transparent;
@@ -973,6 +973,7 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
 
 
