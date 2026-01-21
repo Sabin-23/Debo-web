@@ -33,7 +33,7 @@ body { margin: 0; padding: 0px; width: 100%; }
   /*left: 0;*/
 }
 
-.section:first-of-type{
+section:first-of-type{
   padding-top: 120px;
 }
 
@@ -979,6 +979,7 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
 
 
