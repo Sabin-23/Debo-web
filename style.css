@@ -19,19 +19,7 @@ body { width: 100%; }
 
 /* header Start*/
 #header{
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 80px;
-  background-color: transparent;
-  z-index: 999;
-  position: sticky;
-  top: 0;
-  left: 0;
-}
-
-#navbar {
-  position: fixed;
+   position: fixed;
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
@@ -45,7 +33,12 @@ body { width: 100%; }
   justify-content: space-between;
   padding: 0 28px;
   box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  position: sticky;
+  top: 0;
+  left: 0;
 }
+
+
 
 #navbar button{
   background-image: linear-gradient(to rigth, #fff, #fff);
@@ -971,6 +964,7 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
 
 
