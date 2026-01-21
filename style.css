@@ -19,16 +19,18 @@ body { width: 100%; }
 
 /* header Start*/
 #header{
-  display: none;
+  background: transparent;   
+  padding: 0;                
+  height: 0;               
+  position: relative; 
   align-items: center;
   justify-content: space-between;
-  background: transparent;
-  padding: 0;
-  position: relative;
-  padding: 20px 80px;
+  
+  
+  
   z-index: 999;
-  top: 0;
-  left: 0;
+  /*top: 0;*/
+  /*left: 0;*/
 }
 
 #navbar{
@@ -973,6 +975,7 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
 
 
