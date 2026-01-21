@@ -38,7 +38,7 @@ body { width: 100%; }
 }
 
 #navbar button{
-  background-image: linear-gradient(to rigth, #af268d, #a80d6d);
+  background-image: linear-gradient(to rigth, #fff, #fff);
   border-radius: 20px;
   border: 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
@@ -961,5 +961,6 @@ body.signin-page {
     display: none !important;
   }
 }
+
 
 
